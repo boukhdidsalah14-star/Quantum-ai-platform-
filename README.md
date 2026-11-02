@@ -5,7 +5,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 ## Current capabilities
 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
-- Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP.
+- Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP from selectable Binance and MEXC Spot feeds.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
@@ -21,7 +21,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
 - No customer broker credential storage or multi-user broker account management yet.
-- IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC publishes official REST/WebSocket trading APIs, but its API currently connects directly to live trading and does not provide a sandbox; MEXC account execution therefore remains disabled until a separate paper-trading and risk-control gate is complete. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
+- IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
 - Paper trading is a simulation only and is not connected to any broker. No real order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
@@ -76,7 +76,9 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 ## Market API
 
 - `GET /health` — service and execution status.
-- `GET /api/markets` — allowlisted public crypto market overview.
+- `GET /api/markets` — allowlisted Binance public crypto market overview.
+- `GET /api/mexc/markets` — allowlisted MEXC public Spot market overview.
+- `GET /api/mexc/candles/{symbol}?interval=1h&limit=72` — validated MEXC Spot candles.
 - `GET /api/candles/{symbol}?interval=1h&limit=72` — validated public candles.
 
 Allowed symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT.
