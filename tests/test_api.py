@@ -220,8 +220,7 @@ def test_mexc_candles_reject_unsupported_symbol():
     response = client.get("/api/mexc/candles/NOTREAL?interval=1h")
     assert response.status_code == 400
 
-@pytest.mark.anyio
-async def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
+def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
     from app import mexc_market_data
 
     async def fake_get_json(path, params=None):
@@ -235,12 +234,12 @@ async def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
         }]
 
     monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
-    markets = await mexc_market_data.get_market_overview()
+    import anyio
+    markets = anyio.run(mexc_market_data.get_market_overview)
     assert markets[0]["change_percent"] == "1.25"
 
 
-@pytest.mark.anyio
-async def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
+def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
     from app import mexc_market_data
 
     seen = {}
@@ -252,7 +251,8 @@ async def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
         ]]
 
     monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
-    candles = await mexc_market_data.get_candles("btcusdt", "1h", 999)
+    import anyio
+    candles = anyio.run(mexc_market_data.get_candles, "btcusdt", "1h", 999)
     assert seen["limit"] == "200"
     assert candles == [{
         "time": 1700000000000,
