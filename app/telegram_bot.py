@@ -55,7 +55,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(message + "\n\nDashboard link is not configured yet.")
 
 
-async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:\n    await update.effective_message.reply_text("I can help you open the QUANTUM AI dashboard and check markets. Tap /start or use /help to see the available commands.")\n\n\nasync def configure_telegram_menu(application: Application) -> None:\n    commands = [\n        BotCommand("start", "Open QUANTUM AI dashboard"),\n        BotCommand("help", "Show all commands"),\n        BotCommand("status", "Check platform status"),\n        BotCommand("markets", "View crypto markets"),\n        BotCommand("forex", "List Forex markets"),\n        BotCommand("binary", "List binary underlyings"),\n        BotCommand("signal", "Analyze a market"),\n    ]\n    await application.bot.set_my_commands(commands)\n    if WEBAPP_URL.startswith("https://"):\n        await application.bot.set_chat_menu_button(\n            menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))\n        )\n\n\nasync def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.effective_message.reply_text("I can help you open the QUANTUM AI dashboard and check markets. Tap /start or use /help to see the available commands.")
+
+
+async def configure_telegram_menu(application: Application) -> None:
+    commands = [
+        BotCommand("start", "Open QUANTUM AI dashboard"),
+        BotCommand("help", "Show all commands"),
+        BotCommand("status", "Check platform status"),
+        BotCommand("markets", "View crypto markets"),
+        BotCommand("forex", "List Forex markets"),
+        BotCommand("binary", "List binary underlyings"),
+        BotCommand("signal", "Analyze a market"),
+    ]
+    await application.bot.set_my_commands(commands)
+    if WEBAPP_URL.startswith("https://"):
+        await application.bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))
+        )\n\n\nasync def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         "QUANTUM AI commands:\n"
         "/start — open the dashboard\n"
