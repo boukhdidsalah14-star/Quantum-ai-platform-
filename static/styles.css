@@ -21,3 +21,17 @@
 .auth-message.error{color:#ff7880}
 #account-email{color:var(--green);font:12px 'DM Mono';overflow-wrap:anywhere}
 @media(max-width:520px){.account-panel{top:72px;right:12px}}
+
+
+.paper-panel{margin:0 24px 32px;padding:22px;background:linear-gradient(145deg,#101b14,#080e0a);border:1px solid #263b2c;border-radius:13px}
+.paper-panel .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.paper-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}
+.paper-form label{display:flex;flex-direction:column;gap:7px;color:#9eada2;font:9px 'DM Mono';letter-spacing:1px}
+.paper-form input,.paper-form select{width:100%;min-width:0;padding:12px;border:1px solid #263a2d;border-radius:7px;background:#08100b;color:#eef6ef;font:12px 'DM Mono'}
+.paper-form button{grid-column:1/-1}
+.paper-trades-list{display:grid;gap:9px;margin-top:15px}
+.paper-trade{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid #23372a;border-radius:8px;background:#09110c;font:10px 'DM Mono'}
+.paper-trade strong{color:var(--green)}
+.paper-trade button{border:1px solid #38523c;border-radius:6px;padding:7px 10px;background:#102016;color:#d9f4dd;font:9px 'DM Mono'}
+.paper-trade small{display:block;margin-top:5px;color:#819087}
+@media(max-width:520px){.paper-panel{margin:0 16px 28px;padding:16px}.paper-form{grid-template-columns:1fr}.paper-form button{grid-column:auto}.paper-trade{align-items:flex-start}}
