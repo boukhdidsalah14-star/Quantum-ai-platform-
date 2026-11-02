@@ -187,3 +187,18 @@ def test_paper_trade_api_requires_login_and_uses_public_quote(monkeypatch, tmp_p
         closed = test_client.post(f"/api/paper/trades/{trade_id}/close")
         assert closed.status_code == 200
         assert closed.json()["trade"]["realized_pnl"] == 0
+
+
+
+def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "paper-origin.sqlite3"))
+    with TestClient(main.app) as test_client:
+        test_client.post("/api/auth/register", json={
+            "email": "origin@example.com", "password": "a-strong-password"
+        })
+        headers = {"Origin": "https://attacker.example", "Idempotency-Key": "bad-origin"}
+        response = test_client.post("/api/paper/trades", headers=headers, json={
+            "symbol": "BTCUSDT", "side": "long", "quantity": 0.001
+        })
+        assert response.status_code == 403
