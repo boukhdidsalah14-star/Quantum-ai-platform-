@@ -96,7 +96,7 @@ def analyze_candles(candles: list[dict[str, Any]], timeframe: str) -> dict[str, 
     return {
         "direction": direction,
         "trend": trend,
-        "confidence": confidence,
+        "signal_strength": confidence,
         "score": score,
         "rsi_14": round(rsi, 2),
         "ema_9": round(fast, 8),
