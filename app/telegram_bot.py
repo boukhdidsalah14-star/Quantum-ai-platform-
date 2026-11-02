@@ -9,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppI
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from app.market_data import ALLOWED_SYMBOLS, get_market_overview
-from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles
+from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
 
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +47,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/binary — list synthetic binary underlyings\n"
         "/signal frxEURUSD 15m forex — analyze Forex\n"
         "/signal R_100 5m synthetic — analyze a binary underlying\n"
+        "/quote R_100 CALL 1 5 — preview a 1 USD, 5-minute price\n"
         "/help — show this help\n"
         "/status — platform status\n\n"
         "All market data is read-only. This bot cannot open or manage trades."
@@ -166,6 +167,33 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 
+
+
+async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if len(context.args) < 2:
+        await update.effective_message.reply_text(
+            "Usage: /quote R_100 CALL 1 5\n"
+            "Arguments: SYMBOL CALL|PUT STAKE_USD DURATION_MINUTES\n"
+            "Preview only — this command never buys a contract."
+        )
+        return
+    symbol = context.args[0].strip()
+    direction = context.args[1].upper().strip()
+    try:
+        amount = float(context.args[2]) if len(context.args) > 2 else 1.0
+        duration = int(context.args[3]) if len(context.args) > 3 else 5
+        result = await get_deriv_proposal(symbol, direction, amount, duration, "m", "USD")
+        await update.effective_message.reply_text(
+            "🧾 QUANTUM AI · DEMO PRICE PREVIEW\n\n"
+            + symbol + " · " + direction + " · " + str(duration) + " min\n"
+            + "Stake: " + f"{result['stake']:.2f}" + " " + result["currency"] + "\n"
+            + "Potential payout: " + f"{result['payout']:.2f}" + " " + result["currency"] + "\n\n"
+            + "Quote only. No contract was purchased."
+        )
+    except (ValueError, DerivMarketDataError) as exc:
+        await update.effective_message.reply_text("Quote unavailable: " + str(exc))
+
+
 def build_application(token: str) -> Application:
     application = Application.builder().token(token).build()
     application.add_handler(CommandHandler("start", start))
@@ -176,4 +204,5 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("forex", forex))
     application.add_handler(CommandHandler("binary", binary))
     application.add_handler(CommandHandler("signal", signal))
+    application.add_handler(CommandHandler("quote", quote))
     return application
