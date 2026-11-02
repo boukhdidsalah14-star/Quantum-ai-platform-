@@ -26,7 +26,7 @@ def broker_capabilities() -> dict:
                 "connection_verified": False,
                 "supported_scope": [],
                 "execution_enabled": False,
-                "note": "Integration is pending verification of supported API access and terms.",
+                "note": "No official public retail trading API has been verified. Unofficial reverse-engineered clients are not enabled.",
             },
             {
                 "id": "mexc",
@@ -35,7 +35,7 @@ def broker_capabilities() -> dict:
                 "connection_verified": False,
                 "supported_scope": [],
                 "execution_enabled": False,
-                "note": "Exchange account integration is not implemented. Current crypto quotes come from Binance public data.",
+                "note": "Official REST/WebSocket API exists, but no sandbox is offered; account trading requires a separate safety gate. Current quotes are from Binance public data.",
             },
         ],
         "execution_enabled": False,
