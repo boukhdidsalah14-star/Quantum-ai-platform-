@@ -7,7 +7,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
 - Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
-- Telegram bot commands: `/start`, `/help`, and `/status`.
+- Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the current REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Telegram `/start` can show an Open Dashboard Mini App button when `TELEGRAM_WEBAPP_URL` is configured to an HTTPS URL.
 
@@ -33,7 +33,7 @@ Open `http://localhost:8000`.
 
 ## Run the Telegram bot
 
-Set `TELEGRAM_BOT_TOKEN` as a private environment variable. After deploying the dashboard over HTTPS, set `TELEGRAM_WEBAPP_URL` to its public URL.
+Set `TELEGRAM_BOT_TOKEN` as a private environment variable. After deploying the dashboard over HTTPS, set `TELEGRAM_WEBAPP_URL` to its public URL. The FastAPI service starts the Telegram polling bot automatically when the token is present; use a single web-service instance to avoid multiple polling processes.
 
 ```bash
 python run_bot.py
