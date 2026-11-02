@@ -157,3 +157,33 @@ def test_paper_trading_is_customer_isolated_and_risk_limited(monkeypatch, tmp_pa
     assert closed["realized_pnl"] == 1.0
     with pytest.raises(ValueError):
         open_paper_trade(first["id"], "BTCUSDT", "long", 1, 1000, None, None, "too-large")
+
+
+
+def test_paper_trade_api_requires_login_and_uses_public_quote(monkeypatch, tmp_path):
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "paper-api.sqlite3"))
+
+    async def fake_markets():
+        return [{"symbol": "BTCUSDT", "price": "50000"}]
+
+    monkeypatch.setattr(main, "get_market_overview", fake_markets)
+    with TestClient(main.app) as test_client:
+        assert test_client.get("/api/paper/trades").status_code == 401
+        registered = test_client.post("/api/auth/register", json={
+            "email": "paper@example.com", "password": "a-strong-password"
+        })
+        assert registered.status_code == 200
+        opened = test_client.post("/api/paper/trades", headers={"Idempotency-Key": "paper-req-1"}, json={
+            "symbol": "BTCUSDT", "side": "long", "quantity": 0.001,
+            "stop_loss": 48000, "take_profit": 53000
+        })
+        assert opened.status_code == 200
+        assert opened.json()["execution"] == "simulated_only"
+        trade_id = opened.json()["trade"]["id"]
+        listed = test_client.get("/api/paper/trades")
+        assert listed.status_code == 200
+        assert listed.json()["trades"][0]["unrealized_pnl"] == 0
+        closed = test_client.post(f"/api/paper/trades/{trade_id}/close")
+        assert closed.status_code == 200
+        assert closed.json()["trade"]["realized_pnl"] == 0
