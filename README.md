@@ -28,6 +28,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 
 ## Customer authentication API
 
+- `GET /api/auth/config` — return whether customer registration is currently open.
 - `POST /api/auth/register` — create an account and start a session; disabled unless `ALLOW_CUSTOMER_SIGNUP=true`.
 - `POST /api/auth/login` — authenticate and set an HttpOnly session cookie.
 - `GET /api/auth/me` — return the signed-in customer profile.
