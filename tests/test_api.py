@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 import app.main as main
 
 client = TestClient(main.app)
@@ -135,3 +136,24 @@ def test_customer_session_endpoints_reject_cross_origin(monkeypatch, tmp_path):
         headers = {"Origin": "https://attacker.example"}
         assert test_client.post("/api/auth/login", json={"email": "a@example.com", "password": "wrong"}, headers=headers).status_code == 403
         assert test_client.post("/api/auth/logout", headers=headers).status_code == 403
+
+
+
+def test_paper_trading_is_customer_isolated_and_risk_limited(monkeypatch, tmp_path):
+    from app.auth import create_customer, init_auth_db
+    from app.paper_trading import init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "paper.sqlite3"))
+    init_auth_db()
+    init_paper_db()
+    first = create_customer("first@example.com", "a-strong-password")
+    second = create_customer("second@example.com", "another-strong-password")
+    trade = open_paper_trade(first["id"], "BTCUSDT", "long", 0.001, 50000, 49000, 52000, "request-1")
+    assert trade["status"] == "open"
+    assert len(list_paper_trades(first["id"])) == 1
+    assert list_paper_trades(second["id"]) == []
+    assert close_paper_trade(second["id"], trade["id"], 51000) is None
+    closed = close_paper_trade(first["id"], trade["id"], 51000)
+    assert closed["status"] == "closed"
+    assert closed["realized_pnl"] == 1.0
+    with pytest.raises(ValueError):
+        open_paper_trade(first["id"], "BTCUSDT", "long", 1, 1000, None, None, "too-large")
