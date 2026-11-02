@@ -52,7 +52,7 @@ def test_contract_quote_payload_uses_new_api_symbol_name(monkeypatch):
     monkeypatch.setattr(deriv, "get_active_markets", fake_active)
     monkeypatch.setattr(deriv, "get_available_contracts", fake_contracts)
     monkeypatch.setattr(deriv, "_request", fake_request)
-    result = anyio.run(deriv.get_contract_proposal, "R_100", "CALL", 1.0, 5, "m", "USD")
+    result = anyio.run(deriv.get_contract_proposal, "R_100", "CALL", 1.0, 10, "m", "USD")
     assert result["quote_only"] is True
     assert result["execution_enabled"] is False
     assert result["payout"] == 1.85
