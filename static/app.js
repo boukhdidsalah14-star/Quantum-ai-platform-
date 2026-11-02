@@ -6,6 +6,32 @@ const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
 
 async function loadMarkets(){
   try{
+    if(marketSource==="deriv_forex"||marketSource==="deriv_synthetic"){
+      const category=marketSource==="deriv_forex"?"forex":"synthetic";
+      const mr=await fetch("/api/deriv/markets?category="+category);
+      if(!mr.ok)throw new Error("Deriv market list unavailable");
+      const marketData=await mr.json();
+      const sourceMarkets=marketData.markets||[];
+      if(!sourceMarkets.length)throw new Error("No active "+category+" markets returned by Deriv");
+      if(!sourceMarkets.some(x=>x.symbol===selected))selected=sourceMarkets[0].symbol;
+      const granularity={"15m":900,"1h":3600,"4h":14400,"1d":86400}[timeframe]||3600;
+      const cr=await fetch("/api/deriv/candles/"+encodeURIComponent(selected)+"?granularity="+granularity+"&count=72");
+      if(!cr.ok)throw new Error("Deriv candles unavailable");
+      const candleData=await cr.json();
+      candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:0}));
+      const last=candles[candles.length-1];
+      const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,price:x.symbol===selected&&last?last.c:null,change_percent:null}));
+      renderMarkets(list);
+      renderChart();
+      $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
+      $("feed-status").style.color="var(--green)";
+      const selectedMarket=sourceMarkets.find(x=>x.symbol===selected);
+      $("pair-title").innerHTML=(selectedMarket?.name||selected)+" <span class='live-tag'>DERIV</span>";
+      $("price").textContent=last?money(last.c):"—";
+      $("change").textContent=selectedMarket?.is_open===false?"MARKET CLOSED":"LAST CANDLE";
+      $("change").className="positive";
+      return;
+    }
     const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
     const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
     const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
@@ -27,8 +53,8 @@ async function loadMarkets(){
   }
 }
 function renderMarkets(list){
-  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+x.symbol.replace("USDT","")+"</span><span class='asset-symbol'> / USDT</span></div><span class='asset-price'>"+money(x.price)+"</span><span class='asset-change "+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span></div>").join("");
-  $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+x.symbol.replace("USDT","/USDT")+"</b>"+money(x.price)+"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span></div>").join("");
+  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(Number.isFinite(Number(x.price))?money(x.price):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
+  $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(Number.isFinite(Number(x.price))?money(x.price):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
   $("ticker").dataset.failed="";
   $("watchlist").querySelectorAll(".asset-row").forEach(el=>el.addEventListener("click",()=>{selected=el.dataset.symbol;loadMarkets()}));
 }
