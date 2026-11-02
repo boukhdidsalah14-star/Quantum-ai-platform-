@@ -7,7 +7,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
 - Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP from selectable Binance and MEXC Spot feeds.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
-- Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
+- Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, and `/price BTCUSDT`; market commands use allowlisted public read-only quotes. When `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
 - Customer-isolated paper-trading ledger with public-quote simulated entries, manual simulated closes, realized/unrealized P/L, idempotency keys, a $500 per-position notional cap, and a five-open-position cap.
@@ -74,7 +74,7 @@ The bot is informational only. It does not execute trades.
 All routes require a signed-in customer session. Each customer's trade records are isolated by customer ID.
 
 - `GET /api/paper/trades` — list the customer's simulated trades and current mark-to-market P/L when public quotes are available.
-- `POST /api/paper/trades` — open a simulated position using the latest public quote; requires an `Idempotency-Key` header. JSON fields: `symbol`, `side` (`long` or `short`), `quantity`, optional `stop_loss`, and optional `take_profit`.
+- `POST /api/paper/trades` — open a simulated position using the latest public quote; requires an `Idempotency-Key` header. JSON fields: `symbol`, `side` (`long` or `short`), and `quantity`. Stop-loss and take-profit automation is not implemented.
 - `POST /api/paper/trades/{trade_id}/close` — close one of the customer's open simulated positions at the latest public quote.
 
 Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum notional per position is $500 and each customer may have up to five open paper positions. These controls apply only to the simulator.
@@ -93,7 +93,7 @@ Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 
 ## Safety roadmap
 
-1. Add customer authentication and tenant isolation. (Initial identity/session layer now present; tenant-owned data tables and authorization checks remain.)
+1. Complete customer authentication hardening, email verification, account recovery, and tenant-owned resource coverage. (Initial identity/session layer and isolated paper-trade ledger are present.)
 2. Add encrypted credential storage and provider-specific permission checks.
 3. Implement a broker demo adapter and verify order/settlement events.
 4. Add stake limits, daily loss limits, idempotency, audit logs and emergency stop.
