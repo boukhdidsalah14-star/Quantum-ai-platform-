@@ -109,7 +109,7 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
                     error = message["error"]
                     raise DerivMarketDataError(error.get("message", "Deriv tick request failed"))
                 tick = message.get("tick", {})
-                symbol = tick.get("symbol")
+                symbol = tick.get("underlying_symbol") or tick.get("symbol")
                 quote = tick.get("quote")
                 if symbol in requested and quote is not None:
                     quotes[symbol] = float(quote)
