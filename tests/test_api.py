@@ -288,3 +288,16 @@ def test_dashboard_starts_when_telegram_initialization_fails(monkeypatch):
 
     assert fake_bot.shutdown_called is True
 
+def test_auth_config_reports_registration_closed_by_default(monkeypatch):
+    monkeypatch.delenv("ALLOW_CUSTOMER_SIGNUP", raising=False)
+    response = client.get("/api/auth/config")
+    assert response.status_code == 200
+    assert response.json() == {"registration_enabled": False}
+
+
+def test_auth_config_reports_registration_enabled(monkeypatch):
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    response = client.get("/api/auth/config")
+    assert response.status_code == 200
+    assert response.json() == {"registration_enabled": True}
+
