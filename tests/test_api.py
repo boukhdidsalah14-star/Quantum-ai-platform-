@@ -342,3 +342,32 @@ def test_deriv_public_market_category_validation(monkeypatch):
     monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
     response = client.get("/api/deriv/markets?category=unknown")
     assert response.status_code == 400
+
+
+def test_deriv_signal_endpoint_returns_indicator_only(monkeypatch):
+    async def fake_markets(category):
+        return [{"symbol": "frxEURUSD", "market": "forex"}]
+    async def fake_candles(symbol, granularity, count):
+        return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 40
+    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
+    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
+    response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=15m")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["symbol"] == "frxEURUSD"
+    assert body["market_type"] == "forex"
+    assert body["execution_enabled"] is False
+    assert body["direction"] in {"CALL", "PUT", "WAIT"}
+
+
+def test_deriv_signal_rejects_unknown_timeframe():
+    response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=2m")
+    assert response.status_code == 400
+
+
+def test_deriv_signal_rejects_symbol_outside_selected_category(monkeypatch):
+    async def fake_markets(category):
+        return []
+    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
+    response = client.get("/api/signals/deriv/frxEURUSD?category=synthetic&timeframe=15m")
+    assert response.status_code == 400
