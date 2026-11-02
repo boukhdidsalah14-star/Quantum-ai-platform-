@@ -295,5 +295,6 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("binary", binary))
     application.add_handler(CommandHandler("signal", signal))
     application.add_handler(CommandHandler("quote", quote))
-    application.add_handler(CommandHandler("backtest", backtest))\n    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
+    application.add_handler(CommandHandler("backtest", backtest))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
     return application
