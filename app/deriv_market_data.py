@@ -70,7 +70,7 @@ async def get_active_markets(category: str = "all") -> list[dict[str, Any]]:
             "market": "forex" if is_forex else "synthetic",
             "market_display_name": row.get("market_display_name") or row.get("market", ""),
             "submarket_display_name": row.get("submarket_display_name") or row.get("submarket", ""),
-            "is_open": row.get("exchange_is_open"),
+            "is_open": None if row.get("exchange_is_open") is None else row.get("exchange_is_open") in (1, True, "1"),
             "is_suspended": row.get("is_trading_suspended", 0) == 1,
         })
     return result
