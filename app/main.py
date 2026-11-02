@@ -4,11 +4,14 @@ import hmac
 import logging
 import os
 import httpx
+from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.market_data import get_candles, get_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
+
+load_dotenv()
 
 ROOT = Path(__file__).resolve().parent.parent
 logger = logging.getLogger(__name__)
