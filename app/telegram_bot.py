@@ -69,11 +69,17 @@ async def configure_telegram_menu(application: Application) -> None:
         BotCommand("binary", "List binary underlyings"),
         BotCommand("signal", "Analyze a market"),
     ]
-    await application.bot.set_my_commands(commands)
+    try:
+        await application.bot.set_my_commands(commands)
+    except Exception:
+        logger.exception("Telegram command menu could not be configured; bot replies remain available")
     if WEBAPP_URL.startswith("https://"):
-        await application.bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))
-        )
+        try:
+            await application.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))
+            )
+        except Exception:
+            logger.exception("Telegram Mini App menu button could not be configured; /start button remains available")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
