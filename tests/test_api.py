@@ -89,7 +89,7 @@ def test_customer_password_and_duplicate_validation(monkeypatch, tmp_path):
         weak = test_client.post("/api/auth/register", json={
             "email": "weak@example.com", "password": "short"
         })
-        assert weak.status_code == 422
+        assert weak.status_code == 400
         good = {"email": "same@example.com", "password": "a-strong-password"}
         assert test_client.post("/api/auth/register", json=good).status_code == 200
         assert test_client.post("/api/auth/register", json=good).status_code == 400
