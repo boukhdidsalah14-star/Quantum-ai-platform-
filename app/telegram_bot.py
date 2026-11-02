@@ -6,8 +6,8 @@ import logging
 import os
 import httpx
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import (BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, Update, WebAppInfo)
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.market_data import ALLOWED_SYMBOLS, get_candles as get_crypto_candles, get_market_overview
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_contract_proposal as get_deriv_proposal
@@ -55,7 +55,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(message + "\n\nDashboard link is not configured yet.")
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:\n    await update.effective_message.reply_text("I can help you open the QUANTUM AI dashboard and check markets. Tap /start or use /help to see the available commands.")\n\n\nasync def configure_telegram_menu(application: Application) -> None:\n    commands = [\n        BotCommand("start", "Open QUANTUM AI dashboard"),\n        BotCommand("help", "Show all commands"),\n        BotCommand("status", "Check platform status"),\n        BotCommand("markets", "View crypto markets"),\n        BotCommand("forex", "List Forex markets"),\n        BotCommand("binary", "List binary underlyings"),\n        BotCommand("signal", "Analyze a market"),\n    ]\n    await application.bot.set_my_commands(commands)\n    if WEBAPP_URL.startswith("https://"):\n        await application.bot.set_chat_menu_button(\n            menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))\n        )\n\n\nasync def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         "QUANTUM AI commands:\n"
         "/start — open the dashboard\n"
@@ -277,5 +277,5 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("binary", binary))
     application.add_handler(CommandHandler("signal", signal))
     application.add_handler(CommandHandler("quote", quote))
-    application.add_handler(CommandHandler("backtest", backtest))
+    application.add_handler(CommandHandler("backtest", backtest))\n    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
     return application
