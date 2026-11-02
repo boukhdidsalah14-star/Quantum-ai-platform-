@@ -42,3 +42,25 @@ function renderChart(){
 }
 document.querySelectorAll(".tf").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tf").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
 window.addEventListener("resize",renderChart);loadMarkets();setInterval(loadMarkets,15000);
+
+
+const derivButton=$("deriv-check");
+if(derivButton){
+  derivButton.addEventListener("click",async()=>{
+    const result=$("deriv-status-result");
+    derivButton.disabled=true;
+    derivButton.textContent="CHECKING…";
+    result.textContent="Checking the configured Deriv demo account (read-only)…";
+    try{
+      const response=await fetch("/api/deriv/demo/status");
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.detail||"Demo connection unavailable");
+      result.textContent="DEMO CONNECTED · "+body.account_id+" · Balance: "+body.balance.amount+" "+body.balance.currency+" · "+body.active_symbols_count+" active symbols. Read-only; order execution remains disabled.";
+    }catch(error){
+      result.textContent=error.message||"Deriv demo connection could not be verified.";
+    }finally{
+      derivButton.disabled=false;
+      derivButton.textContent="CHECK DERIV DEMO";
+    }
+  });
+}
