@@ -178,6 +178,7 @@ async def paper_trades(request: Request):
 
 @app.post("/api/paper/trades")
 async def create_paper_trade(payload: PaperTradeRequest, request: Request, idempotency_key: str = Header(default="", alias="Idempotency-Key")):
+    _check_same_origin(request)
     init_auth_db()
     init_paper_db()
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
@@ -199,6 +200,7 @@ async def create_paper_trade(payload: PaperTradeRequest, request: Request, idemp
 
 @app.post("/api/paper/trades/{trade_id}/close")
 async def close_paper_trade_endpoint(trade_id: str, request: Request):
+    _check_same_origin(request)
     init_auth_db()
     init_paper_db()
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
