@@ -10,6 +10,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
+- Customer-isolated paper-trading ledger with public-quote simulated entries, manual simulated closes, realized/unrealized P/L, idempotency keys, a $500 per-position notional cap, and a five-open-position cap.
 - Backend-driven broker capability registry for Deriv, IQ Option, and MEXC; the UI distinguishes implemented read-only scope from pending provider integrations.
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
 - Login attempts are throttled per normalized email + client IP using a persistent 15-minute SQLite bucket; successful login clears the bucket.
@@ -21,7 +22,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
 - No customer broker credential storage or multi-user broker account management yet.
 - IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC publishes official REST/WebSocket trading APIs, but its API currently connects directly to live trading and does not provide a sandbox; MEXC account execution therefore remains disabled until a separate paper-trading and risk-control gate is complete. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
-- No order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
+- Paper trading is a simulation only and is not connected to any broker. No real order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
 
@@ -61,6 +62,16 @@ The bot is informational only. It does not execute trades.
 ## Broker capability API
 
 - `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
+
+## Paper trading API
+
+All routes require a signed-in customer session. Each customer's trade records are isolated by customer ID.
+
+- `GET /api/paper/trades` — list the customer's simulated trades and current mark-to-market P/L when public quotes are available.
+- `POST /api/paper/trades` — open a simulated position using the latest public quote; requires an `Idempotency-Key` header. JSON fields: `symbol`, `side` (`long` or `short`), `quantity`, optional `stop_loss`, and optional `take_profit`.
+- `POST /api/paper/trades/{trade_id}/close` — close one of the customer's open simulated positions at the latest public quote.
+
+Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum notional per position is $500 and each customer may have up to five open paper positions. These controls apply only to the simulator.
 
 ## Market API
 
