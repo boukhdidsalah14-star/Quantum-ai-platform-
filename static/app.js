@@ -96,7 +96,7 @@ async function refreshPaperTrades(){
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Could not load paper trades");
     message.textContent="PAPER MODE · Max $500 notional per trade · Up to 5 open trades.";
-    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+t.symbol+" · "+t.side.toUpperCase()+"</strong><small>"+t.status.toUpperCase()+" · Qty "+Number(t.quantity)+" · Entry "+money(t.entry_price)+(t.exit_price?" · Exit "+money(t.exit_price):"")+(t.realized_pnl!==null&&t.realized_pnl!==undefined?" · P/L "+money(t.realized_pnl):"")+"</small></div>"+(t.status==="open"?"<button type='button' data-close-paper='"+t.id+"'>CLOSE AT MARKET</button>":"<span class='locked'>SETTLED</span>")+"</article>").join(""):"<p class='disclaimer'>No paper trades yet. Open a simulated position above.</p>";
+    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+t.symbol+" · "+t.side.toUpperCase()+"</strong><small>"+t.status.toUpperCase()+" · Qty "+Number(t.quantity)+" · Entry "+money(t.entry_price)+(t.exit_price?" · Exit "+money(t.exit_price):"")+(t.realized_pnl!==null&&t.realized_pnl!==undefined?" · Realized "+money(t.realized_pnl):(t.unrealized_pnl!==undefined?" · Unrealized "+money(t.unrealized_pnl):""))+"</small></div>"+(t.status==="open"?"<button type='button' data-close-paper='"+t.id+"'>CLOSE AT MARKET</button>":"<span class='locked'>SETTLED</span>")+"</article>").join(""):"<p class='disclaimer'>No paper trades yet. Open a simulated position above.</p>";
   }catch(error){message.textContent=error.message||"Paper trading unavailable"}
 }
 const paperForm=$("paper-form");
