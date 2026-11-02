@@ -1,4 +1,5 @@
 import anyio
+import json
 import pytest
 
 from app import deriv_market_data as deriv
@@ -63,3 +64,30 @@ def test_contract_quote_payload_uses_new_api_symbol_name(monkeypatch):
 def test_contract_quote_rejects_invalid_stakes(amount):
     with pytest.raises(ValueError):
         anyio.run(deriv.get_contract_proposal, "R_100", "CALL", amount, 5, "m", "USD")
+
+
+def test_deriv_tick_quotes_reads_batched_public_ticks(monkeypatch):
+    async def fake_active(category):
+        return [{"symbol": "frxEURUSD", "is_suspended": False},
+                {"symbol": "frxGBPUSD", "is_suspended": False}]
+    class FakeSocket:
+        def __init__(self):
+            self.messages = [
+                {"msg_type": "tick", "tick": {"symbol": "frxEURUSD", "quote": 1.12}},
+                {"msg_type": "tick", "tick": {"symbol": "frxGBPUSD", "quote": 1.27}},
+            ]
+        async def send(self, payload):
+            assert json.loads(payload)["ticks"] == ["frxEURUSD", "frxGBPUSD"]
+        async def recv(self):
+            return json.dumps(self.messages.pop(0))
+    class FakeConnection:
+        def __init__(self):
+            self.socket = FakeSocket()
+        async def __aenter__(self):
+            return self.socket
+        async def __aexit__(self, *args):
+            return False
+    monkeypatch.setattr(deriv, "get_active_markets", fake_active)
+    monkeypatch.setattr(deriv.websockets, "connect", lambda **kwargs: FakeConnection())
+    quotes = anyio.run(deriv.get_tick_quotes, ["frxEURUSD", "frxGBPUSD"])
+    assert quotes == {"frxEURUSD": 1.12, "frxGBPUSD": 1.27}
