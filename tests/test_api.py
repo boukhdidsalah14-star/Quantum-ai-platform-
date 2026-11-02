@@ -424,3 +424,34 @@ def test_deriv_backtest_endpoint_is_read_only(monkeypatch):
 def test_deriv_backtest_rejects_invalid_lookahead():
     response = client.get("/api/backtest/deriv/R_100?category=synthetic&lookahead_candles=8")
     assert response.status_code == 422
+
+
+def test_crypto_signal_endpoint_is_read_only(monkeypatch):
+    async def fake_candles(symbol, interval, limit):
+        assert (symbol, interval, limit) == ("BTCUSDT", "1h", 100)
+        return [{"open": 100 + i * 0.02, "high": 100 + i * 0.02 + 0.15,
+                 "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
+                for i in range(60)]
+    monkeypatch.setattr(main, "get_candles", fake_candles)
+    response = client.get("/api/signals/crypto/BTCUSDT?source=binance&timeframe=1h")
+    assert response.status_code == 200
+    assert response.json()["execution_enabled"] is False
+    assert response.json()["category"] == "crypto"
+
+
+def test_crypto_signal_rejects_binary_timeframe():
+    response = client.get("/api/signals/crypto/BTCUSDT?timeframe=15m")
+    assert response.status_code == 400
+
+
+def test_crypto_backtest_endpoint_is_read_only(monkeypatch):
+    async def fake_candles(symbol, interval, limit):
+        assert (symbol, interval, limit) == ("SOLUSDT", "4h", 200)
+        return [{"open": 100 + i * 0.02, "high": 100 + i * 0.02 + 0.15,
+                 "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
+                for i in range(100)]
+    monkeypatch.setattr(main, "get_candles", fake_candles)
+    response = client.get("/api/backtest/crypto/SOLUSDT?source=binance&timeframe=4h")
+    assert response.status_code == 200
+    assert response.json()["execution_enabled"] is False
+    assert response.json()["category"] == "crypto"
