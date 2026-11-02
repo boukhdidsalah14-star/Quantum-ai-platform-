@@ -469,10 +469,12 @@ async def deriv_markets(category: str = Query(default="all")):
     """Read-only public Forex and synthetic underlyings available on Deriv."""
     try:
         markets = (await get_deriv_markets(category))[:25]
-        try:
-            quotes = await get_deriv_tick_quotes([item["symbol"] for item in markets])
-        except DerivMarketDataError:
-            quotes = {}
+        quotes = {}
+        if markets:
+            try:
+                quotes = await get_deriv_tick_quotes([item["symbol"] for item in markets])
+            except DerivMarketDataError:
+                quotes = {}
         for item in markets:
             item["price"] = quotes.get(item["symbol"])
         return {"source": "Deriv public market data", "category": category,
