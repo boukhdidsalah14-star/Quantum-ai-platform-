@@ -11,6 +11,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from app.market_data import ALLOWED_SYMBOLS, get_market_overview
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
+from app.backtest import backtest_candles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/signal frxEURUSD 15m forex — analyze Forex\n"
         "/signal R_100 5m synthetic — analyze a binary underlying\n"
         "/quote R_100 CALL 1 5 — preview a 1 USD, 5-minute price\n"
+        "/backtest frxEURUSD 15m forex — test historical direction\n"
         "/help — show this help\n"
         "/status — platform status\n\n"
         "All market data is read-only. This bot cannot open or manage trades."
@@ -195,6 +197,40 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("Quote unavailable: " + str(exc))
 
 
+
+
+async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.effective_message.reply_text("Usage: /backtest frxEURUSD 15m forex")
+        return
+    symbol = context.args[0].strip()
+    timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
+    category = context.args[2].lower() if len(context.args) > 2 else ("forex" if symbol.lower().startswith("frx") else "synthetic")
+    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
+    if category not in {"forex", "synthetic"} or timeframe not in intervals:
+        await update.effective_message.reply_text("Choose a supported timeframe and category: forex or synthetic.")
+        return
+    try:
+        markets_data = await get_deriv_markets(category)
+        if not any(item["symbol"] == symbol for item in markets_data):
+            await update.effective_message.reply_text("That symbol is not listed in the selected market category.")
+            return
+        candles = await get_deriv_candles(symbol, intervals[timeframe], 200)
+        result = backtest_candles(candles, timeframe, 1)
+        accuracy = "Not enough directional signals" if result["directional_accuracy_percent"] is None else str(result["directional_accuracy_percent"]) + "%"
+        await update.effective_message.reply_text(
+            "🧪 QUANTUM AI · HISTORICAL TEST\n\n"
+            + symbol + " · " + timeframe + "\n"
+            + "Directional accuracy: " + accuracy + "\n"
+            + "Wins: " + str(result["wins"]) + " · Losses: " + str(result["losses"]) + "\n"
+            + "WAITs: " + str(result["waits"]) + " · Candles: " + str(result["candles_tested"])
+            + "\n\nHistorical direction only. Not a profit forecast. No trades placed."
+        )
+    except (DerivMarketDataError, ValueError):
+        logger.exception("Telegram /backtest request failed")
+        await update.effective_message.reply_text("Historical test unavailable. No trades were placed.")
+
+
 def build_application(token: str) -> Application:
     application = Application.builder().token(token).build()
     application.add_handler(CommandHandler("start", start))
@@ -206,4 +242,5 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("binary", binary))
     application.add_handler(CommandHandler("signal", signal))
     application.add_handler(CommandHandler("quote", quote))
+    application.add_handler(CommandHandler("backtest", backtest))
     return application
