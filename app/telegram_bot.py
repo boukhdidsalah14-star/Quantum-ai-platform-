@@ -45,7 +45,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/markets — latest public crypto prices\n"
         "/price BTCUSDT — price for a supported crypto market\n"
         "/forex — list Deriv Forex pairs\n"
-        "/binary — list synthetic binary underlyings\n"
+        "/binary — list Forex and synthetic binary-option underlyings\n"
         "/signal frxEURUSD 15m forex — analyze Forex\n"
         "/signal R_100 5m synthetic — analyze a binary underlying\n"
         "/quote R_100 CALL 1 5 — preview a 1 USD, 5-minute price\n"
