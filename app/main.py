@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import get_candles, get_market_overview
+from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
@@ -219,6 +220,26 @@ async def close_paper_trade_endpoint(trade_id: str, request: Request):
         return {"trade": trade, "mode": "paper", "execution": "simulated_only"}
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public quote unavailable; paper trade remains open")
+
+
+@app.get("/api/mexc/markets")
+async def mexc_markets():
+    try:
+        return {"source": "MEXC public Spot API", "account_connected": False,
+                "execution_enabled": False, "markets": await get_mexc_market_overview()}
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="MEXC public market data is temporarily unavailable")
+
+
+@app.get("/api/mexc/candles/{symbol}")
+async def mexc_candles(symbol: str, interval: str = Query(default="1h"), limit: int = Query(default=72, ge=20, le=200)):
+    try:
+        return {"symbol": symbol.upper(), "interval": interval, "source": "MEXC public Spot API",
+                "candles": await get_mexc_candles(symbol, interval, limit)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="MEXC public candle data is temporarily unavailable")
 
 
 @app.get("/api/markets")
