@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from app.market_data import get_candles, get_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 from app.brokers import broker_capabilities
+from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
@@ -29,6 +30,14 @@ SESSION_COOKIE = "quantum_session"
 class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
+
+
+class PaperTradeRequest(BaseModel):
+    symbol: str = Field(min_length=3, max_length=20)
+    side: str
+    quantity: float = Field(gt=0, le=1000000)
+    stop_loss: float | None = Field(default=None, gt=0)
+    take_profit: float | None = Field(default=None, gt=0)
 
 
 def _check_same_origin(request: Request) -> None:
@@ -57,6 +66,7 @@ def _session_cookie(response: Response, token: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
+    init_paper_db()
     bot = None
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if token:
@@ -143,6 +153,59 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax",
                            secure=os.getenv("ENVIRONMENT", "development").lower() == "production")
     return {"authenticated": False}
+
+
+@app.get("/api/paper/trades")
+async def paper_trades(request: Request):
+    init_auth_db()
+    init_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"mode": "paper", "trades": list_paper_trades(customer["id"]), "execution": "simulated_only"}
+
+
+@app.post("/api/paper/trades")
+async def create_paper_trade(payload: PaperTradeRequest, request: Request, idempotency_key: str = Header(default="", alias="Idempotency-Key")):
+    init_auth_db()
+    init_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        markets_data = await get_market_overview()
+        quote = next((item for item in markets_data if item["symbol"] == payload.symbol.upper()), None)
+        if not quote:
+            raise HTTPException(status_code=503, detail="No current public quote for this paper-trading market")
+        trade = open_paper_trade(customer["id"], payload.symbol, payload.side, payload.quantity,
+                                 float(quote["price"]), payload.stop_loss, payload.take_profit, idempotency_key)
+        return {"trade": trade, "mode": "paper", "execution": "simulated_only"}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="Public quote unavailable; paper order was not created")
+
+
+@app.post("/api/paper/trades/{trade_id}/close")
+async def close_paper_trade_endpoint(trade_id: str, request: Request):
+    init_auth_db()
+    init_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    trades = list_paper_trades(customer["id"])
+    owned = next((trade for trade in trades if trade["id"] == trade_id and trade["status"] == "open"), None)
+    if not owned:
+        raise HTTPException(status_code=404, detail="Open paper trade not found")
+    try:
+        markets_data = await get_market_overview()
+        quote = next((item for item in markets_data if item["symbol"] == owned["symbol"]), None)
+        if not quote:
+            raise HTTPException(status_code=503, detail="No current public quote; paper trade remains open")
+        trade = close_paper_trade(customer["id"], trade_id, float(quote["price"]))
+        return {"trade": trade, "mode": "paper", "execution": "simulated_only"}
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="Public quote unavailable; paper trade remains open")
 
 
 @app.get("/api/markets")
