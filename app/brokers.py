@@ -13,11 +13,14 @@ def broker_capabilities() -> dict:
             {
                 "id": "deriv",
                 "name": "Deriv",
-                "status": "demo_status_configured" if deriv_configured else "demo_status_setup_required",
+                "status": "public_market_data_available",
+                "demo_status_configured": deriv_configured,
                 "connection_verified": False,
-                "supported_scope": ["demo_account_status", "balance_read", "active_symbols_read"],
+                "supported_scope": ["public_forex_market_data", "public_synthetic_market_data",
+                                    "forex_binary_signals", "synthetic_binary_signals",
+                                    "binary_contract_quote_preview", "demo_account_status", "balance_read"],
                 "execution_enabled": False,
-                "note": "Read-only demo status connector. No orders can be placed.",
+                "note": "Public Forex and synthetic market data, CALL/PUT/WAIT analysis, and binary quote previews are available. Customer demo account connection is not verified; no orders can be placed.",
             },
             {
                 "id": "iq_option",
