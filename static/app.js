@@ -87,7 +87,7 @@ $("binary-contract-check")?.addEventListener("click",async()=>{
   finally{button.disabled=false;button.textContent="CHECK CONTRACTS"}
 });
 window.addEventListener("resize",renderChart);
-$("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;loadMarkets()});
+$("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;if(!marketSource.startsWith("deriv_")&&!symbols.includes(selected))selected=symbols[0];loadMarkets()});
 loadMarkets();setInterval(loadMarkets,15000);
 
 
