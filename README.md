@@ -10,13 +10,15 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
+- Backend-driven broker capability registry for Deriv, IQ Option, and MEXC; the UI distinguishes implemented read-only scope from pending provider integrations.
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
 - SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
 
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
-- No customer broker credential storage or multi-user broker account management yet. The initial Deriv connector uses server-side environment secrets for one demo account only.
+- No customer broker credential storage or multi-user broker account management yet.
+- IQ Option and MEXC account connections are not implemented. IQ Option remains subject to supported API and provider-terms verification; MEXC authenticated trading is not implemented. The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
 - No order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
@@ -53,6 +55,10 @@ python run_bot.py
 ```
 
 The bot is informational only. It does not execute trades.
+
+## Broker capability API
+
+- `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
 
 ## Market API
 
