@@ -6,6 +6,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
 - Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP from selectable Binance and MEXC Spot feeds.
+- Initial Deriv public market-data adapter for Forex and synthetic underlyings: active symbols, OHLC candles, and available binary/option contract metadata. This uses the official unauthenticated public WebSocket and cannot place trades.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, and `/price BTCUSDT`; market commands use allowlisted public read-only quotes. When `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
@@ -22,7 +23,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
 - Customer-owned Deriv demo credentials can be stored encrypted per customer through authenticated `/api/connections/deriv/demo` endpoints. Set `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before using this feature; the API never returns stored tokens. This is storage only, not a verified broker connection or order execution.
 - IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
-- Paper trading is a simulation only and is not connected to any broker. No real order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
+- Paper trading is a simulation only and is not connected to any broker. No real order placement, auto-trading, binary-options execution, or real-account trading. The Deriv public market-data adapter can discover contract metadata, but it never requests a price proposal, buys, sells, or manages a contract.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
 
@@ -93,6 +94,9 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /health` — service and execution status.
 - `GET /api/markets` — allowlisted Binance public crypto market overview.
 - `GET /api/mexc/markets` — allowlisted MEXC public Spot market overview.
+- `GET /api/deriv/markets?category=forex` — public Deriv Forex symbols; use `category=synthetic` for synthetic indices or `all` for both.
+- `GET /api/deriv/candles/frxEURUSD?granularity=900&count=100` — public Deriv OHLC candles for a verified active Forex/synthetic symbol.
+- `GET /api/deriv/contracts/frxEURUSD` — available option contract metadata for a verified active symbol; no proposal or order is sent.
 - `GET /api/mexc/candles/{symbol}?interval=1h&limit=72` — validated MEXC Spot candles.
 - `GET /api/candles/{symbol}?interval=1h&limit=72` — validated public candles.
 
