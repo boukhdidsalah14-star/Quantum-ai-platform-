@@ -87,10 +87,6 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
         raise ValueError("Request between 1 and 25 symbols")
     if any(not SYMBOL_PATTERN.fullmatch(symbol) for symbol in requested):
         raise ValueError("Invalid Deriv market symbol")
-    active = await get_active_markets("all")
-    active_symbols = {row["symbol"] for row in active}
-    if any(symbol not in active_symbols for symbol in requested):
-        raise ValueError("One or more symbols are not active on Deriv")
     quotes: dict[str, float] = {}
     try:
         async with websockets.connect(
