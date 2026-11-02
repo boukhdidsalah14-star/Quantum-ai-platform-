@@ -455,3 +455,16 @@ def test_crypto_backtest_endpoint_is_read_only(monkeypatch):
     assert response.status_code == 200
     assert response.json()["execution_enabled"] is False
     assert response.json()["category"] == "crypto"
+
+
+def test_risk_policy_is_demo_only_and_not_active():
+    response = client.get("/api/risk/policy")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["default_stake_usd"] == 1.0
+    assert body["max_stake_usd"] == 2.0
+    assert body["daily_loss_limit_usd"] == 25.0
+    assert body["max_consecutive_losses"] == 3
+    assert body["real_trading_enabled"] is False
+    assert body["risk_monitoring_active"] is False
+    assert body["execution_enabled"] is False
