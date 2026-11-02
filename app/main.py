@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
-from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal
+from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
 from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
@@ -468,9 +468,16 @@ async def deriv_signal(
 async def deriv_markets(category: str = Query(default="all")):
     """Read-only public Forex and synthetic underlyings available on Deriv."""
     try:
+        markets = await get_deriv_markets(category)
+        try:
+            quotes = await get_deriv_tick_quotes([item["symbol"] for item in markets[:25]])
+        except DerivMarketDataError:
+            quotes = {}
+        for item in markets:
+            item["price"] = quotes.get(item["symbol"])
         return {"source": "Deriv public market data", "category": category,
                 "account_connected": False, "execution_enabled": False,
-                "markets": await get_deriv_markets(category)}
+                "markets": markets}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except DerivMarketDataError:
