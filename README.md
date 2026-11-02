@@ -9,7 +9,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, and `/status`; when `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
-- Customer identity API: register, login, current session, and logout.
+- Customer identity API and dashboard account panel: register, login, current session, and logout.
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
 - SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
 
