@@ -33,7 +33,7 @@ async def get_market_overview() -> list[dict[str, Any]]:
     return [{
         "symbol": row["symbol"],
         "price": row["lastPrice"],
-        "change_percent": str(float(row.get("priceChangePercent", 0)) * 100),
+        "change_percent": str(float(row.get("priceChangePercent", 0))),
         "high": row["highPrice"],
         "low": row["lowPrice"],
         "volume": row["volume"],
