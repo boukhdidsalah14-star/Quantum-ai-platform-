@@ -130,8 +130,20 @@ async def auth_config():
 
 
 @app.get("/health")
-async def health():
-    return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip()), "deriv_demo_connector": "available", "customer_auth": "available", "order_execution": False, "trading_enabled": False}
+async def health(request: Request):
+    bot = getattr(request.app.state, "telegram_bot", None)
+    return {
+        "status": "ok",
+        "service": "quantum-ai",
+        "market_data": "public-read-only",
+        "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip()),
+        "telegram_bot_running": bool(bot and bot.running and bot.updater and bot.updater.running),
+        "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
+        "deriv_demo_connector": "available",
+        "customer_auth": "available",
+        "order_execution": False,
+        "trading_enabled": False,
+    }
 
 
 @app.post("/api/auth/register")
