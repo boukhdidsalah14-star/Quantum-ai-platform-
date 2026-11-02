@@ -15,6 +15,7 @@ from app.mexc_market_data import get_market_overview as get_mexc_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
+from app.backtest import backtest_candles
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
@@ -319,6 +320,36 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
+
+@app.get("/api/backtest/deriv/{symbol}")
+async def deriv_backtest(
+    symbol: str,
+    category: str = Query(default="forex"),
+    timeframe: str = Query(default="15m"),
+    lookahead_candles: int = Query(default=1, ge=1, le=4),
+):
+    """Evaluate historical CALL/PUT direction without placing orders."""
+    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+                 "1h": 3600, "4h": 14400, "1d": 86400}
+    if category not in {"forex", "synthetic"}:
+        raise HTTPException(status_code=400, detail="Category must be forex or synthetic")
+    if timeframe not in intervals:
+        raise HTTPException(status_code=400, detail="Unsupported backtest timeframe")
+    try:
+        markets_data = await get_deriv_markets(category)
+        if not any(item["symbol"] == symbol for item in markets_data):
+            raise HTTPException(status_code=400, detail="Symbol is not in the selected Deriv market category")
+        candle_data = await get_deriv_candles(symbol, intervals[timeframe], 200)
+        result = backtest_candles(candle_data, timeframe, lookahead_candles)
+        result.update({"symbol": symbol, "category": category,
+                       "source": "Deriv public historical candles",
+                       "execution_enabled": False})
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Deriv historical data is temporarily unavailable")
 
 
 @app.get("/api/deriv/proposal/{symbol}")
