@@ -207,7 +207,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     symbol = context.args[0].strip()
-    if len(symbol) == 6 and symbol.isalpha():
+    if symbol.upper().startswith("FRX") or (len(symbol) == 6 and symbol.isalpha()):
         symbol = _normalise_deriv_symbol(symbol, "forex")
     direction = context.args[1].upper().strip()
     try:
