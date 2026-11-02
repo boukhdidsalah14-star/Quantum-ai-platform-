@@ -78,6 +78,44 @@ async def get_active_markets(category: str = "all") -> list[dict[str, Any]]:
     return result
 
 
+async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
+    """Fetch current public quotes for a bounded batch of active Deriv symbols."""
+    requested = list(dict.fromkeys(str(symbol).strip() for symbol in symbols))
+    if not requested or len(requested) > 25:
+        raise ValueError("Request between 1 and 25 symbols")
+    if any(not SYMBOL_PATTERN.fullmatch(symbol) for symbol in requested):
+        raise ValueError("Invalid Deriv market symbol")
+    active = await get_active_markets("all")
+    active_symbols = {row["symbol"] for row in active}
+    if any(symbol not in active_symbols for symbol in requested):
+        raise ValueError("One or more symbols are not active on Deriv")
+    quotes: dict[str, float] = {}
+    try:
+        async with websockets.connect(
+            PUBLIC_WS, open_timeout=7, close_timeout=2, ping_interval=20,
+            ping_timeout=10, max_size=2_000_000,
+        ) as ws:
+            await ws.send(json.dumps({"ticks": requested}))
+            for _ in range(len(requested) + 3):
+                raw = await asyncio.wait_for(ws.recv(), timeout=8)
+                message = json.loads(raw)
+                if message.get("error"):
+                    error = message["error"]
+                    raise DerivMarketDataError(error.get("message", "Deriv tick request failed"))
+                tick = message.get("tick", {})
+                symbol = tick.get("symbol")
+                quote = tick.get("quote")
+                if symbol in requested and quote is not None:
+                    quotes[symbol] = float(quote)
+                if len(quotes) == len(requested):
+                    break
+    except (DerivMarketDataError, asyncio.TimeoutError):
+        raise
+    except Exception as exc:
+        raise DerivMarketDataError("Could not retrieve Deriv public tick quotes") from exc
+    return quotes
+
+
 async def get_candles(symbol: str, granularity: int = 900, count: int = 100) -> list[dict[str, Any]]:
     symbol = symbol.strip()
     if not SYMBOL_PATTERN.fullmatch(symbol):
