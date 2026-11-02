@@ -67,6 +67,7 @@ def _session_cookie(response: Response, token: str) -> None:
 async def lifespan(app: FastAPI):
     init_auth_db()
     init_paper_db()
+    init_vault_db()
     bot = None
     token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if token:
