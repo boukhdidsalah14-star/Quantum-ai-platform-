@@ -88,6 +88,6 @@ def test_deriv_tick_quotes_reads_batched_public_ticks(monkeypatch):
         async def __aexit__(self, *args):
             return False
     monkeypatch.setattr(deriv, "get_active_markets", fake_active)
-    monkeypatch.setattr(deriv.websockets, "connect", lambda **kwargs: FakeConnection())
+    monkeypatch.setattr(deriv.websockets, "connect", lambda *args, **kwargs: FakeConnection())
     quotes = anyio.run(deriv.get_tick_quotes, ["frxEURUSD", "frxGBPUSD"])
     assert quotes == {"frxEURUSD": 1.12, "frxGBPUSD": 1.27}
