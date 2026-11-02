@@ -317,8 +317,10 @@ def test_deriv_public_forex_market_endpoint(monkeypatch):
 
 def test_deriv_public_candles_endpoint(monkeypatch):
     async def fake_candles(symbol, granularity, count):
-        assert (symbol, granularity, count) == ("frxEURUSD", 900, 40)
-        return [{"time": 1, "open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}]
+        assert (symbol, granularity, count) == ("frxEURUSD", 900, 100)
+        return [{"time": i, "open": 1.1 + i * 0.0001, "high": 1.101 + i * 0.0001,
+                 "low": 1.099 + i * 0.0001, "close": 1.1005 + i * 0.0001}
+                for i in range(40)]
     monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
     response = client.get("/api/deriv/candles/frxEURUSD?granularity=900&count=40")
     assert response.status_code == 200
