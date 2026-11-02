@@ -5,3 +5,19 @@
 .deriv-key:focus{border-color:var(--green);box-shadow:0 0 0 2px #8cff3f22}
 .deriv-check{width:100%;margin-top:10px}
 .deriv-check:disabled{opacity:.55;cursor:wait}
+
+.account-panel{position:fixed;right:max(5vw,16px);top:84px;z-index:20;width:min(360px,calc(100vw - 32px));padding:22px;background:linear-gradient(145deg,#101b14,#070d09);border:1px solid #38523c;border-radius:12px;box-shadow:0 24px 80px #000b}
+.account-panel[hidden]{display:none}
+.account-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.account-panel-head h3{font:700 24px 'Barlow Condensed';text-transform:uppercase}
+.account-close{border:0;background:transparent;color:#9eada2;font-size:27px;cursor:pointer}
+.account-panel label{display:block;margin:13px 0 7px;color:#9eada2;font:9px 'DM Mono';letter-spacing:1.3px}
+.account-panel input{width:100%;padding:12px;border:1px solid #263a2d;border-radius:7px;background:#08100b;color:#eef6ef;font:12px 'DM Mono';outline:none}
+.account-panel input:focus{border-color:var(--green);box-shadow:0 0 0 2px #8cff3f22}
+.auth-submit{width:100%;margin-top:16px;padding:11px}
+.auth-submit:disabled{opacity:.55}
+.auth-mode{width:100%;margin-top:14px;border:0;background:transparent;color:var(--green);font:10px 'DM Mono';cursor:pointer}
+.auth-message{margin-top:14px;color:#87958b;font-size:10px;line-height:1.7}
+.auth-message.error{color:#ff7880}
+#account-email{color:var(--green);font:12px 'DM Mono';overflow-wrap:anywhere}
+@media(max-width:520px){.account-panel{top:72px;right:12px}}
