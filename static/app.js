@@ -77,6 +77,24 @@ function renderChart(){
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
+$("get-demo-quote")?.addEventListener("click",async()=>{
+  const button=$("get-demo-quote"),result=$("quote-result");
+  button.disabled=true;button.textContent="REQUESTING…";
+  result.textContent="Requesting a public contract price. No trade will be placed.";
+  try{
+    const params=new URLSearchParams({
+      contract_type:$("quote-direction").value,
+      amount:$("quote-stake").value,
+      duration:$("quote-duration").value,
+      currency:"USD"
+    });
+    const response=await fetch("/api/deriv/proposal/"+encodeURIComponent(selected)+"?"+params.toString());
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Quote unavailable for this market");
+    result.textContent=body.contract_type+" · "+body.symbol+" · Stake "+Number(body.stake).toFixed(2)+" "+body.currency+" · Potential payout "+Number(body.payout).toFixed(2)+" "+body.currency+". "+(body.longcode||"Price quote only; no order sent.");
+  }catch(error){result.textContent=error.message||"Quote request failed"}
+  finally{button.disabled=false;button.textContent="GET PRICE QUOTE"}
+});
 $("analyze-signal")?.addEventListener("click",async()=>{
   const button=$("analyze-signal"),result=$("signal-result");
   button.disabled=true;button.textContent="ANALYZING…";
