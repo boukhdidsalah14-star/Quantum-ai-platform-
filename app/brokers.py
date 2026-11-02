@@ -31,7 +31,7 @@ def broker_capabilities() -> dict:
             {
                 "id": "mexc",
                 "name": "MEXC",
-                "status": "integration_pending",
+                "status": "public_market_data_connected",
                 "connection_verified": False,
                 "supported_scope": ["public_spot_market_data", "public_candles"],
                 "execution_enabled": False,
