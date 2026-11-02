@@ -96,3 +96,20 @@ def test_customer_password_and_duplicate_validation(monkeypatch, tmp_path):
         assert test_client.post("/api/auth/login", json={
             "email": "same@example.com", "password": "wrong-password"
         }).status_code == 401
+
+
+
+def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
+    monkeypatch.delenv("DERIV_APP_ID", raising=False)
+    monkeypatch.delenv("DERIV_DEMO_ACCOUNT_ID", raising=False)
+    monkeypatch.delenv("DERIV_DEMO_TOKEN", raising=False)
+    response = client.get("/api/brokers")
+    assert response.status_code == 200
+    body = response.json()
+    brokers = {item["id"]: item for item in body["brokers"]}
+    assert set(brokers) == {"deriv", "iq_option", "mexc"}
+    assert brokers["deriv"]["connection_verified"] is False
+    assert brokers["iq_option"]["status"] == "compatibility_review"
+    assert brokers["mexc"]["status"] == "integration_pending"
+    assert body["execution_enabled"] is False
+    assert all(item["execution_enabled"] is False for item in body["brokers"])
