@@ -162,7 +162,18 @@ async def paper_trades(request: Request):
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return {"mode": "paper", "trades": list_paper_trades(customer["id"]), "execution": "simulated_only"}
+    trades = list_paper_trades(customer["id"])
+    try:
+        quotes = {item["symbol"]: float(item["price"]) for item in await get_market_overview()}
+    except httpx.HTTPError:
+        quotes = {}
+    for trade in trades:
+        mark = quotes.get(trade["symbol"])
+        if trade["status"] == "open" and mark is not None:
+            sign = 1 if trade["side"] == "long" else -1
+            trade["mark_price"] = mark
+            trade["unrealized_pnl"] = (mark - trade["entry_price"]) * trade["quantity"] * sign
+    return {"mode": "paper", "trades": trades, "execution": "simulated_only"}
 
 
 @app.post("/api/paper/trades")
