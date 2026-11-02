@@ -212,7 +212,11 @@ async function loadAuthConfig(){
     registrationEnabled=false;
   }
   if(!registrationEnabled)authMode="login";
-  showSignedOut();
-  if(!registrationEnabled)showAuthMessage("New customer registration is currently closed. Sign in if you already have an account.");
+  if(!$("auth-form").hidden){
+    $("auth-mode").hidden=!registrationEnabled;
+    $("auth-submit").textContent="SIGN IN";
+    $("auth-password").setAttribute("autocomplete","current-password");
+    if(!registrationEnabled)showAuthMessage("New customer registration is currently closed. Sign in if you already have an account.");
+  }
 }
 loadAuthConfig();
