@@ -128,7 +128,7 @@ $("analyze-signal")?.addEventListener("click",async()=>{
     const direction=body.direction||"WAIT";
     const tone=direction==="PUT"?"signal-put":"";
     const reasons=(body.reasons||[]).map(reason=>"<li>"+String(reason).replace(/[&<>"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char]))+"</li>").join("");
-    result.innerHTML="<strong class='"+tone+"'>"+direction+"</strong> · "+body.symbol+" · "+body.timeframe+"<br>Trend: "+body.trend+" · RSI(14): "+body.rsi_14+" · Confidence: "+body.confidence+"<br>Suggested expiry reference: "+(body.suggested_expiry_minutes||"—")+" min<ul class='signal-reasons'>"+reasons+"</ul>";
+    result.innerHTML="<strong class='"+tone+"'>"+direction+"</strong> · "+body.symbol+" · "+body.timeframe+"<br>Trend: "+body.trend+" · RSI(14): "+body.rsi_14+" · Signal strength: "+body.signal_strength+"<br>Suggested expiry reference: "+(body.suggested_expiry_minutes||"—")+" min<ul class='signal-reasons'>"+reasons+"</ul>";
   }catch(error){result.textContent=error.message||"Signal analysis failed"}
   finally{button.disabled=false;button.textContent="ANALYZE MARKET"}
 });
