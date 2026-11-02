@@ -111,7 +111,7 @@ def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
     assert set(brokers) == {"deriv", "iq_option", "mexc"}
     assert brokers["deriv"]["connection_verified"] is False
     assert brokers["iq_option"]["status"] == "compatibility_review"
-    assert brokers["mexc"]["status"] == "integration_pending"
+    assert brokers["mexc"]["status"] == "public_market_data_connected"
     assert body["execution_enabled"] is False
     assert all(item["execution_enabled"] is False for item in body["brokers"])
 
