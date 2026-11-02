@@ -1,3 +1,14 @@
+if (window.Telegram && window.Telegram.WebApp) {
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+  try {
+    const theme = tg.themeParams || {};
+    if (theme.bg_color) document.documentElement.style.setProperty("--tg-bg", theme.bg_color);
+    if (theme.text_color) document.documentElement.style.setProperty("--tg-text", theme.text_color);
+  } catch (_) {}
+}
+
 const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
 let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex",selectedPipSize=null;
 function configureSignalTimeframes(){const select=$("signal-timeframe");if(!select)return;const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["1m","5m","15m","30m","1h"]:["1h","4h","1d"];[...select.options].forEach(option=>option.hidden=!allowed.includes(option.value));if(!allowed.includes(select.value))select.value=deriv?"15m":"1h";}
