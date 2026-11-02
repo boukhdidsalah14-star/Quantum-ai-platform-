@@ -1,5 +1,5 @@
 const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance";
+let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex";
 const $=id=>document.getElementById(id);
 const money=n=>"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:n>100?2:4});
 const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
@@ -28,6 +28,8 @@ async function loadMarkets(){
       $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
       $("feed-status").style.color="var(--green)";
       const selectedMarket=sourceMarkets.find(x=>x.symbol===selected);
+      selectedCategory=selectedMarket?.market||"forex";
+      $("signal-panel").hidden=false;
       $("pair-title").innerHTML=(selectedMarket?.name||selected)+" <span class='live-tag'>DERIV</span>";
       $("price").textContent=last?money(last.c):"—";
       $("change").textContent=selectedMarket?.is_open===false?"MARKET CLOSED":"LAST CANDLE";
@@ -36,6 +38,7 @@ async function loadMarkets(){
     }
     $("binary-contract-check").hidden=true;
     $("binary-contract-status").textContent="";
+    $("signal-panel").hidden=true;
     const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
     const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
     const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
@@ -74,6 +77,22 @@ function renderChart(){
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
+$("analyze-signal")?.addEventListener("click",async()=>{
+  const button=$("analyze-signal"),result=$("signal-result");
+  button.disabled=true;button.textContent="ANALYZING…";
+  result.textContent="Reviewing completed candles…";
+  try{
+    const url="/api/signals/deriv/"+encodeURIComponent(selected)+"?category="+encodeURIComponent(selectedCategory)+"&timeframe="+encodeURIComponent(timeframe);
+    const response=await fetch(url);
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Signal analysis unavailable");
+    const direction=body.direction||"WAIT";
+    const tone=direction==="PUT"?"signal-put":"";
+    const reasons=(body.reasons||[]).map(reason=>"<li>"+String(reason).replace(/[&<>"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[char]))+"</li>").join("");
+    result.innerHTML="<strong class='"+tone+"'>"+direction+"</strong> · "+body.symbol+" · "+body.timeframe+"<br>Trend: "+body.trend+" · RSI(14): "+body.rsi_14+" · Confidence: "+body.confidence+"<br>Suggested expiry reference: "+(body.suggested_expiry_minutes||"—")+" min<ul class='signal-reasons'>"+reasons+"</ul>";
+  }catch(error){result.textContent=error.message||"Signal analysis failed"}
+  finally{button.disabled=false;button.textContent="ANALYZE MARKET"}
+});
 $("binary-contract-check")?.addEventListener("click",async()=>{
   const button=$("binary-contract-check"),status=$("binary-contract-status");
   button.disabled=true;button.textContent="CHECKING…";
