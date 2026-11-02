@@ -71,12 +71,24 @@ async def lifespan(app: FastAPI):
     if token:
         from app.telegram_bot import build_application
         bot = build_application(token)
-        await bot.initialize()
-        await bot.start()
-        if bot.updater is not None:
-            await bot.updater.start_polling(allowed_updates=["message"])
-        app.state.telegram_bot = bot
-        logger.info("QUANTUM AI Telegram bot started with the web service")
+        try:
+            await bot.initialize()
+            await bot.start()
+            if bot.updater is not None:
+                await bot.updater.start_polling(allowed_updates=["message"])
+            app.state.telegram_bot = bot
+            logger.info("QUANTUM AI Telegram bot started with the web service")
+        except Exception:
+            logger.exception("Telegram bot could not start; keeping the dashboard available")
+            try:
+                if bot.updater is not None and bot.updater.running:
+                    await bot.updater.stop()
+                if bot.running:
+                    await bot.stop()
+                await bot.shutdown()
+            except Exception:
+                logger.exception("Telegram bot cleanup after startup failure was incomplete")
+            bot = None
     else:
         logger.info("Telegram bot is not configured; dashboard will run without it")
     try:
