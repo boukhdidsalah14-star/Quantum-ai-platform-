@@ -301,3 +301,44 @@ def test_auth_config_reports_registration_enabled(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"registration_enabled": True}
 
+
+
+def test_deriv_public_forex_market_endpoint(monkeypatch):
+    async def fake_markets(category):
+        assert category == "forex"
+        return [{"symbol": "frxEURUSD", "name": "EUR/USD", "market": "forex"}]
+    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
+    response = client.get("/api/deriv/markets?category=forex")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution_enabled"] is False
+    assert body["markets"][0]["symbol"] == "frxEURUSD"
+
+
+def test_deriv_public_candles_endpoint(monkeypatch):
+    async def fake_candles(symbol, granularity, count):
+        assert (symbol, granularity, count) == ("frxEURUSD", 900, 40)
+        return [{"time": 1, "open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}]
+    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
+    response = client.get("/api/deriv/candles/frxEURUSD?granularity=900&count=40")
+    assert response.status_code == 200
+    assert response.json()["candles"][0]["close"] == 1.15
+    assert response.json()["execution_enabled"] is False
+
+
+def test_deriv_contract_discovery_is_not_execution(monkeypatch):
+    async def fake_contracts(symbol):
+        return {"symbol": symbol, "contracts": [{"contract_type": "CALL"}]}
+    monkeypatch.setattr(main, "get_deriv_contracts", fake_contracts)
+    response = client.get("/api/deriv/contracts/frxEURUSD")
+    assert response.status_code == 200
+    assert response.json()["contracts"][0]["contract_type"] == "CALL"
+    assert response.json()["execution_enabled"] is False
+
+
+def test_deriv_public_market_category_validation(monkeypatch):
+    async def fake_markets(category):
+        raise ValueError("Unsupported Deriv market category")
+    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
+    response = client.get("/api/deriv/markets?category=unknown")
+    assert response.status_code == 400
