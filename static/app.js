@@ -134,6 +134,7 @@ $("paper-trades-list")?.addEventListener("click",async event=>{
 const accountPanel=$("account-panel");
 const accountToggle=$("account-toggle");
 let authMode="login";
+let registrationEnabled=false;
 function showAuthMessage(message,isError=false){
   const node=$("auth-message");
   node.textContent=message;
@@ -150,7 +151,7 @@ function showCustomer(customer){
 }
 function showSignedOut(){
   $("auth-form").hidden=false;
-  $("auth-mode").hidden=false;
+  $("auth-mode").hidden=!registrationEnabled;
   $("account-profile").hidden=true;
   $("account-title").textContent="Account access";
   if($("paper-trades-list")){$("paper-trades-list").innerHTML="";$("paper-message").textContent="Sign in to save your private paper-trading history.";}
@@ -176,6 +177,7 @@ $("account-close")?.addEventListener("click",()=>{
   accountToggle.setAttribute("aria-expanded","false");
 });
 $("auth-mode")?.addEventListener("click",()=>{
+  if(!registrationEnabled)return;
   authMode=authMode==="login"?"register":"login";
   showSignedOut();
   showAuthMessage(authMode==="register"?"Account creation is controlled by the platform.":"Sign in to access your customer workspace.");
@@ -199,3 +201,18 @@ $("auth-logout")?.addEventListener("click",async()=>{
   try{await fetch("/api/auth/logout",{method:"POST"});authMode="login";showSignedOut();showAuthMessage("You have signed out.")}
   catch{showAuthMessage("Could not sign out. Please retry.",true)}
 });
+
+async function loadAuthConfig(){
+  try{
+    const response=await fetch("/api/auth/config");
+    if(!response.ok)throw new Error("Account settings unavailable");
+    const body=await response.json();
+    registrationEnabled=body.registration_enabled===true;
+  }catch{
+    registrationEnabled=false;
+  }
+  if(!registrationEnabled)authMode="login";
+  showSignedOut();
+  if(!registrationEnabled)showAuthMessage("New customer registration is currently closed. Sign in if you already have an account.");
+}
+loadAuthConfig();
