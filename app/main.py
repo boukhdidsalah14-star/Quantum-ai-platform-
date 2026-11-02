@@ -1,13 +1,15 @@
 from pathlib import Path
+import hmac
+import os
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.market_data import get_candles, get_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 
 ROOT = Path(__file__).resolve().parent.parent
-app = FastAPI(title="QUANTUM AI", version="0.3.0", description="Read-only trading workspace foundation")
+app = FastAPI(title="QUANTUM AI", version="0.3.1", description="Read-only trading workspace foundation")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 @app.get("/health")
@@ -31,7 +33,12 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
 
 @app.get("/api/deriv/demo/status")
-async def deriv_demo_status():
+async def deriv_demo_status(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
+    expected = os.getenv("QUANTUM_ADMIN_API_KEY", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin status check is not configured")
+    if not x_admin_key or not hmac.compare_digest(x_admin_key, expected):
+        raise HTTPException(status_code=403, detail="Admin authorization required")
     try:
         return await get_demo_status()
     except DerivConfigError as exc:
