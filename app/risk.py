@@ -49,4 +49,6 @@ def evaluate_demo_risk(
         "max_stake_usd": MAX_DEMO_STAKE_USD,
         "allowed_durations_minutes": list(ALLOWED_BINARY_DURATIONS_MINUTES),
         "real_trading_enabled": REAL_TRADING_ENABLED,
+        "risk_monitoring_active": False,
+        "execution_enabled": False,
     }
