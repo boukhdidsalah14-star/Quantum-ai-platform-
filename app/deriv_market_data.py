@@ -123,3 +123,60 @@ async def get_available_contracts(symbol: str) -> dict[str, Any]:
             "max_contract_duration_units": row.get("max_contract_duration_units"),
         } for row in contracts],
     }
+
+
+async def get_contract_proposal(
+    symbol: str,
+    contract_type: str,
+    amount: float = 1.0,
+    duration: int = 5,
+    duration_unit: str = "m",
+    currency: str = "USD",
+) -> dict[str, Any]:
+    """Get a public CALL/PUT price quote only; this never buys a contract."""
+    symbol = symbol.strip()
+    contract_type = contract_type.upper().strip()
+    currency = currency.upper().strip()
+    if not SYMBOL_PATTERN.fullmatch(symbol):
+        raise ValueError("Invalid Deriv market symbol")
+    if contract_type not in {"CALL", "PUT"}:
+        raise ValueError("Only CALL and PUT contract quotes are supported")
+    if not (0.35 <= float(amount) <= 2.0):
+        raise ValueError("Demo quote stake must be between 0.35 and 2.00")
+    if duration not in {1, 5, 15, 30, 60} or duration_unit != "m":
+        raise ValueError("Quote duration must be 1, 5, 15, 30, or 60 minutes")
+    if not re.fullmatch(r"[A-Z]{3}", currency):
+        raise ValueError("Invalid account currency")
+    active = await get_active_markets("all")
+    if not any(row["symbol"] == symbol and not row["is_suspended"] for row in active):
+        raise ValueError("Symbol is not currently available for trading")
+    available = await get_available_contracts(symbol)
+    if not any(row.get("contract_type") == contract_type for row in available["contracts"]):
+        raise ValueError("This CALL/PUT contract is not available for the selected symbol")
+    response = await _request({
+        "proposal": 1,
+        "amount": float(amount),
+        "basis": "stake",
+        "contract_type": contract_type,
+        "currency": currency,
+        "duration": int(duration),
+        "duration_unit": duration_unit,
+        "underlying_symbol": symbol,
+    }, "proposal")
+    proposal = response.get("proposal", {})
+    if not proposal.get("id") or proposal.get("ask_price") is None:
+        raise DerivMarketDataError("Deriv returned an incomplete price proposal")
+    return {
+        "symbol": symbol,
+        "contract_type": contract_type,
+        "stake": float(proposal["ask_price"]),
+        "payout": float(proposal.get("payout", 0)),
+        "proposal_id": proposal["id"],
+        "longcode": proposal.get("longcode", ""),
+        "spot": proposal.get("spot"),
+        "currency": currency,
+        "duration": int(duration),
+        "duration_unit": duration_unit,
+        "quote_only": True,
+        "execution_enabled": False,
+    }
