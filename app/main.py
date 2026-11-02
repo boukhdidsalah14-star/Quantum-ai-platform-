@@ -4,14 +4,15 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.market_data import get_candles, get_market_overview
+from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 
 ROOT = Path(__file__).resolve().parent.parent
-app = FastAPI(title="QUANTUM AI", version="0.2.0", description="Read-only trading workspace foundation")
+app = FastAPI(title="QUANTUM AI", version="0.3.0", description="Read-only trading workspace foundation")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "order_execution": False, "trading_enabled": False}
+    return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "deriv_demo_connector": "available", "order_execution": False, "trading_enabled": False}
 
 @app.get("/api/markets")
 async def markets():
@@ -28,6 +29,15 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
+@app.get("/api/deriv/demo/status")
+async def deriv_demo_status():
+    try:
+        return await get_demo_status()
+    except DerivConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except (DerivConnectionError, httpx.HTTPError):
+        raise HTTPException(status_code=502, detail="Deriv demo account check failed; verify demo credentials and permissions")
 
 @app.get("/")
 async def dashboard():
