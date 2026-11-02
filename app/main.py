@@ -37,8 +37,6 @@ class PaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
-    stop_loss: float | None = Field(default=None, gt=0)
-    take_profit: float | None = Field(default=None, gt=0)
 
 
 def _check_same_origin(request: Request) -> None:
@@ -191,7 +189,7 @@ async def create_paper_trade(payload: PaperTradeRequest, request: Request, idemp
         if not quote:
             raise HTTPException(status_code=503, detail="No current public quote for this paper-trading market")
         trade = open_paper_trade(customer["id"], payload.symbol, payload.side, payload.quantity,
-                                 float(quote["price"]), payload.stop_loss, payload.take_profit, idempotency_key)
+                                 float(quote["price"]), None, None, idempotency_key)
         return {"trade": trade, "mode": "paper", "execution": "simulated_only"}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
