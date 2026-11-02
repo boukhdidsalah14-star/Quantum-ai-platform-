@@ -39,6 +39,7 @@ class DerivDemoCredentials(BaseModel):
     token: str = Field(min_length=1, max_length=4096)
 
 
+class PaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
