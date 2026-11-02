@@ -28,8 +28,14 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
     assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
 
 def test_deriv_demo_status_requires_credentials(monkeypatch):
+    monkeypatch.setenv("QUANTUM_ADMIN_API_KEY", "test-admin-key")
     monkeypatch.delenv("DERIV_DEMO_TOKEN", raising=False)
     monkeypatch.delenv("DERIV_DEMO_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("DERIV_APP_ID", raising=False)
-    response = client.get("/api/deriv/demo/status")
+    response = client.get("/api/deriv/demo/status", headers={"X-Admin-Key": "test-admin-key"})
     assert response.status_code == 503
+
+def test_deriv_demo_status_rejects_missing_admin_key(monkeypatch):
+    monkeypatch.setenv("QUANTUM_ADMIN_API_KEY", "test-admin-key")
+    response = client.get("/api/deriv/demo/status")
+    assert response.status_code == 403
