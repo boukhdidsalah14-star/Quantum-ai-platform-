@@ -62,22 +62,36 @@ async function loadMarkets(){
     $("quote-preview").hidden=true;
     selectedPipSize=null;
     configureSignalTimeframes();
-    const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
-    const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
-    const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
-    if(!mr.ok||!cr.ok)throw new Error("Market API unavailable");
-    const marketData=await mr.json(),candleData=await cr.json();
-    if(!symbols.includes(selected))selected=symbols[0];
-    const list=marketData.markets.filter(x=>symbols.includes(x.symbol));
-    list.forEach(x=>prices[x.symbol]=x);
-    renderMarkets(list);
-    candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume}));
-    renderChart();
-    $("feed-status").textContent="LIVE · "+marketSource.toUpperCase()+" PUBLIC DATA";
-    $("feed-status").style.color="var(--green)";
-    $("pair-title").innerHTML=selected.replace("USDT"," / USDT")+" <span class='live-tag'>LIVE</span>";
-    const p=prices[selected];
-    if(p){$("price").textContent=money(p.price);$("change").textContent=pct(p.change_percent);$("change").className=+p.change_percent>=0?"positive":"negative"}
+    const sourceOrder=marketSource==="mexc"?["mexc","binance"]:["binance","mexc"];
+    let loaded=false,lastError=null;
+    for(const source of sourceOrder){
+      try{
+        const marketPath=source==="mexc"?"/api/mexc/markets":"/api/markets";
+        const candlePath=source==="mexc"?"/api/mexc/candles/":"/api/candles/";
+        const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
+        if(!mr.ok||!cr.ok)throw new Error(source.toUpperCase()+" market feed unavailable");
+        const marketData=await mr.json(),candleData=await cr.json();
+        if(!symbols.includes(selected))selected=symbols[0];
+        const list=(marketData.markets||[]).filter(x=>symbols.includes(x.symbol));
+        if(!list.length||!Array.isArray(candleData.candles)||!candleData.candles.length)throw new Error(source.toUpperCase()+" returned no usable market data");
+        prices={};
+        list.forEach(x=>prices[x.symbol]=x);
+        if(!prices[selected])selected=list[0].symbol;
+        candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume}));
+        marketSource=source;
+        $("market-source").value=source;
+        renderMarkets(list);
+        renderChart();
+        $("feed-status").textContent="LIVE · "+source.toUpperCase()+" PUBLIC DATA";
+        $("feed-status").style.color="var(--green)";
+        $("pair-title").innerHTML=selected.replace("USDT"," / USDT")+" <span class='live-tag'>LIVE</span>";
+        const p=prices[selected];
+        if(p){$("price").textContent=money(p.price);$("change").textContent=pct(p.change_percent);$("change").className=+p.change_percent>=0?"positive":"negative"}
+        loaded=true;
+        break;
+      }catch(error){lastError=error}
+    }
+    if(!loaded)throw lastError||new Error("All public crypto market feeds are unavailable");
   }catch(e){
     $("feed-status").textContent="FEED UNAVAILABLE";$("feed-status").style.color="var(--red)";
     if(!$("ticker").dataset.failed){$("ticker").innerHTML="<div class='ticker-item'>Public market data is temporarily unavailable.</div>";$("ticker").dataset.failed="1"}
