@@ -19,6 +19,22 @@ logger = logging.getLogger(__name__)
 
 WEBAPP_URL = os.getenv("TELEGRAM_WEBAPP_URL", "").strip()
 
+def _normalise_deriv_symbol(symbol: str, category: str) -> str:
+    value = symbol.strip().upper()
+    if category == "forex":
+        return "frx" + (value[3:] if value.startswith("FRX") else value)
+    return value
+
+
+def _infer_market_category(symbol: str) -> str:
+    value = symbol.strip().upper()
+    if value in ALLOWED_SYMBOLS:
+        return "crypto"
+    if value.startswith("FRX") or (len(value) == 6 and value.isalpha()):
+        return "forex"
+    return "synthetic"
+
+
 
 def _price_line(item: dict) -> str:
     price = float(item["price"])
@@ -47,7 +63,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/price BTCUSDT — price for a supported crypto market\n"
         "/forex — list Deriv Forex pairs\n"
         "/binary — list Forex and synthetic binary-option underlyings\n"
-        "/signal frxEURUSD 15m forex — analyze Forex\n"
+        "/signal EURUSD 15m forex — analyze Forex (frx prefix optional)\n"
         "/signal R_100 5m synthetic — analyze a binary underlying\n"
         "/signal BTCUSDT 1h crypto — analyze crypto\n"
         "/quote R_100 CALL 1 5 — preview a 1 USD, 5-minute price\n"
@@ -145,7 +161,8 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     symbol = context.args[0].strip()
     timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
-    category = context.args[2].lower() if len(context.args) > 2 else ("crypto" if symbol.upper() in ALLOWED_SYMBOLS else "forex" if symbol.lower().startswith("frx") else "synthetic")
+    category = context.args[2].lower() if len(context.args) > 2 else _infer_market_category(symbol)
+    symbol = symbol.upper() if category == "crypto" else _normalise_deriv_symbol(symbol, category)
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
     if category not in {"forex", "synthetic", "crypto"} or timeframe not in intervals:
         await update.effective_message.reply_text("Use a valid timeframe and category (forex, synthetic, or crypto).")
@@ -190,6 +207,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     symbol = context.args[0].strip()
+    if len(symbol) == 6 and symbol.isalpha():
+        symbol = _normalise_deriv_symbol(symbol, "forex")
     direction = context.args[1].upper().strip()
     try:
         amount = float(context.args[2]) if len(context.args) > 2 else 1.0
@@ -214,7 +233,8 @@ async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     symbol = context.args[0].strip()
     timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
-    category = context.args[2].lower() if len(context.args) > 2 else ("crypto" if symbol.upper() in ALLOWED_SYMBOLS else "forex" if symbol.lower().startswith("frx") else "synthetic")
+    category = context.args[2].lower() if len(context.args) > 2 else _infer_market_category(symbol)
+    symbol = symbol.upper() if category == "crypto" else _normalise_deriv_symbol(symbol, category)
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
     if category not in {"forex", "synthetic", "crypto"} or timeframe not in intervals:
         await update.effective_message.reply_text("Choose a supported timeframe and category: forex, synthetic, or crypto.")
