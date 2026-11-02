@@ -70,7 +70,15 @@ The bot is informational only. It does not execute trades.
 
 - `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
 
-## Customer broker credential vault\n\n- `GET /api/connections/deriv/demo` — show whether the signed-in customer's Deriv demo credentials are stored; never returns secrets.\n- `PUT /api/connections/deriv/demo` — save `{\"account_id\":\"VRTC...\",\"token\":\"...\"}` encrypted for that customer. Only virtual/demo account IDs are accepted.\n- `DELETE /api/connections/deriv/demo` — delete that customer's stored demo credentials.\n\nSet `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before use. Keep it in the hosting provider's private environment settings and back it up securely; losing it makes stored credentials undecryptable. Never commit the key or paste it into chat. The vault does not connect to Deriv or place orders.\n\n## Paper trading API
+## Customer broker credential vault
+
+- `GET /api/connections/deriv/demo` — show whether the signed-in customer's Deriv demo credentials are stored; never returns secrets.
+- `PUT /api/connections/deriv/demo` — save `{\"account_id\":\"VRTC...\",\"token\":\"...\"}` encrypted for that customer. Only virtual/demo account IDs are accepted.
+- `DELETE /api/connections/deriv/demo` — delete that customer's stored demo credentials.
+
+Set `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before use. Keep it in the hosting provider's private environment settings and back it up securely; losing it makes stored credentials undecryptable. Never commit the key or paste it into chat. The vault does not connect to Deriv or place orders.
+
+## Paper trading API
 
 All routes require a signed-in customer session. Each customer's trade records are isolated by customer ID.
 
