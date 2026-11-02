@@ -46,6 +46,7 @@ def test_contract_quote_payload_uses_new_api_symbol_name(monkeypatch):
         assert payload["underlying_symbol"] == "R_100"
         assert payload["contract_type"] == "CALL"
         assert payload["amount"] == 1.0
+        assert payload["duration"] == 10
         assert expected_type == "proposal"
         return {"proposal": {"id": "proposal-123", "ask_price": 1.0,
                              "payout": 1.85, "longcode": "CALL contract"}}
