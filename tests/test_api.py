@@ -26,3 +26,10 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
     response = client.get("/api/markets")
     assert response.status_code == 200
     assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
+
+def test_deriv_demo_status_requires_credentials(monkeypatch):
+    monkeypatch.delenv("DERIV_DEMO_TOKEN", raising=False)
+    monkeypatch.delenv("DERIV_DEMO_ACCOUNT_ID", raising=False)
+    monkeypatch.delenv("DERIV_APP_ID", raising=False)
+    response = client.get("/api/deriv/demo/status")
+    assert response.status_code == 503
