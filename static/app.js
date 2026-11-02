@@ -1,9 +1,12 @@
 const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex";
+let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex",selectedPipSize=null;
 function configureSignalTimeframes(){const select=$("signal-timeframe");if(!select)return;const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["1m","5m","15m","30m","1h"]:["1h","4h","1d"];[...select.options].forEach(option=>option.hidden=!allowed.includes(option.value));if(!allowed.includes(select.value))select.value=deriv?"15m":"1h";}
 const $=id=>document.getElementById(id);
 const money=n=>"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:n>100?2:4});
 const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
+const derivDecimals=pip=>{const value=Number(pip);return Number.isFinite(value)&&value>0?Math.min(8,Math.max(0,Math.round(-Math.log10(value)))):4};
+const formatDerivPrice=(value,pip)=>Number(value).toFixed(derivDecimals(pip));
+const formatMarketPrice=item=>marketSource.startsWith("deriv_")?formatDerivPrice(item.price,item.pip_size):money(item.price);
 
 async function loadMarkets(){
   try{
@@ -23,18 +26,19 @@ async function loadMarkets(){
       const candleData=await cr.json();
       candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:0}));
       const last=candles[candles.length-1];
-      const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,price:x.price??(x.symbol===selected&&last?last.c:null),change_percent:null}));
+      const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,pip_size:x.pip_size,price:x.price??(x.symbol===selected&&last?last.c:null),change_percent:null}));
       renderMarkets(list);
       renderChart();
       $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
       $("feed-status").style.color="var(--green)";
       const selectedMarket=sourceMarkets.find(x=>x.symbol===selected);
       selectedCategory=selectedMarket?.market||"forex";
+      selectedPipSize=selectedMarket?.pip_size||null;
       $("signal-panel").hidden=false;
       $("quote-preview").hidden=false;
       configureSignalTimeframes();
       $("pair-title").innerHTML=(selectedMarket?.name||selected)+" <span class='live-tag'>DERIV</span>";
-      $("price").textContent=selectedMarket?.price!==null&&selectedMarket?.price!==undefined?money(selectedMarket.price):last?money(last.c):"—";
+      $("price").textContent=selectedMarket?.price!==null&&selectedMarket?.price!==undefined?formatDerivPrice(selectedMarket.price,selectedPipSize):last?formatDerivPrice(last.c,selectedPipSize):"—";
       $("change").textContent=selectedMarket?.is_open===false?"MARKET CLOSED":selectedMarket?.price!==null&&selectedMarket?.price!==undefined?"LIVE TICK":"LAST CANDLE";
       $("change").className="positive";
       return;
@@ -43,6 +47,7 @@ async function loadMarkets(){
     $("binary-contract-status").textContent="";
     $("signal-panel").hidden=false;
     $("quote-preview").hidden=true;
+    selectedPipSize=null;
     configureSignalTimeframes();
     const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
     const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
@@ -66,7 +71,7 @@ async function loadMarkets(){
   }
 }
 function renderMarkets(list){
-  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?money(x.price):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
+  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
   $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?money(x.price):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
   $("ticker").dataset.failed="";
   $("watchlist").querySelectorAll(".asset-row").forEach(el=>el.addEventListener("click",()=>{selected=el.dataset.symbol;loadMarkets()}));
@@ -76,10 +81,10 @@ function renderChart(){
   c.width=w*dpr;c.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);if(!candles.length)return;
   const pad={l:8,r:58,t:12,b:20},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b,lo=Math.min(...candles.map(x=>x.l)),hi=Math.max(...candles.map(x=>x.h)),range=hi-lo||1,y=v=>pad.t+(hi-v)/range*ch;
   ctx.font="9px monospace";ctx.strokeStyle="#1b2b22";ctx.fillStyle="#718077";ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){const yy=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText((hi-range*i/4).toFixed(hi>100?0:4),w-pad.r+7,yy+3)}
+  const chartDecimals=selectedPipSize?derivDecimals(selectedPipSize):(hi>100?0:4);for(let i=0;i<=4;i++){const yy=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText((hi-range*i/4).toFixed(chartDecimals),w-pad.r+7,yy+3)}
   const step=cw/candles.length,bw=Math.max(2,step*.58);
   candles.forEach((d,i)=>{const x=pad.l+i*step+step/2,col=d.c>=d.o?"#8cff3f":"#ff5c68";ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(d.h));ctx.lineTo(x,y(d.l));ctx.stroke();ctx.fillRect(x-bw/2,y(Math.max(d.o,d.c)),bw,Math.max(1,Math.abs(y(d.o)-y(d.c))))});
-  const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
+  const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(chartDecimals),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
 $("run-backtest")?.addEventListener("click",async()=>{
