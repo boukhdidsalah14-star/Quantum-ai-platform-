@@ -20,6 +20,7 @@ def test_signal_engine_returns_documented_fields_for_rising_market():
     assert result["direction"] in {"CALL", "PUT", "WAIT"}
     assert result["trend"] == "BULLISH"
     assert result["execution_enabled"] is False
+    assert result["signal_strength"] in {"low", "moderate"}
     assert result["suggested_expiry_minutes"] == 15
     assert result["candle_count"] == 60
     assert isinstance(result["reasons"], list)
