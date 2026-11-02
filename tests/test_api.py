@@ -371,3 +371,31 @@ def test_deriv_signal_rejects_symbol_outside_selected_category(monkeypatch):
     monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
     response = client.get("/api/signals/deriv/frxEURUSD?category=synthetic&timeframe=15m")
     assert response.status_code == 400
+
+
+def test_deriv_contract_quote_is_preview_only(monkeypatch):
+    async def fake_quote(symbol, contract_type, amount, duration, duration_unit, currency):
+        assert (symbol, contract_type, amount, duration, duration_unit, currency) == ("R_100", "CALL", 1.0, 5, "m", "USD")
+        return {"symbol": symbol, "contract_type": contract_type, "stake": 1.0,
+                "payout": 1.85, "proposal_id": "test-proposal", "quote_only": True,
+                "execution_enabled": False}
+    monkeypatch.setattr(main, "get_deriv_proposal", fake_quote)
+    response = client.get("/api/deriv/proposal/R_100?contract_type=CALL&amount=1&duration=5")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["quote_only"] is True
+    assert body["execution_enabled"] is False
+    assert body["payout"] == 1.85
+
+
+def test_deriv_contract_quote_stake_is_limited():
+    response = client.get("/api/deriv/proposal/R_100?amount=3")
+    assert response.status_code == 422
+
+
+def test_deriv_contract_quote_rejects_invalid_direction(monkeypatch):
+    async def fake_quote(*args):
+        raise ValueError("Only CALL and PUT contract quotes are supported")
+    monkeypatch.setattr(main, "get_deriv_proposal", fake_quote)
+    response = client.get("/api/deriv/proposal/R_100?contract_type=UP")
+    assert response.status_code == 400
