@@ -42,7 +42,7 @@ function renderChart(){
   candles.forEach((d,i)=>{const x=pad.l+i*step+step/2,col=d.c>=d.o?"#8cff3f":"#ff5c68";ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(d.h));ctx.lineTo(x,y(d.l));ctx.stroke();ctx.fillRect(x-bw/2,y(Math.max(d.o,d.c)),bw,Math.max(1,Math.abs(y(d.o)-y(d.c))))});
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
-document.querySelectorAll(".tf").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tf").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
+document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
 window.addEventListener("resize",renderChart);
 $("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;loadMarkets()});
 loadMarkets();setInterval(loadMarkets,15000);
