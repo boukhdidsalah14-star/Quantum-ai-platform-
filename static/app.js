@@ -86,6 +86,46 @@ async function loadBrokerCapabilities(){
 }
 loadBrokerCapabilities();
 
+// Customer-isolated paper trading; every price is a public quote and every order is simulated.
+async function refreshPaperTrades(){
+  const list=$("paper-trades-list"),message=$("paper-message");
+  if(!list||!message)return;
+  try{
+    const response=await fetch("/api/paper/trades");
+    if(response.status===401){list.innerHTML="";message.textContent="Sign in to save your private paper-trading history.";return}
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Could not load paper trades");
+    message.textContent="PAPER MODE · Max $500 notional per trade · Up to 5 open trades.";
+    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+t.symbol+" · "+t.side.toUpperCase()+"</strong><small>"+t.status.toUpperCase()+" · Qty "+Number(t.quantity)+" · Entry "+money(t.entry_price)+(t.exit_price?" · Exit "+money(t.exit_price):"")+(t.realized_pnl!==null&&t.realized_pnl!==undefined?" · P/L "+money(t.realized_pnl):"")+"</small></div>"+(t.status==="open"?"<button type='button' data-close-paper='"+t.id+"'>CLOSE AT MARKET</button>":"<span class='locked'>SETTLED</span>")+"</article>").join(""):"<p class='disclaimer'>No paper trades yet. Open a simulated position above.</p>";
+  }catch(error){message.textContent=error.message||"Paper trading unavailable"}
+}
+const paperForm=$("paper-form");
+paperForm?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("paper-submit"),message=$("paper-message");
+  button.disabled=true;button.textContent="OPENING SIMULATION…";
+  try{
+    const response=await fetch("/api/paper/trades",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":(crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random())},body:JSON.stringify({symbol:$("paper-symbol").value,side:$("paper-side").value,quantity:Number($("paper-quantity").value),stop_loss:$("paper-stop").value?Number($("paper-stop").value):null,take_profit:$("paper-target").value?Number($("paper-target").value):null})});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Paper trade could not be opened");
+    message.textContent="SIMULATED POSITION OPEN · "+body.trade.symbol+" at "+money(body.trade.entry_price)+". No broker order was sent.";
+    await refreshPaperTrades();
+  }catch(error){message.textContent=error.message||"Paper trade failed"}
+  finally{button.disabled=false;button.textContent="OPEN PAPER TRADE"}
+});
+$("paper-trades-list")?.addEventListener("click",async event=>{
+  const button=event.target.closest("[data-close-paper]");
+  if(!button)return;
+  button.disabled=true;button.textContent="CLOSING…";
+  try{
+    const response=await fetch("/api/paper/trades/"+encodeURIComponent(button.dataset.closePaper)+"/close",{method:"POST"});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Paper trade could not be closed");
+    $("paper-message").textContent="PAPER TRADE SETTLED · P/L "+money(body.trade.realized_pnl)+".";
+    await refreshPaperTrades();
+  }catch(error){$("paper-message").textContent=error.message||"Close failed";button.disabled=false;button.textContent="CLOSE AT MARKET"}
+});
+
 // Customer account access: authentication only; no broker credentials are handled here.
 const accountPanel=$("account-panel");
 const accountToggle=$("account-toggle");
@@ -101,13 +141,15 @@ function showCustomer(customer){
   $("account-profile").hidden=false;
   $("account-title").textContent="Your account";
   $("account-email").textContent=customer.email;
-  showAuthMessage("Signed in. Broker connections are not attached to customer accounts yet.");
+  showAuthMessage("Signed in. Paper trading is available; broker order execution remains disabled.");
+  refreshPaperTrades();
 }
 function showSignedOut(){
   $("auth-form").hidden=false;
   $("auth-mode").hidden=false;
   $("account-profile").hidden=true;
   $("account-title").textContent="Account access";
+  if($("paper-trades-list")){$("paper-trades-list").innerHTML="";$("paper-message").textContent="Sign in to save your private paper-trading history.";}
   $("auth-submit").textContent=authMode==="login"?"SIGN IN":"CREATE ACCOUNT";
   $("auth-password").setAttribute("autocomplete",authMode==="login"?"current-password":"new-password");
   $("auth-mode").textContent=authMode==="login"?"Need an account? Create one":"Already registered? Sign in";
