@@ -82,7 +82,8 @@ $("analyze-signal")?.addEventListener("click",async()=>{
   button.disabled=true;button.textContent="ANALYZING…";
   result.textContent="Reviewing completed candles…";
   try{
-    const url="/api/signals/deriv/"+encodeURIComponent(selected)+"?category="+encodeURIComponent(selectedCategory)+"&timeframe="+encodeURIComponent(timeframe);
+    const signalTimeframe=$("signal-timeframe").value;
+    const url="/api/signals/deriv/"+encodeURIComponent(selected)+"?category="+encodeURIComponent(selectedCategory)+"&timeframe="+encodeURIComponent(signalTimeframe);
     const response=await fetch(url);
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Signal analysis unavailable");
