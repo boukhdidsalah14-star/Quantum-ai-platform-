@@ -77,6 +77,21 @@ function renderChart(){
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
+$("run-backtest")?.addEventListener("click",async()=>{
+  const button=$("run-backtest"),result=$("backtest-result");
+  button.disabled=true;button.textContent="TESTING…";
+  result.textContent="Evaluating historical candles without placing trades…";
+  try{
+    const signalTimeframe=$("signal-timeframe").value;
+    const url="/api/backtest/deriv/"+encodeURIComponent(selected)+"?category="+encodeURIComponent(selectedCategory)+"&timeframe="+encodeURIComponent(signalTimeframe)+"&lookahead_candles=1";
+    const response=await fetch(url);
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Backtest unavailable");
+    const accuracy=body.directional_accuracy_percent===null?"Not enough directional signals":body.directional_accuracy_percent+"% directional accuracy";
+    result.textContent=accuracy+" · "+body.wins+" wins · "+body.losses+" losses · "+body.waits+" WAITs · "+body.candles_tested+" candles. Historical test only; not a profit forecast.";
+  }catch(error){result.textContent=error.message||"Backtest failed"}
+  finally{button.disabled=false;button.textContent="TEST LAST 200 CANDLES"}
+});
 $("get-demo-quote")?.addEventListener("click",async()=>{
   const button=$("get-demo-quote"),result=$("quote-result");
   button.disabled=true;button.textContent="REQUESTING…";
