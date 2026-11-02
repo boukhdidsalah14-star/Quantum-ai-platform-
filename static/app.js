@@ -109,7 +109,7 @@ paperForm?.addEventListener("submit",async event=>{
   const button=$("paper-submit"),message=$("paper-message");
   button.disabled=true;button.textContent="OPENING SIMULATION…";
   try{
-    const response=await fetch("/api/paper/trades",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":(crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random())},body:JSON.stringify({symbol:$("paper-symbol").value,side:$("paper-side").value,quantity:Number($("paper-quantity").value),stop_loss:$("paper-stop").value?Number($("paper-stop").value):null,take_profit:$("paper-target").value?Number($("paper-target").value):null})});
+    const response=await fetch("/api/paper/trades",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":(crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random())},body:JSON.stringify({symbol:$("paper-symbol").value,side:$("paper-side").value,quantity:Number($("paper-quantity").value)})});
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Paper trade could not be opened");
     message.textContent="SIMULATED POSITION OPEN · "+body.trade.symbol+" at "+money(body.trade.entry_price)+". No broker order was sent.";
