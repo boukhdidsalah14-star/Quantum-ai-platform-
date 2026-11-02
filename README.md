@@ -97,6 +97,9 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /api/deriv/markets?category=forex` — public Deriv Forex symbols; use `category=synthetic` for synthetic indices or `all` for both.
 - `GET /api/deriv/candles/frxEURUSD?granularity=900&count=100` — public Deriv OHLC candles for a verified active Forex/synthetic symbol.
 - `GET /api/deriv/contracts/frxEURUSD` — available option contract metadata for a verified active symbol; no proposal or order is sent.
+- `GET /api/signals/deriv/frxEURUSD?category=forex&timeframe=15m` — indicator-based CALL/PUT/WAIT analysis from public Deriv candles; no broker order is sent.
+
+Telegram commands: `/forex`, `/binary`, and `/signal SYMBOL 15m forex` or `/signal SYMBOL 5m synthetic`. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` privately in the hosting environment to activate the bot.
 - `GET /api/mexc/candles/{symbol}?interval=1h&limit=72` — validated MEXC Spot candles.
 - `GET /api/candles/{symbol}?interval=1h&limit=72` — validated public candles.
 
