@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from typing import Any
 
 import websockets
@@ -96,8 +97,13 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
             ping_timeout=10, max_size=2_000_000,
         ) as ws:
             await ws.send(json.dumps({"ticks": requested}))
-            for _ in range(len(requested) + 3):
-                raw = await asyncio.wait_for(ws.recv(), timeout=8)
+            deadline = time.monotonic() + 6.0
+            while len(quotes) < len(requested) and time.monotonic() < deadline:
+                remaining = max(0.1, deadline - time.monotonic())
+                try:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=remaining)
+                except asyncio.TimeoutError:
+                    break
                 message = json.loads(raw)
                 if message.get("error"):
                     error = message["error"]
@@ -107,8 +113,6 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
                 quote = tick.get("quote")
                 if symbol in requested and quote is not None:
                     quotes[symbol] = float(quote)
-                if len(quotes) == len(requested):
-                    break
     except (DerivMarketDataError, asyncio.TimeoutError):
         raise
     except Exception as exc:
