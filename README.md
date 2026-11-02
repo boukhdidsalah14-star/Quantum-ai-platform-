@@ -8,12 +8,13 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard 
 - Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, and `/status`.
+- Deriv demo account status connector using the current REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Telegram `/start` can show an Open Dashboard Mini App button when `TELEGRAM_WEBAPP_URL` is configured to an HTTPS URL.
 
 ## Not enabled
 
-- No broker account connection or customer credential storage.
-- No order placement, auto-trading, binary-options execution, or real-account trading.
+- No customer credential storage or multi-user broker account management. The initial Deriv connector uses server-side environment secrets for one demo account only.
+- No order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 
 ## Run the dashboard
