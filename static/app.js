@@ -66,3 +66,72 @@ if(derivButton){
     }
   });
 }
+
+
+// Customer account access: authentication only; no broker credentials are handled here.
+const accountPanel=$("account-panel");
+const accountToggle=$("account-toggle");
+let authMode="login";
+function showAuthMessage(message,isError=false){
+  const node=$("auth-message");
+  node.textContent=message;
+  node.classList.toggle("error",isError);
+}
+function showCustomer(customer){
+  $("auth-form").hidden=true;
+  $("auth-mode").hidden=true;
+  $("account-profile").hidden=false;
+  $("account-title").textContent="Your account";
+  $("account-email").textContent=customer.email;
+  showAuthMessage("Signed in. Broker connections are not attached to customer accounts yet.");
+}
+function showSignedOut(){
+  $("auth-form").hidden=false;
+  $("auth-mode").hidden=false;
+  $("account-profile").hidden=true;
+  $("account-title").textContent="Account access";
+  $("auth-submit").textContent=authMode==="login"?"SIGN IN":"CREATE ACCOUNT";
+  $("auth-password").setAttribute("autocomplete",authMode==="login"?"current-password":"new-password");
+  $("auth-mode").textContent=authMode==="login"?"Need an account? Create one":"Already registered? Sign in";
+}
+async function refreshCustomer(){
+  try{
+    const response=await fetch("/api/auth/me");
+    if(response.ok){const body=await response.json();showCustomer(body.customer)}
+    else showSignedOut();
+  }catch{showSignedOut()}
+}
+accountToggle?.addEventListener("click",()=>{
+  const open=accountPanel.hidden;
+  accountPanel.hidden=!open;
+  accountToggle.setAttribute("aria-expanded",String(open));
+  if(open)refreshCustomer();
+});
+$("account-close")?.addEventListener("click",()=>{
+  accountPanel.hidden=true;
+  accountToggle.setAttribute("aria-expanded","false");
+});
+$("auth-mode")?.addEventListener("click",()=>{
+  authMode=authMode==="login"?"register":"login";
+  showSignedOut();
+  showAuthMessage(authMode==="register"?"Account creation is controlled by the platform.":"Sign in to access your customer workspace.");
+});
+$("auth-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("auth-submit");
+  button.disabled=true;
+  button.textContent="PLEASE WAIT…";
+  try{
+    const endpoint=authMode==="login"?"/api/auth/login":"/api/auth/register";
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("auth-email").value.trim(),password:$("auth-password").value})});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Account request failed");
+    $("auth-password").value="";
+    showCustomer(body.customer);
+  }catch(error){showAuthMessage(error.message||"Account request failed",true)}
+  finally{button.disabled=false;button.textContent=authMode==="login"?"SIGN IN":"CREATE ACCOUNT"}
+});
+$("auth-logout")?.addEventListener("click",async()=>{
+  try{await fetch("/api/auth/logout",{method:"POST"});authMode="login";showSignedOut();showAuthMessage("You have signed out.")}
+  catch{showAuthMessage("Could not sign out. Please retry.",true)}
+});
