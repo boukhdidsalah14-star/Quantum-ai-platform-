@@ -4,6 +4,7 @@ Commands are informational only. This bot never places trades.
 """
 import logging
 import os
+import httpx
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -164,7 +165,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         result = analyze_candles(candle_data, timeframe)
         reasons = "\n".join("• " + reason for reason in result["reasons"][:4])
         await update.effective_message.reply_text(
-            "⚡ QUANTUM AI · " + ("FOREX" if category == "forex" else "BINARY UNDERLYING") + "\n\n"
+            "⚡ QUANTUM AI · " + ("FOREX" if category == "forex" else "CRYPTO" if category == "crypto" else "BINARY UNDERLYING") + "\n\n"
             + symbol + " · " + timeframe + "\n"
             + "SIGNAL: " + result["direction"] + "\n"
             + "Trend: " + result["trend"] + " · RSI: " + str(result["rsi_14"]) + "\n"
@@ -172,7 +173,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             + reasons + "\n\n"
             + "Indicator research only. No trade was placed. Test on demo."
         )
-    except (DerivMarketDataError, ValueError):
+    except (DerivMarketDataError, ValueError, httpx.HTTPError):
         logger.exception("Telegram /signal request failed")
         await update.effective_message.reply_text("Market data or signal analysis is temporarily unavailable. No signal was issued.")
 
@@ -240,7 +241,7 @@ async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             + "WAITs: " + str(result["waits"]) + " · Candles: " + str(result["candles_tested"])
             + "\n\nHistorical direction only. Not a profit forecast. No trades placed."
         )
-    except (DerivMarketDataError, ValueError):
+    except (DerivMarketDataError, ValueError, httpx.HTTPError):
         logger.exception("Telegram /backtest request failed")
         await update.effective_message.reply_text("Historical test unavailable. No trades were placed.")
 
