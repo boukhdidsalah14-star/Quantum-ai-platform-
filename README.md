@@ -12,6 +12,8 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
 - Backend-driven broker capability registry for Deriv, IQ Option, and MEXC; the UI distinguishes implemented read-only scope from pending provider integrations.
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
+- Login attempts are throttled per normalized email + client IP using a persistent 15-minute SQLite bucket; successful login clears the bucket.
+- Browser-origin checks reject cross-origin register/login/logout requests when an Origin header is present.
 - SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
 
 ## Not enabled / important limits
