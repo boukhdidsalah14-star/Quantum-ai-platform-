@@ -1,12 +1,14 @@
 const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-let selected="BTCUSDT",prices={},candles=[],timeframe="1h";
+let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance";
 const $=id=>document.getElementById(id);
 const money=n=>"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:n>100?2:4});
 const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
 
 async function loadMarkets(){
   try{
-    const [mr,cr]=await Promise.all([fetch("/api/markets"),fetch("/api/candles/"+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
+    const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
+    const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
+    const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
     if(!mr.ok||!cr.ok)throw new Error("Market API unavailable");
     const marketData=await mr.json(),candleData=await cr.json();
     const list=marketData.markets.filter(x=>symbols.includes(x.symbol));
@@ -14,7 +16,7 @@ async function loadMarkets(){
     renderMarkets(list);
     candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:x.volume}));
     renderChart();
-    $("feed-status").textContent="LIVE · PUBLIC CRYPTO DATA";
+    $("feed-status").textContent="LIVE · "+marketSource.toUpperCase()+" PUBLIC DATA";
     $("feed-status").style.color="var(--green)";
     $("pair-title").innerHTML=selected.replace("USDT"," / USDT")+" <span class='live-tag'>LIVE</span>";
     const p=prices[selected];
@@ -41,7 +43,9 @@ function renderChart(){
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".tf").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tf").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
-window.addEventListener("resize",renderChart);loadMarkets();setInterval(loadMarkets,15000);
+window.addEventListener("resize",renderChart);
+$("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;loadMarkets()});
+loadMarkets();setInterval(loadMarkets,15000);
 
 
 const derivButton=$("deriv-check");
