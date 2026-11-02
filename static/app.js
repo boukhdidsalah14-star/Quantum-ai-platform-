@@ -1,6 +1,7 @@
 const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
 let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex",selectedPipSize=null;
 function configureSignalTimeframes(){const select=$("signal-timeframe");if(!select)return;const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["1m","5m","15m","30m","1h"]:["1h","4h","1d"];[...select.options].forEach(option=>option.hidden=!allowed.includes(option.value));if(!allowed.includes(select.value))select.value=deriv?"15m":"1h";}
+function configureChartTimeframes(){const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["15m","1h","4h","1d"]:["1h","4h","1d"];const buttons=[...document.querySelectorAll(".timeframes [data-tf]")];buttons.forEach(button=>button.hidden=!allowed.includes(button.dataset.tf));if(!allowed.includes(timeframe))timeframe="1h";buttons.forEach(button=>button.classList.toggle("active",button.dataset.tf===timeframe));}
 const $=id=>document.getElementById(id);
 const money=n=>"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:n>100?2:4});
 const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
@@ -11,6 +12,7 @@ const formatMarketPrice=item=>marketSource.startsWith("deriv_")?formatDerivPrice
 async function loadMarkets(){
   try{
     if(marketSource==="deriv_forex"||marketSource==="deriv_synthetic"||marketSource==="deriv_binary"){
+      configureChartTimeframes();
       const category=marketSource==="deriv_forex"?"forex":marketSource==="deriv_synthetic"?"synthetic":"all";
       $("binary-contract-check").hidden=marketSource!=="deriv_binary";
       $("binary-contract-status").textContent="";
