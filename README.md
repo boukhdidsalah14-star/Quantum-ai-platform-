@@ -35,6 +35,12 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 
 Registration/login JSON body: `{"email":"you@example.com","password":"at-least-12-characters"}`. Passwords must be 12–256 characters. Use HTTPS in production; cookies are marked Secure when `ENVIRONMENT=production`.
 
+## Deploy on Render
+
+A `render.yaml` Blueprint and production `Dockerfile` are included. In Render, create a new Blueprint from this repository and review the selected service and persistent-disk cost before confirming. The blueprint mounts `/var/data` so the SQLite customer and paper-trade database survives restarts. Keep signup closed until HTTPS, monitoring, backups, and abuse controls have been reviewed.
+
+After creating the service, add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` as private environment values in Render. Add Deriv demo secrets only if you are using the read-only admin demo status check. Never paste secrets into GitHub source files. The Telegram bot uses polling inside the single web-service instance; do not scale this service to multiple replicas without moving bot polling to a dedicated worker.
+
 ## Run the dashboard
 
 Python 3.10+ is recommended.
