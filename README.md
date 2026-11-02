@@ -20,7 +20,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
-- No customer broker credential storage or multi-user broker account management yet.
+- Customer-owned Deriv demo credentials can be stored encrypted per customer through authenticated `/api/connections/deriv/demo` endpoints. Set `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before using this feature; the API never returns stored tokens. This is storage only, not a verified broker connection or order execution.
 - IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
 - Paper trading is a simulation only and is not connected to any broker. No real order placement, auto-trading, binary-options execution, or real-account trading. The Deriv connector never sends proposal, buy, sell, or contract-management requests.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
@@ -70,7 +70,7 @@ The bot is informational only. It does not execute trades.
 
 - `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
 
-## Paper trading API
+## Customer broker credential vault\n\n- `GET /api/connections/deriv/demo` — show whether the signed-in customer's Deriv demo credentials are stored; never returns secrets.\n- `PUT /api/connections/deriv/demo` — save `{\"account_id\":\"VRTC...\",\"token\":\"...\"}` encrypted for that customer. Only virtual/demo account IDs are accepted.\n- `DELETE /api/connections/deriv/demo` — delete that customer's stored demo credentials.\n\nSet `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before use. Keep it in the hosting provider's private environment settings and back it up securely; losing it makes stored credentials undecryptable. Never commit the key or paste it into chat. The vault does not connect to Deriv or place orders.\n\n## Paper trading API
 
 All routes require a signed-in customer session. Each customer's trade records are isolated by customer ID.
 
@@ -95,7 +95,7 @@ Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 ## Safety roadmap
 
 1. Complete customer authentication hardening, email verification, account recovery, and tenant-owned resource coverage. (Initial identity/session layer and isolated paper-trade ledger are present.)
-2. Add encrypted credential storage and provider-specific permission checks.
+2. Add broker connection verification, provider-specific permission checks, and key-rotation procedures. (Encrypted per-customer Deriv demo credential storage foundation is present.)
 3. Implement a broker demo adapter and verify order/settlement events.
 4. Add stake limits, daily loss limits, idempotency, audit logs and emergency stop.
 5. Keep real-account execution disabled until demo testing, explicit consent, and provider/legal review are complete.
