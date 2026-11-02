@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from app.market_data import get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
-from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts
+from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
@@ -319,6 +319,23 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
+
+@app.get("/api/deriv/proposal/{symbol}")
+async def deriv_contract_quote(
+    symbol: str,
+    contract_type: str = Query(default="CALL"),
+    amount: float = Query(default=1.0, gt=0, le=2.0),
+    duration: int = Query(default=5),
+    currency: str = Query(default="USD", min_length=3, max_length=3),
+):
+    """Return a public binary contract price quote; never purchases the contract."""
+    try:
+        return await get_deriv_proposal(symbol, contract_type, amount, duration, "m", currency)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Deriv price quote is temporarily unavailable")
 
 
 @app.get("/api/signals/deriv/{symbol}")
