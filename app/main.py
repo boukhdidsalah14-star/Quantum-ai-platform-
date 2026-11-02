@@ -15,6 +15,7 @@ from app.brokers import broker_capabilities
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
+    consume_login_attempt, clear_login_attempts,
 )
 
 load_dotenv()
@@ -94,11 +95,15 @@ async def register(payload: Credentials, response: Response):
 
 
 @app.post("/api/auth/login")
-async def login(payload: Credentials, response: Response):
+async def login(payload: Credentials, request: Request, response: Response):
     init_auth_db()
+    client_ip = request.client.host if request.client else "unknown"
+    if not consume_login_attempt(payload.email, client_ip):
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again in 15 minutes.")
     customer = authenticate_customer(payload.email, payload.password)
     if not customer:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    clear_login_attempts(payload.email, client_ip)
     token = create_session(customer["id"])
     _session_cookie(response, token)
     return {"customer": customer, "authenticated": True}
