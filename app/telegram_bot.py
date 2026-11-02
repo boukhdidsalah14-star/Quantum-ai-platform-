@@ -169,7 +169,7 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             + symbol + " · " + timeframe + "\n"
             + "SIGNAL: " + result["direction"] + "\n"
             + "Trend: " + result["trend"] + " · RSI: " + str(result["rsi_14"]) + "\n"
-            + "Confidence: " + result["confidence"] + "\n\n"
+            + "Signal strength: " + result["signal_strength"] + "\n\n"
             + reasons + "\n\n"
             + "Indicator research only. No trade was placed. Test on demo."
         )
