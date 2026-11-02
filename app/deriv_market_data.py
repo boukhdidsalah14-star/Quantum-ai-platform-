@@ -98,3 +98,28 @@ async def get_candles(symbol: str, granularity: int = 900, count: int = 100) -> 
         "low": float(row["low"]),
         "close": float(row["close"]),
     } for row in rows]
+
+
+async def get_available_contracts(symbol: str) -> dict[str, Any]:
+    symbol = symbol.strip()
+    if not SYMBOL_PATTERN.fullmatch(symbol):
+        raise ValueError("Invalid Deriv market symbol")
+    active = await get_active_markets("all")
+    if not any(row["symbol"] == symbol for row in active):
+        raise ValueError("Unsupported Deriv market symbol")
+    response = await _request({"contracts_for": symbol}, "contracts_for")
+    payload = response.get("contracts_for", {})
+    contracts = payload.get("available", []) if isinstance(payload, dict) else []
+    return {
+        "symbol": symbol,
+        "contracts": [{
+            "contract_type": row.get("contract_type"),
+            "contract_display": row.get("contract_display"),
+            "contract_category": row.get("contract_category"),
+            "contract_category_display": row.get("contract_category_display"),
+            "min_contract_duration": row.get("min_contract_duration"),
+            "max_contract_duration": row.get("max_contract_duration"),
+            "min_contract_duration_units": row.get("min_contract_duration_units"),
+            "max_contract_duration_units": row.get("max_contract_duration_units"),
+        } for row in contracts],
+    }
