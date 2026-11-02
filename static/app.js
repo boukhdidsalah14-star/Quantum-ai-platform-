@@ -68,6 +68,24 @@ if(derivButton){
 }
 
 
+// Broker capability display is driven by the backend registry, never guessed in the browser.
+async function loadBrokerCapabilities(){
+  try{
+    const response=await fetch("/api/brokers");
+    if(!response.ok)throw new Error("Broker status unavailable");
+    const body=await response.json();
+    const deriv=body.brokers.find(item=>item.id==="deriv");
+    if(deriv){
+      $("deriv-capability").textContent=deriv.note;
+      $("deriv-capability-tag").textContent=deriv.status==="demo_status_configured"?"CONFIGURED · NOT VERIFIED":"SETUP REQUIRED";
+      $("deriv-capability-tag").className="tag-pending";
+    }
+  }catch{
+    $("deriv-capability").textContent="Status could not be loaded";
+  }
+}
+loadBrokerCapabilities();
+
 // Customer account access: authentication only; no broker credentials are handled here.
 const accountPanel=$("account-panel");
 const accountToggle=$("account-toggle");
