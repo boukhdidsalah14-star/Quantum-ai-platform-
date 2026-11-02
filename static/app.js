@@ -8,6 +8,8 @@ async function loadMarkets(){
   try{
     if(marketSource==="deriv_forex"||marketSource==="deriv_synthetic"||marketSource==="deriv_binary"){
       const category=marketSource==="deriv_forex"?"forex":marketSource==="deriv_synthetic"?"synthetic":"all";
+      $("binary-contract-check").hidden=marketSource!=="deriv_binary";
+      $("binary-contract-status").textContent="";
       const mr=await fetch("/api/deriv/markets?category="+category);
       if(!mr.ok)throw new Error("Deriv market list unavailable");
       const marketData=await mr.json();
@@ -32,6 +34,8 @@ async function loadMarkets(){
       $("change").className="positive";
       return;
     }
+    $("binary-contract-check").hidden=true;
+    $("binary-contract-status").textContent="";
     const marketPath=marketSource==="mexc"?"/api/mexc/markets":"/api/markets";
     const candlePath=marketSource==="mexc"?"/api/mexc/candles/":"/api/candles/";
     const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
@@ -70,6 +74,18 @@ function renderChart(){
   const last=candles[candles.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#8cff3f88";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#8cff3f";ctx.fillRect(w-pad.r+3,y(last.c)-8,53,16);ctx.fillStyle="#061006";ctx.fillText(last.c.toFixed(hi>100?1:5),w-pad.r+6,y(last.c)+3);
 }
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
+$("binary-contract-check")?.addEventListener("click",async()=>{
+  const button=$("binary-contract-check"),status=$("binary-contract-status");
+  button.disabled=true;button.textContent="CHECKING…";
+  try{
+    const response=await fetch("/api/deriv/contracts/"+encodeURIComponent(selected));
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Contract metadata unavailable");
+    const names=(body.contracts||[]).map(x=>x.contract_display||x.contract_type).filter(Boolean);
+    status.textContent=names.length?"AVAILABLE: "+names.slice(0,6).join(" · "):"No binary contracts listed for this symbol.";
+  }catch(error){status.textContent=error.message||"Contract lookup failed."}
+  finally{button.disabled=false;button.textContent="CHECK CONTRACTS"}
+});
 window.addEventListener("resize",renderChart);
 $("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;loadMarkets()});
 loadMarkets();setInterval(loadMarkets,15000);
