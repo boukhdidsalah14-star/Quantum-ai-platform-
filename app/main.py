@@ -1,5 +1,7 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 import hmac
+import logging
 import os
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Query
@@ -9,12 +11,43 @@ from app.market_data import get_candles, get_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 
 ROOT = Path(__file__).resolve().parent.parent
-app = FastAPI(title="QUANTUM AI", version="0.3.1", description="Read-only trading workspace foundation")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    bot = None
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    if token:
+        from app.telegram_bot import build_application
+        bot = build_application(token)
+        await bot.initialize()
+        await bot.start()
+        if bot.updater is not None:
+            await bot.updater.start_polling(allowed_updates=["message"])
+        app.state.telegram_bot = bot
+        logger.info("QUANTUM AI Telegram bot started with the web service")
+    else:
+        logger.info("Telegram bot is not configured; dashboard will run without it")
+    try:
+        yield
+    finally:
+        if bot is not None:
+            if bot.updater is not None and bot.updater.running:
+                await bot.updater.stop()
+            if bot.running:
+                await bot.stop()
+            await bot.shutdown()
+
+
+app = FastAPI(title="QUANTUM AI", version="0.4.0", description="Read-only trading workspace foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "deriv_demo_connector": "available", "order_execution": False, "trading_enabled": False}
+    return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip()), "deriv_demo_connector": "available", "order_execution": False, "trading_enabled": False}
+
 
 @app.get("/api/markets")
 async def markets():
@@ -22,6 +55,7 @@ async def markets():
         return {"source": "Binance public market data", "markets": await get_market_overview()}
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public market data is temporarily unavailable")
+
 
 @app.get("/api/candles/{symbol}")
 async def candles(symbol: str, interval: str = Query(default="1h"), limit: int = Query(default=72, ge=20, le=200)):
@@ -31,6 +65,7 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
 
 @app.get("/api/deriv/demo/status")
 async def deriv_demo_status(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
@@ -45,6 +80,7 @@ async def deriv_demo_status(x_admin_key: str = Header(default="", alias="X-Admin
         raise HTTPException(status_code=503, detail=str(exc))
     except (DerivConnectionError, httpx.HTTPError):
         raise HTTPException(status_code=502, detail="Deriv demo account check failed; verify demo credentials and permissions")
+
 
 @app.get("/")
 async def dashboard():
