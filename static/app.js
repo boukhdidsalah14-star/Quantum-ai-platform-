@@ -6,8 +6,8 @@ const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
 
 async function loadMarkets(){
   try{
-    if(marketSource==="deriv_forex"||marketSource==="deriv_synthetic"){
-      const category=marketSource==="deriv_forex"?"forex":"synthetic";
+    if(marketSource==="deriv_forex"||marketSource==="deriv_synthetic"||marketSource==="deriv_binary"){
+      const category=marketSource==="deriv_forex"?"forex":marketSource==="deriv_synthetic"?"synthetic":"all";
       const mr=await fetch("/api/deriv/markets?category="+category);
       if(!mr.ok)throw new Error("Deriv market list unavailable");
       const marketData=await mr.json();
@@ -37,6 +37,7 @@ async function loadMarkets(){
     const [mr,cr]=await Promise.all([fetch(marketPath),fetch(candlePath+encodeURIComponent(selected)+"?interval="+encodeURIComponent(timeframe)+"&limit=72")]);
     if(!mr.ok||!cr.ok)throw new Error("Market API unavailable");
     const marketData=await mr.json(),candleData=await cr.json();
+    if(!symbols.includes(selected))selected=symbols[0];
     const list=marketData.markets.filter(x=>symbols.includes(x.symbol));
     list.forEach(x=>prices[x.symbol]=x);
     renderMarkets(list);
@@ -53,8 +54,8 @@ async function loadMarkets(){
   }
 }
 function renderMarkets(list){
-  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(Number.isFinite(Number(x.price))?money(x.price):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
-  $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(Number.isFinite(Number(x.price))?money(x.price):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
+  $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?money(x.price):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
+  $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?money(x.price):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
   $("ticker").dataset.failed="";
   $("watchlist").querySelectorAll(".asset-row").forEach(el=>el.addEventListener("click",()=>{selected=el.dataset.symbol;loadMarkets()}));
 }
