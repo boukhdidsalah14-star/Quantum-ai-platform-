@@ -23,7 +23,7 @@ async function loadMarkets(){
       const candleData=await cr.json();
       candles=candleData.candles.map(x=>({o:x.open,h:x.high,l:x.low,c:x.close,v:0}));
       const last=candles[candles.length-1];
-      const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,price:x.symbol===selected&&last?last.c:null,change_percent:null}));
+      const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,price:x.price??(x.symbol===selected&&last?last.c:null),change_percent:null}));
       renderMarkets(list);
       renderChart();
       $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
@@ -34,8 +34,8 @@ async function loadMarkets(){
       $("quote-preview").hidden=false;
       configureSignalTimeframes();
       $("pair-title").innerHTML=(selectedMarket?.name||selected)+" <span class='live-tag'>DERIV</span>";
-      $("price").textContent=last?money(last.c):"—";
-      $("change").textContent=selectedMarket?.is_open===false?"MARKET CLOSED":"LAST CANDLE";
+      $("price").textContent=selectedMarket?.price!==null&&selectedMarket?.price!==undefined?money(selectedMarket.price):last?money(last.c):"—";
+      $("change").textContent=selectedMarket?.is_open===false?"MARKET CLOSED":selectedMarket?.price!==null&&selectedMarket?.price!==undefined?"LIVE TICK":"LAST CANDLE";
       $("change").className="positive";
       return;
     }
