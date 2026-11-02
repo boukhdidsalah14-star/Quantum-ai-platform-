@@ -111,8 +111,8 @@ async def deriv_market_list(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         rows = await get_deriv_markets(category)
         if not rows:
             raise RuntimeError("No active markets returned")
-        title = "FOREX MARKETS" if category == "forex" else "BINARY UNDERLYINGS · SYNTHETIC INDICES"
-        lines = [f"{row['symbol']} · {row['name']}" for row in rows[:25]]
+        title = "FOREX MARKETS" if category == "forex" else "BINARY-OPTION UNDERLYINGS" if category == "all" else "SYNTHETIC INDICES"
+        lines = [f"{row['symbol']} · {row['name']} · {row['market'].upper()}" for row in rows[:25]]
         await update.effective_message.reply_text(
             "⚡ QUANTUM AI · " + title + "\n\n" + "\n".join(lines)
             + "\n\nUse /signal SYMBOL 15m to analyze a market. Public data only."
@@ -127,7 +127,7 @@ async def forex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def binary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await deriv_market_list(update, context, "synthetic")
+    await deriv_market_list(update, context, "all")
 
 
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
