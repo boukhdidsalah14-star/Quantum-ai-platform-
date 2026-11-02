@@ -182,7 +182,7 @@ async function loadBrokerCapabilities(){
     const deriv=body.brokers.find(item=>item.id==="deriv");
     if(deriv){
       $("deriv-capability").textContent=deriv.note;
-      $("deriv-capability-tag").textContent=deriv.status==="demo_status_configured"?"CONFIGURED · NOT VERIFIED":"SETUP REQUIRED";
+      $("deriv-capability-tag").textContent=deriv.demo_status_configured?"DEMO · UNVERIFIED":"PUBLIC DATA · DEMO SETUP";
       $("deriv-capability-tag").className="tag-pending";
     }
   }catch{
