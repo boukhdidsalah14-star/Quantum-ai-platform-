@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import get_candles, get_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
+from app.brokers import broker_capabilities
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
@@ -65,6 +66,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="QUANTUM AI", version="0.5.0", description="Mobile trading workspace with customer identity foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+
+
+@app.get("/api/brokers")
+async def brokers():
+    """Return verified implementation scope; this endpoint never claims a live account."""
+    return broker_capabilities()
 
 
 @app.get("/health")
