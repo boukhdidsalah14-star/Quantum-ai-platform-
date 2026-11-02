@@ -146,8 +146,8 @@ async def get_contract_proposal(
         raise ValueError("Only CALL and PUT contract quotes are supported")
     if not (0.35 <= float(amount) <= 2.0):
         raise ValueError("Demo quote stake must be between 0.35 and 2.00")
-    if duration not in {1, 5, 15, 30, 60} or duration_unit != "m":
-        raise ValueError("Quote duration must be 1, 5, 15, 30, or 60 minutes")
+    if duration not in {1, 5, 10, 15, 30, 60} or duration_unit != "m":
+        raise ValueError("Quote duration must be 1, 5, 10, 15, 30, or 60 minutes")
     if not re.fullmatch(r"[A-Z]{3}", currency):
         raise ValueError("Invalid account currency")
     active = await get_active_markets("all")
