@@ -126,3 +126,12 @@ def test_login_attempt_bucket_limits_and_resets(monkeypatch, tmp_path):
     assert consume_login_attempt("person@example.com", "127.0.0.1", now=1900)
     clear_login_attempts("person@example.com", "127.0.0.1")
     assert consume_login_attempt("person@example.com", "127.0.0.1", now=1901)
+
+
+
+def test_customer_session_endpoints_reject_cross_origin(monkeypatch, tmp_path):
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "origin.sqlite3"))
+    with TestClient(main.app) as test_client:
+        headers = {"Origin": "https://attacker.example"}
+        assert test_client.post("/api/auth/login", json={"email": "a@example.com", "password": "wrong"}, headers=headers).status_code == 403
+        assert test_client.post("/api/auth/logout", headers=headers).status_code == 403
