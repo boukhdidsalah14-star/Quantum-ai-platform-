@@ -8,7 +8,7 @@ import os
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-from app.market_data import ALLOWED_SYMBOLS, get_market_overview
+from app.market_data import ALLOWED_SYMBOLS, get_candles as get_crypto_candles, get_market_overview
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
 from app.backtest import backtest_candles
@@ -48,8 +48,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/binary — list Forex and synthetic binary-option underlyings\n"
         "/signal frxEURUSD 15m forex — analyze Forex\n"
         "/signal R_100 5m synthetic — analyze a binary underlying\n"
+        "/signal BTCUSDT 1h crypto — analyze crypto\n"
         "/quote R_100 CALL 1 5 — preview a 1 USD, 5-minute price\n"
         "/backtest frxEURUSD 15m forex — test historical direction\n"
+        "/backtest BTCUSDT 1h crypto — test crypto history\n"
         "/help — show this help\n"
         "/status — platform status\n\n"
         "All market data is read-only. This bot cannot open or manage trades."
@@ -142,17 +144,23 @@ async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     symbol = context.args[0].strip()
     timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
-    category = context.args[2].lower() if len(context.args) > 2 else ("forex" if symbol.lower().startswith("frx") else "synthetic")
+    category = context.args[2].lower() if len(context.args) > 2 else ("crypto" if symbol.upper() in ALLOWED_SYMBOLS else "forex" if symbol.lower().startswith("frx") else "synthetic")
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
-    if category not in {"forex", "synthetic"} or timeframe not in intervals:
-        await update.effective_message.reply_text("Use a valid timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d) and category (forex or synthetic).")
+    if category not in {"forex", "synthetic", "crypto"} or timeframe not in intervals:
+        await update.effective_message.reply_text("Use a valid timeframe and category (forex, synthetic, or crypto).")
         return
     try:
-        markets_data = await get_deriv_markets(category)
-        if not any(item["symbol"] == symbol for item in markets_data):
-            await update.effective_message.reply_text("That symbol is not currently listed in the selected Deriv market category. Use /forex or /binary to see available symbols.")
-            return
-        candle_data = await get_deriv_candles(symbol, intervals[timeframe], 100)
+        if category == "crypto":
+            if timeframe not in {"1h", "4h", "1d"}:
+                await update.effective_message.reply_text("Crypto signal timeframes: 1h, 4h, or 1d.")
+                return
+            candle_data = await get_crypto_candles(symbol, timeframe, 100)
+        else:
+            markets_data = await get_deriv_markets(category)
+            if not any(item["symbol"] == symbol for item in markets_data):
+                await update.effective_message.reply_text("That symbol is not currently listed in the selected Deriv market category. Use /forex or /binary to see available symbols.")
+                return
+            candle_data = await get_deriv_candles(symbol, intervals[timeframe], 100)
         result = analyze_candles(candle_data, timeframe)
         reasons = "\n".join("• " + reason for reason in result["reasons"][:4])
         await update.effective_message.reply_text(
@@ -205,17 +213,23 @@ async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     symbol = context.args[0].strip()
     timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
-    category = context.args[2].lower() if len(context.args) > 2 else ("forex" if symbol.lower().startswith("frx") else "synthetic")
+    category = context.args[2].lower() if len(context.args) > 2 else ("crypto" if symbol.upper() in ALLOWED_SYMBOLS else "forex" if symbol.lower().startswith("frx") else "synthetic")
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
-    if category not in {"forex", "synthetic"} or timeframe not in intervals:
-        await update.effective_message.reply_text("Choose a supported timeframe and category: forex or synthetic.")
+    if category not in {"forex", "synthetic", "crypto"} or timeframe not in intervals:
+        await update.effective_message.reply_text("Choose a supported timeframe and category: forex, synthetic, or crypto.")
         return
     try:
-        markets_data = await get_deriv_markets(category)
-        if not any(item["symbol"] == symbol for item in markets_data):
-            await update.effective_message.reply_text("That symbol is not listed in the selected market category.")
-            return
-        candles = await get_deriv_candles(symbol, intervals[timeframe], 200)
+        if category == "crypto":
+            if timeframe not in {"1h", "4h", "1d"}:
+                await update.effective_message.reply_text("Crypto backtest timeframes: 1h, 4h, or 1d.")
+                return
+            candles = await get_crypto_candles(symbol, timeframe, 200)
+        else:
+            markets_data = await get_deriv_markets(category)
+            if not any(item["symbol"] == symbol for item in markets_data):
+                await update.effective_message.reply_text("That symbol is not listed in the selected market category.")
+                return
+            candles = await get_deriv_candles(symbol, intervals[timeframe], 200)
         result = backtest_candles(candles, timeframe, 1)
         accuracy = "Not enough directional signals" if result["directional_accuracy_percent"] is None else str(result["directional_accuracy_percent"]) + "%"
         await update.effective_message.reply_text(
