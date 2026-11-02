@@ -34,7 +34,11 @@ class Credentials(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
-class DerivDemoCredentials(BaseModel):\n    account_id: str = Field(min_length=4, max_length=64)\n    token: str = Field(min_length=1, max_length=4096)\n\n\nclass PaperTradeRequest(BaseModel):
+class DerivDemoCredentials(BaseModel):
+    account_id: str = Field(min_length=4, max_length=64)
+    token: str = Field(min_length=1, max_length=4096)
+
+
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
