@@ -202,3 +202,20 @@ def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
             "symbol": "BTCUSDT", "side": "long", "quantity": 0.001
         })
         assert response.status_code == 403
+
+
+
+def test_mexc_public_market_endpoint(monkeypatch):
+    async def fake_mexc_markets():
+        return [{"symbol": "BTCUSDT", "price": "51000"}]
+    monkeypatch.setattr(main, "get_mexc_market_overview", fake_mexc_markets)
+    response = client.get("/api/mexc/markets")
+    assert response.status_code == 200
+    assert response.json()["source"] == "MEXC public Spot API"
+    assert response.json()["execution_enabled"] is False
+    assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
+
+
+def test_mexc_candles_reject_unsupported_symbol():
+    response = client.get("/api/mexc/candles/NOTREAL?interval=1h")
+    assert response.status_code == 400
