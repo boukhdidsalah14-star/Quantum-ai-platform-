@@ -84,11 +84,14 @@ async def lifespan(app: FastAPI):
         bot = build_application(token)
         try:
             await bot.initialize()
+            from app.telegram_bot import configure_telegram_menu
+            await configure_telegram_menu(bot)
+            if bot.updater is None:
+                raise RuntimeError("Telegram polling updater is unavailable")
+            await bot.updater.start_polling(allowed_updates=["message"])
             await bot.start()
-            if bot.updater is not None:
-                await bot.updater.start_polling(allowed_updates=["message"])
             app.state.telegram_bot = bot
-            logger.info("QUANTUM AI Telegram bot started with the web service")
+            logger.info("QUANTUM AI Telegram bot polling started successfully")
         except Exception:
             logger.exception("Telegram bot could not start; keeping the dashboard available")
             try:
