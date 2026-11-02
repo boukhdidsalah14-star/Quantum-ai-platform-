@@ -113,3 +113,16 @@ def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
     assert brokers["mexc"]["status"] == "integration_pending"
     assert body["execution_enabled"] is False
     assert all(item["execution_enabled"] is False for item in body["brokers"])
+
+
+
+def test_login_attempt_bucket_limits_and_resets(monkeypatch, tmp_path):
+    from app.auth import clear_login_attempts, consume_login_attempt, init_auth_db
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "throttle.sqlite3"))
+    init_auth_db()
+    for _ in range(10):
+        assert consume_login_attempt("person@example.com", "127.0.0.1", now=1000)
+    assert consume_login_attempt("person@example.com", "127.0.0.1", now=1000) is False
+    assert consume_login_attempt("person@example.com", "127.0.0.1", now=1900)
+    clear_login_attempts("person@example.com", "127.0.0.1")
+    assert consume_login_attempt("person@example.com", "127.0.0.1", now=1901)
