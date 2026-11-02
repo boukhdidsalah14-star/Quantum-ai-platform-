@@ -4,7 +4,7 @@ Commands are informational only. This bot does not place trades.
 """
 import os
 import logging
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Market data is informational only. Trading and order execution are currently disabled."
     )
     if WEBAPP_URL.startswith("https://"):
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Open QUANTUM AI", web_app={"url": WEBAPP_URL})]])
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))]])
         await update.effective_message.reply_text(message, reply_markup=keyboard)
     else:
         await update.effective_message.reply_text(message + "\n\nDashboard link is not configured yet.")
