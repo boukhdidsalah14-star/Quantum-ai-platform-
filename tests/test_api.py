@@ -399,3 +399,26 @@ def test_deriv_contract_quote_rejects_invalid_direction(monkeypatch):
     monkeypatch.setattr(main, "get_deriv_proposal", fake_quote)
     response = client.get("/api/deriv/proposal/R_100?contract_type=UP")
     assert response.status_code == 400
+
+
+def test_deriv_backtest_endpoint_is_read_only(monkeypatch):
+    async def fake_markets(category):
+        return [{"symbol": "R_100", "market": "synthetic"}]
+    async def fake_candles(symbol, granularity, count):
+        assert (symbol, granularity, count) == ("R_100", 900, 200)
+        return [{"open": 100 + i * 0.02, "high": 100 + i * 0.02 + 0.15,
+                 "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
+                for i in range(100)]
+    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
+    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
+    response = client.get("/api/backtest/deriv/R_100?category=synthetic&timeframe=15m")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution_enabled"] is False
+    assert body["candles_tested"] == 100
+    assert body["symbol"] == "R_100"
+
+
+def test_deriv_backtest_rejects_invalid_lookahead():
+    response = client.get("/api/backtest/deriv/R_100?category=synthetic&lookahead_candles=8")
+    assert response.status_code == 422
