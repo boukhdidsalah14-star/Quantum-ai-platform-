@@ -15,7 +15,7 @@ from app.mexc_market_data import get_market_overview as get_mexc_market_overview
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
-from app.auth import (
+from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)\nfrom app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
     consume_login_attempt, clear_login_attempts,
@@ -33,7 +33,7 @@ class Credentials(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
-class PaperTradeRequest(BaseModel):
+class DerivDemoCredentials(BaseModel):\n    account_id: str = Field(min_length=4, max_length=64)\n    token: str = Field(min_length=1, max_length=4096)\n\n\nclass PaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
@@ -170,6 +170,42 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax",
                            secure=os.getenv("ENVIRONMENT", "development").lower() == "production")
     return {"authenticated": False}
+
+
+@app.get("/api/connections/deriv/demo")
+async def deriv_demo_connection(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return demo_credential_metadata(customer["id"])
+
+
+@app.put("/api/connections/deriv/demo")
+async def save_deriv_demo_connection(payload: DerivDemoCredentials, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return save_demo(customer["id"], payload.account_id, payload.token)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except VaultError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.delete("/api/connections/deriv/demo")
+async def remove_deriv_demo_connection(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"deleted": delete_demo(customer["id"])}
 
 
 @app.get("/api/paper/trades")
