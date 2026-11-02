@@ -9,6 +9,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppI
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from app.market_data import ALLOWED_SYMBOLS, get_market_overview
+from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles
+from app.signals import analyze_candles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -40,7 +42,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "QUANTUM AI commands:\n"
         "/start — open the dashboard\n"
         "/markets — latest public crypto prices\n"
-        "/price BTCUSDT — price for a supported market\n"
+        "/price BTCUSDT — price for a supported crypto market\n"
+        "/forex — list Deriv Forex pairs\n"
+        "/binary — list synthetic binary underlyings\n"
+        "/signal frxEURUSD 15m forex — analyze Forex\n"
+        "/signal R_100 5m synthetic — analyze a binary underlying\n"
         "/help — show this help\n"
         "/status — platform status\n\n"
         "All market data is read-only. This bot cannot open or manage trades."
@@ -97,6 +103,69 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("That public quote is temporarily unavailable. Please try again shortly.")
 
 
+
+
+async def deriv_market_list(update: Update, context: ContextTypes.DEFAULT_TYPE, category: str) -> None:
+    try:
+        rows = await get_deriv_markets(category)
+        if not rows:
+            raise RuntimeError("No active markets returned")
+        title = "FOREX MARKETS" if category == "forex" else "BINARY UNDERLYINGS · SYNTHETIC INDICES"
+        lines = [f"{row['symbol']} · {row['name']}" for row in rows[:25]]
+        await update.effective_message.reply_text(
+            "⚡ QUANTUM AI · " + title + "\n\n" + "\n".join(lines)
+            + "\n\nUse /signal SYMBOL 15m to analyze a market. Public data only."
+        )
+    except (DerivMarketDataError, RuntimeError):
+        logger.exception("Telegram Deriv market list failed")
+        await update.effective_message.reply_text("Deriv public market list is temporarily unavailable.")
+
+
+async def forex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await deriv_market_list(update, context, "forex")
+
+
+async def binary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await deriv_market_list(update, context, "synthetic")
+
+
+async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.effective_message.reply_text(
+            "Usage: /signal frxEURUSD 15m forex\n"
+            "For synthetic binary underlyings: /signal R_100 5m synthetic"
+        )
+        return
+    symbol = context.args[0].strip()
+    timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
+    category = context.args[2].lower() if len(context.args) > 2 else ("forex" if symbol.lower().startswith("frx") else "synthetic")
+    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400, "1d": 86400}
+    if category not in {"forex", "synthetic"} or timeframe not in intervals:
+        await update.effective_message.reply_text("Use a valid timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d) and category (forex or synthetic).")
+        return
+    try:
+        markets_data = await get_deriv_markets(category)
+        if not any(item["symbol"] == symbol for item in markets_data):
+            await update.effective_message.reply_text("That symbol is not currently listed in the selected Deriv market category. Use /forex or /binary to see available symbols.")
+            return
+        candle_data = await get_deriv_candles(symbol, intervals[timeframe], 100)
+        result = analyze_candles(candle_data, timeframe)
+        reasons = "\n".join("• " + reason for reason in result["reasons"][:4])
+        await update.effective_message.reply_text(
+            "⚡ QUANTUM AI · " + ("FOREX" if category == "forex" else "BINARY UNDERLYING") + "\n\n"
+            + symbol + " · " + timeframe + "\n"
+            + "SIGNAL: " + result["direction"] + "\n"
+            + "Trend: " + result["trend"] + " · RSI: " + str(result["rsi_14"]) + "\n"
+            + "Confidence: " + result["confidence"] + "\n\n"
+            + reasons + "\n\n"
+            + "Indicator research only. No trade was placed. Test on demo."
+        )
+    except (DerivMarketDataError, ValueError):
+        logger.exception("Telegram /signal request failed")
+        await update.effective_message.reply_text("Market data or signal analysis is temporarily unavailable. No signal was issued.")
+
+
+
 def build_application(token: str) -> Application:
     application = Application.builder().token(token).build()
     application.add_handler(CommandHandler("start", start))
@@ -104,4 +173,7 @@ def build_application(token: str) -> Application:
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("markets", markets))
     application.add_handler(CommandHandler("price", price))
+    application.add_handler(CommandHandler("forex", forex))
+    application.add_handler(CommandHandler("binary", binary))
+    application.add_handler(CommandHandler("signal", signal))
     return application
