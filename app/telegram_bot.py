@@ -155,7 +155,7 @@ async def binary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
         await update.effective_message.reply_text(
-            "Usage: /signal frxEURUSD 15m forex\n"
+            "Usage: /signal EURUSD 15m forex\n"
             "For synthetic binary underlyings: /signal R_100 5m synthetic"
         )
         return
@@ -229,7 +229,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.effective_message.reply_text("Usage: /backtest frxEURUSD 15m forex")
+        await update.effective_message.reply_text("Usage: /backtest EURUSD 15m forex")
         return
     symbol = context.args[0].strip()
     timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
