@@ -31,6 +31,15 @@ load_dotenv()
 ROOT = Path(__file__).resolve().parent.parent
 logger = logging.getLogger(__name__)
 SESSION_COOKIE = "quantum_session"
+TELEGRAM_TOKEN_ENV_NAMES = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN")
+
+
+def _configured_telegram_token() -> tuple[str, str]:
+    for name in TELEGRAM_TOKEN_ENV_NAMES:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value, name
+    return "", ""
 
 
 class Credentials(BaseModel):
@@ -78,7 +87,7 @@ async def lifespan(app: FastAPI):
     init_paper_db()
     init_vault_db()
     bot = None
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    token, token_env_name = _configured_telegram_token()
     if token:
         from app.telegram_bot import build_application
         bot = build_application(token)
@@ -86,7 +95,7 @@ async def lifespan(app: FastAPI):
             await bot.initialize()
             from app.telegram_bot import configure_telegram_menu
             telegram_identity = await bot.bot.get_me()
-            logger.info("Telegram token authenticated for bot @%s", telegram_identity.username)
+            logger.info("Telegram token authenticated from %s for bot @%s", token_env_name, telegram_identity.username)
             await configure_telegram_menu(bot)
             if bot.updater is None:
                 raise RuntimeError("Telegram polling updater is unavailable")
@@ -147,7 +156,7 @@ async def health(request: Request):
         "status": "ok",
         "service": "quantum-ai",
         "market_data": "public-read-only",
-        "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip()),
+        "telegram_configured": bool(_configured_telegram_token()[0]),
         "telegram_bot_running": bool(bot and bot.running and bot.updater and bot.updater.running),
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "deriv_demo_connector": "available",
