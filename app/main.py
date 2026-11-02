@@ -10,7 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from app.market_data import get_candles, get_market_overview
+from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal
@@ -320,6 +320,61 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
+
+@app.get("/api/signals/crypto/{symbol}")
+async def crypto_signal(
+    symbol: str,
+    source: str = Query(default="binance"),
+    timeframe: str = Query(default="1h"),
+):
+    """Calculate a read-only indicator signal from public crypto candles."""
+    if timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Crypto signal timeframe must be 1h, 4h, or 1d")
+    if source not in {"binance", "mexc"}:
+        raise HTTPException(status_code=400, detail="Crypto source must be binance or mexc")
+    if symbol.upper() not in ALLOWED_SYMBOLS:
+        raise HTTPException(status_code=400, detail="Unsupported crypto market")
+    try:
+        candle_data = (await get_candles(symbol, timeframe, 100) if source == "binance"
+                       else await get_mexc_candles(symbol, timeframe, 100))
+        result = analyze_candles(candle_data, timeframe)
+        result.update({"symbol": symbol.upper(), "category": "crypto",
+                       "source": source.upper() + " public candles",
+                       "execution_enabled": False})
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Crypto historical data is temporarily unavailable")
+
+
+@app.get("/api/backtest/crypto/{symbol}")
+async def crypto_backtest(
+    symbol: str,
+    source: str = Query(default="binance"),
+    timeframe: str = Query(default="1h"),
+    lookahead_candles: int = Query(default=1, ge=1, le=4),
+):
+    """Evaluate historical crypto signal direction without placing orders."""
+    if timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Crypto backtest timeframe must be 1h, 4h, or 1d")
+    if source not in {"binance", "mexc"}:
+        raise HTTPException(status_code=400, detail="Crypto source must be binance or mexc")
+    if symbol.upper() not in ALLOWED_SYMBOLS:
+        raise HTTPException(status_code=400, detail="Unsupported crypto market")
+    try:
+        candle_data = (await get_candles(symbol, timeframe, 200) if source == "binance"
+                       else await get_mexc_candles(symbol, timeframe, 200))
+        result = backtest_candles(candle_data, timeframe, lookahead_candles)
+        result.update({"symbol": symbol.upper(), "category": "crypto",
+                       "source": source.upper() + " historical candles",
+                       "execution_enabled": False})
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Crypto historical data is temporarily unavailable")
 
 
 @app.get("/api/backtest/deriv/{symbol}")
