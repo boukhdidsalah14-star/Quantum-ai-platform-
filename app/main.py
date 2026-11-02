@@ -85,10 +85,18 @@ async def lifespan(app: FastAPI):
         try:
             await bot.initialize()
             from app.telegram_bot import configure_telegram_menu
+            telegram_identity = await bot.bot.get_me()
+            logger.info("Telegram token authenticated for bot @%s", telegram_identity.username)
             await configure_telegram_menu(bot)
             if bot.updater is None:
                 raise RuntimeError("Telegram polling updater is unavailable")
-            await bot.updater.start_polling(allowed_updates=["message"])
+            # getUpdates cannot run while a webhook is configured. Preserve queued messages.
+            await bot.bot.delete_webhook(drop_pending_updates=False)
+            await bot.updater.start_polling(
+                allowed_updates=["message"],
+                drop_pending_updates=False,
+                bootstrap_retries=-1,
+            )
             await bot.start()
             app.state.telegram_bot = bot
             logger.info("QUANTUM AI Telegram bot polling started successfully")
