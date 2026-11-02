@@ -49,12 +49,15 @@ async def get_active_markets(category: str = "all") -> list[dict[str, Any]]:
     rows = response.get("active_symbols", [])
     result = []
     for row in rows:
-        symbol = str(row.get("symbol", ""))
+        # Deriv New API renamed symbol/display fields; retain legacy fallbacks.
+        symbol = str(row.get("underlying_symbol") or row.get("symbol") or "")
         market = str(row.get("market", "")).lower()
-        market_name = str(row.get("market_display_name", "")).lower()
+        market_name = str(row.get("market_display_name") or row.get("market") or "").lower()
         submarket = str(row.get("submarket", "")).lower()
         is_forex = market == "forex" or "forex" in market_name or symbol.startswith("frx")
         is_synthetic = "synthetic" in market or "synthetic" in market_name or "synthetic" in submarket
+        if not symbol or not (is_forex or is_synthetic):
+            continue
         if category == "forex" and not is_forex:
             continue
         if category == "synthetic" and not is_synthetic:
@@ -63,10 +66,10 @@ async def get_active_markets(category: str = "all") -> list[dict[str, Any]]:
             continue
         result.append({
             "symbol": symbol,
-            "name": row.get("display_name", symbol),
+            "name": row.get("underlying_symbol_name") or row.get("display_name") or symbol,
             "market": "forex" if is_forex else "synthetic",
-            "market_display_name": row.get("market_display_name", ""),
-            "submarket_display_name": row.get("submarket_display_name", ""),
+            "market_display_name": row.get("market_display_name") or row.get("market", ""),
+            "submarket_display_name": row.get("submarket_display_name") or row.get("submarket", ""),
             "is_open": row.get("exchange_is_open"),
             "is_suspended": row.get("is_trading_suspended", 0) == 1,
         })
