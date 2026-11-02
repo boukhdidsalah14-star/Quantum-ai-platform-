@@ -3,6 +3,7 @@ from pathlib import Path
 import hmac
 import logging
 import os
+from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
@@ -28,6 +29,21 @@ SESSION_COOKIE = "quantum_session"
 class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
+
+
+def _check_same_origin(request: Request) -> None:
+    origin = request.headers.get("origin")
+    if not origin:
+        return
+    try:
+        parsed = urlsplit(origin)
+        origin_host = parsed.netloc.lower()
+        request_host = request.headers.get("host", "").lower()
+        valid_scheme = parsed.scheme in {"http", "https"}
+        if not valid_scheme or not origin_host or origin_host != request_host:
+            raise ValueError("origin mismatch")
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Cross-origin request rejected")
 
 
 def _session_cookie(response: Response, token: str) -> None:
@@ -81,7 +97,8 @@ async def health():
 
 
 @app.post("/api/auth/register")
-async def register(payload: Credentials, response: Response):
+async def register(payload: Credentials, request: Request, response: Response):
+    _check_same_origin(request)
     if not signup_enabled():
         raise HTTPException(status_code=403, detail="Customer registration is not open yet")
     init_auth_db()
@@ -96,6 +113,7 @@ async def register(payload: Credentials, response: Response):
 
 @app.post("/api/auth/login")
 async def login(payload: Credentials, request: Request, response: Response):
+    _check_same_origin(request)
     init_auth_db()
     client_ip = request.client.host if request.client else "unknown"
     if not consume_login_attempt(payload.email, client_ip):
@@ -120,6 +138,7 @@ async def auth_me(request: Request):
 
 @app.post("/api/auth/logout")
 async def logout(request: Request, response: Response):
+    _check_same_origin(request)
     revoke_session(request.cookies.get(SESSION_COOKIE))
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax",
                            secure=os.getenv("ENVIRONMENT", "development").lower() == "production")
