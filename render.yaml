@@ -21,6 +21,8 @@ services:
         sync: false
       - key: TELEGRAM_WEBAPP_URL
         sync: false
+      - key: QUANTUM_CREDENTIALS_ENCRYPTION_KEY
+        sync: false
       - key: QUANTUM_ADMIN_API_KEY
         generateValue: true
       - key: DERIV_APP_ID
