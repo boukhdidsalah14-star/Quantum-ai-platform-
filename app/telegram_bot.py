@@ -27,7 +27,7 @@ def _price_line(item: dict) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = (
         "⚡ QUANTUM AI\n\n"
-        "Your trading workspace is ready. View public crypto markets or open the dashboard.\n\n"
+        "Your trading workspace is ready. Explore Forex, binary-option underlyings, crypto markets, and indicator signals.\n\n"
         "Market data is informational only. Broker trading and order execution are disabled."
     )
     if WEBAPP_URL.startswith("https://"):
@@ -57,7 +57,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         "🟢 Dashboard foundation: available\n"
-        "📈 Public crypto market data: read-only\n"
+        "📈 Public Forex, synthetic, and crypto data: read-only\n"
+        "🧠 CALL / PUT / WAIT indicator analysis: available\n"
         "🔒 Broker execution: disabled\n"
         "⛔ Automated trading: disabled"
     )
