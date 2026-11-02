@@ -52,7 +52,9 @@ if(derivButton){
     derivButton.textContent="CHECKING…";
     result.textContent="Checking the configured Deriv demo account (read-only)…";
     try{
-      const response=await fetch("/api/deriv/demo/status");
+      const adminKey=$("deriv-admin-key").value.trim();
+      if(!adminKey)throw new Error("Enter the admin status key first.");
+      const response=await fetch("/api/deriv/demo/status",{headers:{"X-Admin-Key":adminKey}});
       const body=await response.json();
       if(!response.ok)throw new Error(body.detail||"Demo connection unavailable");
       result.textContent="DEMO CONNECTED · "+body.account_id+" · Balance: "+body.balance.amount+" "+body.balance.currency+" · "+body.active_symbols_count+" active symbols. Read-only; order execution remains disabled.";
