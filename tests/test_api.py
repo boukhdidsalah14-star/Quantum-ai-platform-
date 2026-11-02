@@ -263,3 +263,28 @@ def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
         "volume": 100.0,
     }]
 
+def test_dashboard_starts_when_telegram_initialization_fails(monkeypatch):
+    from app import telegram_bot
+
+    class BrokenTelegramBot:
+        updater = None
+        running = False
+        shutdown_called = False
+
+        async def initialize(self):
+            raise RuntimeError("invalid token")
+
+        async def shutdown(self):
+            self.shutdown_called = True
+
+    fake_bot = BrokenTelegramBot()
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "invalid-test-token")
+    monkeypatch.setattr(telegram_bot, "build_application", lambda token: fake_bot)
+
+    with TestClient(main.app) as test_client:
+        response = test_client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+    assert fake_bot.shutdown_called is True
+
