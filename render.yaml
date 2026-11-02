@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: quantum-ai-platform
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: quantum-ai-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: QUANTUM_DB_PATH
+        value: /var/data/quantum_ai.sqlite3
+      - key: ALLOW_CUSTOMER_SIGNUP
+        value: "false"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBAPP_URL
+        sync: false
+      - key: QUANTUM_ADMIN_API_KEY
+        generateValue: true
+      - key: DERIV_APP_ID
+        sync: false
+      - key: DERIV_DEMO_ACCOUNT_ID
+        sync: false
+      - key: DERIV_DEMO_TOKEN
+        sync: false
