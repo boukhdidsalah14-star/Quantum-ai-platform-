@@ -30,6 +30,10 @@ load_dotenv()
 
 ROOT = Path(__file__).resolve().parent.parent
 logger = logging.getLogger(__name__)
+# HTTPX logs full request URLs; Telegram Bot API URLs contain the bot token.
+# Suppress request-URL logging so secrets never appear in Render logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 SESSION_COOKIE = "quantum_session"
 TELEGRAM_TOKEN_ENV_NAMES = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN")
 
