@@ -219,3 +219,47 @@ def test_mexc_public_market_endpoint(monkeypatch):
 def test_mexc_candles_reject_unsupported_symbol():
     response = client.get("/api/mexc/candles/NOTREAL?interval=1h")
     assert response.status_code == 400
+
+@pytest.mark.anyio
+async def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
+    from app import mexc_market_data
+
+    async def fake_get_json(path, params=None):
+        return [{
+            "symbol": "BTCUSDT",
+            "lastPrice": "65000",
+            "priceChangePercent": "1.25",
+            "highPrice": "66000",
+            "lowPrice": "64000",
+            "volume": "123",
+        }]
+
+    monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
+    markets = await mexc_market_data.get_market_overview()
+    assert markets[0]["change_percent"] == "1.25"
+
+
+@pytest.mark.anyio
+async def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
+    from app import mexc_market_data
+
+    seen = {}
+
+    async def fake_get_json(path, params=None):
+        seen.update(params or {})
+        return [[
+            "1700000000000", "10", "12", "9", "11", "100"
+        ]]
+
+    monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
+    candles = await mexc_market_data.get_candles("btcusdt", "1h", 999)
+    assert seen["limit"] == "200"
+    assert candles == [{
+        "time": 1700000000000,
+        "open": 10.0,
+        "high": 12.0,
+        "low": 9.0,
+        "close": 11.0,
+        "volume": 100.0,
+    }]
+
