@@ -1,30 +1,61 @@
-# QUANTUM AI Platform
+# QUANTUM AI
 
-A mobile-first trading workspace for crypto, Forex and binary-market integrations, with a Telegram Mini App experience and a custom candlestick chart.
+A mobile-first trading workspace foundation with a custom candlestick dashboard and an informational Telegram bot.
 
-## Current build status
-- Premium responsive dashboard and custom Canvas candlestick renderer.
-- Live public crypto prices from Binance market-data endpoints (read-only; no account required).
-- Forex, binary and broker execution adapters are integrations pending.
-- No order placement, automated trading, customer credential storage or profit claims are implemented in this starter.
-- No sample trade is presented as a real trade.
+## Current capabilities
 
-## Run locally
+- Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
+- Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP.
+- Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
+- Telegram bot commands: `/start`, `/help`, and `/status`.
+- Telegram `/start` can show an Open Dashboard Mini App button when `TELEGRAM_WEBAPP_URL` is configured to an HTTPS URL.
+
+## Not enabled
+
+- No broker account connection or customer credential storage.
+- No order placement, auto-trading, binary-options execution, or real-account trading.
+- Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
+
+## Run the dashboard
+
+Python 3.10+ is recommended.
+
 ```bash
 python -m venv .venv
-# macOS/Linux: source .venv/bin/activate
-# Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-Open http://127.0.0.1:8000.
+
+Open `http://localhost:8000`.
+
+## Run the Telegram bot
+
+Set `TELEGRAM_BOT_TOKEN` as a private environment variable. After deploying the dashboard over HTTPS, set `TELEGRAM_WEBAPP_URL` to its public URL.
+
+```bash
+python run_bot.py
+```
+
+The bot is informational only. It does not execute trades.
+
+## API
+
+- `GET /health` — service and execution status.
+- `GET /api/markets` — allowlisted public crypto market overview.
+- `GET /api/candles/{symbol}?interval=1h&limit=72` — validated public candles.
+
+Allowed symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT.
+
+Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 
 ## Safety roadmap
-1. Authenticated customer accounts and tenant isolation.
-2. Encrypted credential vault and audited broker connections.
-3. Broker-specific demo adapters with verified order and settlement confirmations.
-4. Risk limits, idempotency, emergency stop and explicit real-account consent.
-5. Real execution only after independent testing and jurisdiction/provider review.
 
-Never commit secrets. Real trading is disabled by design. This software does not provide financial advice or guarantee returns.
+1. Add customer authentication and tenant isolation.
+2. Add encrypted credential storage and provider-specific permission checks.
+3. Implement a broker demo adapter and verify order/settlement events.
+4. Add stake limits, daily loss limits, idempotency, audit logs and emergency stop.
+5. Keep real-account execution disabled until demo testing, explicit consent, and provider/legal review are complete.
+
+Never commit `.env`, bot tokens, broker API keys, or customer credentials.
