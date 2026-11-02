@@ -35,3 +35,5 @@
 .paper-trade button{border:1px solid #38523c;border-radius:6px;padding:7px 10px;background:#102016;color:#d9f4dd;font:9px 'DM Mono'}
 .paper-trade small{display:block;margin-top:5px;color:#819087}
 @media(max-width:520px){.paper-panel{margin:0 16px 28px;padding:16px}.paper-form{grid-template-columns:1fr}.paper-form button{grid-column:auto}.paper-trade{align-items:flex-start}}
+
+.feed-status select{padding:6px 8px;border:1px solid #294031;border-radius:6px;background:#09120c;color:#a8c7ae;font:8px 'DM Mono';letter-spacing:.6px}
