@@ -73,7 +73,10 @@ async def configure_telegram_menu(application: Application) -> None:
     if WEBAPP_URL.startswith("https://"):
         await application.bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))
-        )\n\n\nasync def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        )
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         "QUANTUM AI commands:\n"
         "/start — open the dashboard\n"
