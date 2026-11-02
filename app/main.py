@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from app.market_data import get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
+from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
@@ -317,6 +318,44 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public candle data is temporarily unavailable")
+
+
+@app.get("/api/deriv/markets")
+async def deriv_markets(category: str = Query(default="all")):
+    """Read-only public Forex and synthetic underlyings available on Deriv."""
+    try:
+        return {"source": "Deriv public market data", "category": category,
+                "account_connected": False, "execution_enabled": False,
+                "markets": await get_deriv_markets(category)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Deriv public market data is temporarily unavailable")
+
+
+@app.get("/api/deriv/candles/{symbol}")
+async def deriv_candles(symbol: str, granularity: int = Query(default=900), count: int = Query(default=100, ge=20, le=200)):
+    """Read-only OHLC candles for a verified active Deriv Forex/synthetic symbol."""
+    try:
+        return {"symbol": symbol, "granularity": granularity, "source": "Deriv public market data",
+                "candles": await get_deriv_candles(symbol, granularity, count),
+                "execution_enabled": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Deriv public candle data is temporarily unavailable")
+
+
+@app.get("/api/deriv/contracts/{symbol}")
+async def deriv_contracts(symbol: str):
+    """Discover binary/option contract types; this does not create a proposal or place an order."""
+    try:
+        return {"source": "Deriv public contract metadata", "execution_enabled": False,
+                **await get_deriv_contracts(symbol)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Deriv contract information is temporarily unavailable")
 
 
 @app.get("/api/deriv/demo/status")
