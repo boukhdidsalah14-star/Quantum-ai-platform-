@@ -94,7 +94,7 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /health` — service and execution status.
 - `GET /api/markets` — allowlisted Binance public crypto market overview.
 - `GET /api/mexc/markets` — allowlisted MEXC public Spot market overview.
-- `GET /api/deriv/markets?category=forex` — public Deriv Forex symbols; use `category=synthetic` for synthetic indices or `all` for both.
+- `GET /api/deriv/markets?category=forex` — public Deriv Forex symbols with batched live tick prices; use `category=synthetic` for synthetic indices or `all` for both (up to 25 symbols per response).
 - `GET /api/deriv/candles/frxEURUSD?granularity=900&count=100` — public Deriv OHLC candles for a verified active Forex/synthetic symbol.
 - `GET /api/deriv/contracts/frxEURUSD` — available option contract metadata for a verified active symbol; no proposal or order is sent.
 - `GET /api/signals/deriv/frxEURUSD?category=forex&timeframe=15m` — indicator-based CALL/PUT/WAIT analysis from public Deriv candles; no broker order is sent.
