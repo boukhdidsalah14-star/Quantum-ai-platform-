@@ -112,6 +112,12 @@ async def brokers():
     return broker_capabilities()
 
 
+@app.get("/api/auth/config")
+async def auth_config():
+    """Expose non-sensitive account availability to the dashboard."""
+    return {"registration_enabled": signup_enabled()}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "quantum-ai", "market_data": "public-read-only", "telegram_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN", "").strip()), "deriv_demo_connector": "available", "customer_auth": "available", "order_execution": False, "trading_enabled": False}
