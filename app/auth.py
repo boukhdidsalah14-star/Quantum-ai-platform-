@@ -16,6 +16,8 @@ from pathlib import Path
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PBKDF2_ROUNDS = 310_000
 SESSION_SECONDS = 7 * 24 * 60 * 60
+LOGIN_WINDOW_SECONDS = 15 * 60
+LOGIN_MAX_ATTEMPTS = 10
 
 
 def _db_path() -> Path:
@@ -50,6 +52,11 @@ def init_auth_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_customer_sessions_expiry
             ON customer_sessions(expires_at);
+        CREATE TABLE IF NOT EXISTS login_attempt_buckets (
+            bucket_key TEXT PRIMARY KEY,
+            window_started INTEGER NOT NULL,
+            attempts INTEGER NOT NULL
+        );
         """)
 
 
@@ -136,3 +143,28 @@ def revoke_session(token: str | None) -> None:
 
 def signup_enabled() -> bool:
     return os.getenv("ALLOW_CUSTOMER_SIGNUP", "false").strip().lower() in {"1", "true", "yes"}
+
+
+
+def consume_login_attempt(email: str, client_ip: str, now: int | None = None) -> bool:
+    """Persist a modest per-email+IP login throttle; returns False when limited."""
+    now = int(time.time()) if now is None else int(now)
+    material = (email.strip().lower() + "|" + client_ip).encode("utf-8")
+    bucket = hashlib.sha256(material).hexdigest()
+    with _connect() as db:
+        db.execute("DELETE FROM login_attempt_buckets WHERE window_started < ?", (now - LOGIN_WINDOW_SECONDS,))
+        row = db.execute("SELECT window_started, attempts FROM login_attempt_buckets WHERE bucket_key=?", (bucket,)).fetchone()
+        if not row or now - row["window_started"] >= LOGIN_WINDOW_SECONDS:
+            db.execute("INSERT INTO login_attempt_buckets(bucket_key,window_started,attempts) VALUES(?,?,1) ON CONFLICT(bucket_key) DO UPDATE SET window_started=excluded.window_started,attempts=1", (bucket, now))
+            return True
+        if row["attempts"] >= LOGIN_MAX_ATTEMPTS:
+            return False
+        db.execute("UPDATE login_attempt_buckets SET attempts=attempts+1 WHERE bucket_key=?", (bucket,))
+        return True
+
+
+def clear_login_attempts(email: str, client_ip: str) -> None:
+    material = (email.strip().lower() + "|" + client_ip).encode("utf-8")
+    bucket = hashlib.sha256(material).hexdigest()
+    with _connect() as db:
+        db.execute("DELETE FROM login_attempt_buckets WHERE bucket_key=?", (bucket,))
