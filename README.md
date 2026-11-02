@@ -100,6 +100,7 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /api/signals/deriv/frxEURUSD?category=forex&timeframe=15m` — indicator-based CALL/PUT/WAIT analysis from public Deriv candles; no broker order is sent.
 - `GET /api/deriv/proposal/R_100?contract_type=CALL&amount=1&duration=5` — public binary contract price preview only; the endpoint never buys a contract.
 - `GET /api/backtest/deriv/frxEURUSD?category=forex&timeframe=15m` — no-lookahead historical directional test; no orders or profit forecast.
+- `GET /api/signals/crypto/BTCUSDT?source=binance&timeframe=1h` and `GET /api/backtest/crypto/BTCUSDT?source=binance&timeframe=1h` — read-only crypto signals and historical direction tests (Binance or MEXC).
 
 Telegram commands: `/forex`, `/binary`, and `/signal SYMBOL 15m forex` or `/signal SYMBOL 5m synthetic`. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` privately in the hosting environment to activate the bot.
 - `GET /api/mexc/candles/{symbol}?interval=1h&limit=72` — validated MEXC Spot candles.
