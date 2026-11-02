@@ -4,7 +4,7 @@ from app.telegram_bot import _price_line, build_application
 def test_telegram_bot_registers_read_only_market_commands():
     application = build_application("123456:TEST_TOKEN")
     commands = {
-        handler.command[0]
+        next(iter(handler.command))
         for handlers in application.handlers.values()
         for handler in handlers
         if getattr(handler, "command", None)
