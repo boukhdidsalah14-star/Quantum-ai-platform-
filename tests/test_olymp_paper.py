@@ -28,7 +28,7 @@ def test_open_and_settle_olymp_paper_call(paper_db, monkeypatch):
 
 def test_idempotency_does_not_create_duplicate_paper_trade(paper_db):
     first = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key", "manual quote")
-    second = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key")
+    second = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key", "manual quote")
     assert first["id"] == second["id"]
     assert len(olymp_paper.list_trades(paper_db)) == 1
 
@@ -41,7 +41,7 @@ def test_idempotency_does_not_create_duplicate_paper_trade(paper_db):
 ])
 def test_invalid_paper_trade_inputs_are_rejected(paper_db, stake, expiry, direction, price):
     with pytest.raises(ValueError):
-        olymp_paper.open_trade(paper_db, "EURUSD", direction, stake, expiry, price, "bad-key")
+        olymp_paper.open_trade(paper_db, "EURUSD", direction, stake, expiry, price, "bad-key", "manual quote")
 
 
 def test_maximum_open_paper_trades_is_enforced(paper_db):
