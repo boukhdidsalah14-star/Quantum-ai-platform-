@@ -5,6 +5,8 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://api.binance.com/api/v3"
+# Binance documents this host as a market-data-only alternative to the trading API.
+BASE_URLS = (BASE_URL, "https://data-api.binance.vision/api/v3", "https://api1.binance.com/api/v3", "https://api2.binance.com/api/v3", "https://api3.binance.com/api/v3")
 ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "AVAXUSDT", "DOTUSDT", "LTCUSDT", "BCHUSDT", "ATOMUSDT", "NEARUSDT", "UNIUSDT", "ETCUSDT", "FILUSDT", "APTUSDT", "ARBUSDT"}
 ALLOWED_INTERVALS = {"5m", "15m", "1h", "4h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
@@ -16,12 +18,20 @@ async def _get_json(path: str, params: dict[str, str] | None = None) -> Any:
     cached = _CACHE.get(key)
     if cached and now - cached[0] < _CACHE_TTL:
         return cached[1]
-    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=4.0), headers={"User-Agent": "QuantumAI/0.2"}) as client:
-        response = await client.get(f"{BASE_URL}/{path}", params=params)
-        response.raise_for_status()
-        payload = response.json()
-    _CACHE[key] = (now, payload)
-    return payload
+    last_error: httpx.HTTPError | None = None
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=4.0), headers={"User-Agent": "QuantumAI/0.5"}) as client:
+        for base_url in BASE_URLS:
+            try:
+                response = await client.get(f"{base_url}/{path}", params=params)
+                response.raise_for_status()
+                payload = response.json()
+                _CACHE[key] = (time.monotonic(), payload)
+                return payload
+            except httpx.HTTPError as exc:
+                last_error = exc
+    if last_error is not None:
+        raise last_error
+    raise httpx.HTTPError("No Binance market-data endpoint is available")
 
 async def get_market_overview() -> list[dict[str, Any]]:
     rows = await _get_json("ticker/24hr")
