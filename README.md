@@ -20,6 +20,26 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Browser-origin checks reject cross-origin register/login/logout requests when an Origin header is present.
 - SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
 
+## Olymp Trade integration foundation
+
+Olymp Trade is represented as a signal-and-paper-trading candidate. The initial module in `app/olymp_trade.py` reuses the transparent candle-based indicator engine and explicitly reports that the broker account and market-data feed are not connected. It accepts completed candles only from a separately verified market-data source. Paper execution is a simulation and does not send orders.
+
+Olymp Trade's help center says trading robots are allowed subject to conditions, but this does not establish a supported public third-party order API. Quantum AI does not collect Olymp Trade passwords, extract browser session tokens, reverse-engineer private WebSocket messages, or automate the broker website. Demo and real broker order placement remain disabled until Olymp Trade supplies written authorization and documented integration credentials/endpoints. See the [Olymp Trade robot policy](https://plus.olymptrade.com/en/help/category/trading/can-i-use-robots-when-trading-on-the-platform).
+
+## Olymp Trade signal and paper workflow
+
+The authenticated application API now exposes:
+- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 30). The candle source is not verified by this endpoint.
+- `GET /api/olymp-trade/paper/trades` for the signed-in customer's isolated paper ledger.
+- `POST /api/olymp-trade/paper/trades` to open a simulated CALL/PUT position using a caller-supplied reference price and required idempotency key.
+- `POST /api/olymp-trade/paper/trades/{trade_id}/settle` to settle a simulation using a supplied exit reference price.
+
+Paper risk limits: $2 maximum stake, three open simulated positions, supported expiries of 1/5/15/30/60 minutes, and a $10 rolling 24-hour realized-loss pause. The API returns `broker_order_sent: false`; these routes never connect to Olymp Trade. Caller-supplied candles and prices are not independently verified, so this is a development simulator, not broker-grade execution or a performance guarantee.
+
+### Customer-configured paper risk controls
+
+Each customer must configure a paper account balance before opening an Olymp Trade paper position. The customer chooses each trade amount (minimum $0.10); an individual position and the combined open positions cannot exceed the configured balance. The system pauses new paper positions when realized losses in the rolling previous 24 hours reach 10% of that configured balance. For example, a $100 configured balance gives a $10 loss threshold; a $500 balance gives a $50 threshold. The balance is a manually configured simulation value, not a verified Olymp Trade account balance. These controls do not protect or control any real broker account.
+
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
@@ -129,3 +149,14 @@ Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 5. Keep real-account execution disabled until demo testing, explicit consent, and provider/legal review are complete.
 
 Never commit `.env`, bot tokens, broker API keys, or customer credentials.
+
+
+## Live execution foundation (not activated)
+
+The branch `feature/broker-execution-foundation` adds `app/mexc_live_execution.py`, a signed MEXC Spot account-verification and market-order adapter. It requires both the server-side `QUANTUM_MEXC_LIVE_TRADING_ENABLED=true` kill switch and explicit per-customer consent, limits each order to 10 USDT, and returns an unknown-outcome error on a timeout. MEXC has no sandbox, so this adapter is intentionally not wired to customer routes, Telegram, or automatic strategy execution. Before wiring it, implement encrypted per-customer API-key storage, durable idempotency reservations, order reconciliation, customer-level daily loss limits, and integration tests against read-only account permissions. Start with API keys that have withdrawals disabled and IP restrictions enabled.
+
+Deriv's current engine remains demo-only. The official API provides separate authenticated demo and real WebSocket endpoints; real execution needs a separately verified CR account, trade-scoped token/OAuth authorization, real OTP session creation, a real-account ledger, and reconciliation. Do not change the existing VRTC checks to make a real account pass them.
+
+IQ Option remains unavailable for automated execution in this product: no official supported retail trading API has been verified. Do not request or store IQ Option passwords/session cookies or ship reverse-engineered community clients. The app may add a clearly labelled third-party read-only data feed later, but that is not IQ Option account execution and must not be marketed as such.
+
+No live order is placed by this branch, and the production service is not changed until this branch is reviewed, tested, and merged.
