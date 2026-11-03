@@ -355,7 +355,7 @@ $("deriv-customer-form")?.addEventListener("submit",async event=>{
     if(!response.ok)throw new Error(body.detail||"Deriv demo verification failed");
     $("deriv-customer-token").value="";
     $("deriv-customer-id").value="";
-    status.textContent="DEMO ACCOUNT VERIFIED + ENCRYPTED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Read-only connection; no trade was placed.";
+    status.textContent=body.credential_saved?"DEMO VERIFIED + ENCRYPTED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Read-only; no trade placed.":"DEMO ACCOUNT VERIFIED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Credentials were NOT saved because durable encrypted storage is not configured. No trade placed.";
     await refreshDerivConnection();
   }catch(error){status.textContent=error.message||"Deriv demo verification failed."}
   finally{button.disabled=false;button.textContent="VERIFY + SAVE DEMO"}
