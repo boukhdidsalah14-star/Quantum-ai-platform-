@@ -43,6 +43,7 @@ async function loadMarkets(){
       const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,pip_size:x.pip_size,price:x.price??(x.symbol===selected&&last?last.c:null),change_percent:null}));
       renderMarkets(list);
       renderChart();
+      window.dispatchEvent(new CustomEvent('quantum:candles',{detail:{symbol:selected,timeframe,candles,source:marketSource,price:prices[selected]?.price??candles[candles.length-1]?.c}}));
       $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
       $("feed-status").style.color="var(--green)";
       const selectedMarket=sourceMarkets.find(x=>x.symbol===selected);
@@ -83,6 +84,7 @@ async function loadMarkets(){
         $("market-source").value=source;
         renderMarkets(list);
         renderChart();
+      window.dispatchEvent(new CustomEvent('quantum:candles',{detail:{symbol:selected,timeframe,candles,source:marketSource,price:prices[selected]?.price??candles[candles.length-1]?.c}}));
         $("feed-status").textContent="LIVE · "+source.toUpperCase()+" PUBLIC DATA";
         $("feed-status").style.color="var(--green)";
         $("pair-title").innerHTML=selected.replace("USDT"," / USDT")+" <span class='live-tag'>LIVE</span>";
