@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 from pathlib import Path
 import hmac
 import logging
@@ -19,7 +20,8 @@ from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
-from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
+from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
+from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
@@ -62,6 +64,13 @@ class PaperTradeRequest(BaseModel):
     quantity: float = Field(gt=0, le=1000000)
 
 
+class DerivDemoTradeRequest(BaseModel):
+    symbol: str = Field(min_length=2, max_length=30)
+    contract_type: str = Field(min_length=3, max_length=4)
+    stake: float = Field(gt=0, le=2)
+    duration_minutes: int = Field(ge=1, le=60)
+
+
 def _check_same_origin(request: Request) -> None:
     origin = request.headers.get("origin")
     if not origin:
@@ -77,6 +86,20 @@ def _check_same_origin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Cross-origin request rejected")
 
 
+def _persistent_credentials_ready() -> bool:
+    return (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+    )
+
+
+def _demo_execution_enabled() -> bool:
+    return (
+        _persistent_credentials_ready()
+        and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
+    )
+
+
 def _session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE, token, max_age=7 * 24 * 60 * 60,
@@ -86,10 +109,39 @@ def _session_cookie(response: Response, token: str) -> None:
 
 
 @asynccontextmanager
+async def _deriv_demo_monitor_loop():
+    """Refresh open customer demo contracts while the service is running."""
+    while True:
+        try:
+            for trade in list_open_trades():
+                if trade.get("status") != "open" or not trade.get("contract_id"):
+                    continue
+                credentials = load_demo(trade["customer_id"])
+                if not credentials:
+                    continue
+                try:
+                    contract = await get_demo_contract_status(
+                        credentials["token"], credentials["account_id"],
+                        os.getenv("DERIV_APP_ID", "").strip(), trade["contract_id"],
+                    )
+                    apply_contract_update(trade["customer_id"], trade["id"], contract)
+                except Exception as exc:
+                    logger.warning("Deriv demo contract refresh failed for trade %s: %s", trade["id"], str(exc)[:180])
+        except Exception:
+            logger.exception("Deriv demo monitor loop failed")
+        await asyncio.sleep(15)
+
+
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
     init_paper_db()
     init_vault_db()
+    if _persistent_credentials_ready():
+        init_deriv_trading_db()
+    monitor_task = None
+    if _demo_execution_enabled():
+        monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
     bot = None
     token, token_env_name = _configured_telegram_token()
     if token:
@@ -132,6 +184,12 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if monitor_task is not None:
+            monitor_task.cancel()
+            try:
+                await monitor_task
+            except asyncio.CancelledError:
+                pass
         if bot is not None:
             if bot.running:
                 await bot.stop()
@@ -187,10 +245,9 @@ async def health(request: Request):
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "deriv_demo_connector": "available",
         "customer_auth": "available",
-        "credential_storage_ready": (
-            os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-            and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-        ),
+        "credential_storage_ready": _persistent_credentials_ready(),
+        "deriv_demo_execution_enabled": _demo_execution_enabled(),
+        "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
         "order_execution": False,
         "trading_enabled": False,
     }
@@ -262,6 +319,8 @@ async def save_deriv_demo_connection(payload: DerivDemoCredentials, request: Req
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
+    if not _persistent_credentials_ready():
+        raise HTTPException(status_code=503, detail="Durable encrypted storage is required before saving broker credentials")
     try:
         return save_demo(customer["id"], payload.account_id, payload.token)
     except ValueError as exc:
@@ -284,10 +343,7 @@ async def verify_and_save_deriv_demo_connection(payload: DerivDemoCredentials, r
         raise HTTPException(status_code=503, detail="Deriv application ID is not configured on the server")
     try:
         verified = await get_demo_status_for_credentials(payload.token, payload.account_id, app_id)
-        persistent_storage_ready = (
-            os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-            and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-        )
+        persistent_storage_ready = _persistent_credentials_ready()
         if not persistent_storage_ready:
             return {
                 **verified,
@@ -316,6 +372,77 @@ async def remove_deriv_demo_connection(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"deleted": delete_demo(customer["id"])}
+
+
+@app.get("/api/deriv/demo/trades")
+async def deriv_demo_trades(request: Request):
+    if not _persistent_credentials_ready():
+        raise HTTPException(status_code=503, detail="Durable encrypted storage is required for demo trade history")
+    init_auth_db()
+    init_deriv_trading_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {
+        "mode": "demo",
+        "execution_enabled": _demo_execution_enabled(),
+        "risk": risk_snapshot(customer["id"]),
+        "trades": list_customer_trades(customer["id"]),
+    }
+
+
+@app.post("/api/deriv/demo/trades")
+async def create_deriv_demo_trade(
+    payload: DerivDemoTradeRequest,
+    request: Request,
+    idempotency_key: str = Header(default="", alias="Idempotency-Key"),
+):
+    _check_same_origin(request)
+    if not _demo_execution_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Deriv demo execution is locked until persistent encrypted storage and the explicit demo-trading switch are enabled",
+        )
+    init_auth_db()
+    init_vault_db()
+    init_deriv_trading_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    credentials = load_demo(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="Connect and verify your own Deriv demo account first")
+    try:
+        active = await get_deriv_markets("all")
+        market = next((item for item in active if item["symbol"] == payload.symbol and not item["is_suspended"]), None)
+        if not market:
+            raise HTTPException(status_code=400, detail="Selected Deriv market is not currently available")
+        reserved, duplicate = reserve_trade(
+            customer["id"], credentials["account_id"], payload.symbol,
+            payload.contract_type, payload.stake, payload.duration_minutes,
+            idempotency_key,
+        )
+        if duplicate:
+            return {"trade": reserved, "duplicate": True, "mode": "demo",
+                    "note": "This idempotency key was already used; no second order was sent."}
+        try:
+            result = await execute_demo_binary_trade(
+                credentials["token"], credentials["account_id"],
+                os.getenv("DERIV_APP_ID", "").strip(), payload.symbol,
+                payload.contract_type, payload.stake, payload.duration_minutes,
+            )
+            trade = mark_trade_open(customer["id"], reserved["id"], result)
+            return {"trade": trade, "duplicate": False, "mode": "demo",
+                    "note": "Deriv demo contract purchased. Contract settlement is monitored by the service."}
+        except DerivExecutionError as exc:
+            mark_trade_failed(customer["id"], reserved["id"], str(exc), uncertain=exc.uncertain)
+            if exc.uncertain:
+                raise HTTPException(status_code=409, detail=str(exc) + ". The order is marked UNKNOWN and new trades are blocked until reconciled.")
+            raise HTTPException(status_code=502, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivMarketDataError:
+        raise HTTPException(status_code=502, detail="Could not verify the selected Deriv market")
 
 
 @app.get("/api/paper/trades")
