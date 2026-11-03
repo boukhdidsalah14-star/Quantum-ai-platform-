@@ -281,6 +281,7 @@ function showCustomer(customer){
   $("account-email").textContent=customer.email;
   showAuthMessage("Signed in. Paper trading is available; broker order execution remains disabled.");
   refreshPaperTrades();
+  refreshDerivConnection();
 }
 function showSignedOut(){
   $("auth-form").hidden=false;
@@ -330,6 +331,48 @@ $("auth-form")?.addEventListener("submit",async event=>{
   }catch(error){showAuthMessage(error.message||"Account request failed",true)}
   finally{button.disabled=false;button.textContent=authMode==="login"?"SIGN IN":"CREATE ACCOUNT"}
 });
+// Customer-owned Deriv credentials: verify against the user's virtual account before encrypted storage.
+async function refreshDerivConnection(){
+  const status=$("deriv-customer-status"),remove=$("deriv-customer-remove");
+  if(!status)return;
+  try{
+    const response=await fetch("/api/connections/deriv/demo");
+    if(response.status===401){status.textContent="Sign in to manage your Deriv demo connection.";remove.hidden=true;return}
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Connection status unavailable");
+    status.textContent=body.connected?"SAVED DEMO CREDENTIALS · Last updated "+new Date(body.updated_at*1000).toLocaleString()+". Verify again before trading features are enabled.":"No Deriv demo account connected.";
+    remove.hidden=!body.connected;
+  }catch(error){status.textContent=error.message||"Could not load Deriv connection status."}
+}
+$("deriv-customer-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("deriv-customer-submit"),status=$("deriv-customer-status");
+  button.disabled=true;button.textContent="VERIFYING ACCOUNT…";
+  status.textContent="Checking the VRTC demo account with a read-only balance request…";
+  try{
+    const response=await fetch("/api/connections/deriv/demo/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_id:$("deriv-customer-id").value.trim(),token:$("deriv-customer-token").value})});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Deriv demo verification failed");
+    $("deriv-customer-token").value="";
+    $("deriv-customer-id").value="";
+    status.textContent="DEMO ACCOUNT VERIFIED + ENCRYPTED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Read-only connection; no trade was placed.";
+    await refreshDerivConnection();
+  }catch(error){status.textContent=error.message||"Deriv demo verification failed."}
+  finally{button.disabled=false;button.textContent="VERIFY + SAVE DEMO"}
+});
+$("deriv-customer-remove")?.addEventListener("click",async()=>{
+  const button=$("deriv-customer-remove"),status=$("deriv-customer-status");
+  button.disabled=true;
+  try{
+    const response=await fetch("/api/connections/deriv/demo",{method:"DELETE"});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Could not remove the saved connection");
+    status.textContent="Saved Deriv demo connection removed.";
+    button.hidden=true;
+  }catch(error){status.textContent=error.message||"Could not remove the connection."}
+  finally{button.disabled=false}
+});
+
 $("auth-logout")?.addEventListener("click",async()=>{
   try{await fetch("/api/auth/logout",{method:"POST"});authMode="login";showSignedOut();showAuthMessage("You have signed out.")}
   catch{showAuthMessage("Could not sign out. Please retry.",true)}
