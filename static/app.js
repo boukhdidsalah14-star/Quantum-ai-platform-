@@ -98,7 +98,13 @@ async function loadMarkets(){
     if(!$("ticker").dataset.failed){$("ticker").innerHTML="<div class='ticker-item'>Public market data is temporarily unavailable.</div>";$("ticker").dataset.failed="1"}
   }
 }
-function renderMarkets(list){
+
+function publishWorkspaceMarket(list){
+  window.dispatchEvent(new CustomEvent("quantum:markets",{detail:{source:marketSource,markets:list}}));
+  const item=(list||[]).find(x=>x.symbol===selected);
+  if(item)window.dispatchEvent(new CustomEvent("quantum:market",{detail:{source:marketSource,symbol:item.symbol,price:item.price,timeframe,platform:marketSource.startsWith("deriv_")?"forex":"crypto"}}));
+}
+\nfunction renderMarkets(list){
   $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
   $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
   $("ticker").dataset.failed="";
