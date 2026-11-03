@@ -12,14 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
-from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status
+from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
 from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
-from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
+from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
@@ -260,6 +260,32 @@ async def save_deriv_demo_connection(payload: DerivDemoCredentials, request: Req
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
         return save_demo(customer["id"], payload.account_id, payload.token)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except VaultError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.post("/api/connections/deriv/demo/verify")
+async def verify_and_save_deriv_demo_connection(payload: DerivDemoCredentials, request: Request):
+    """Verify the customer's virtual Deriv account before storing its encrypted token."""
+    _check_same_origin(request)
+    init_auth_db()
+    init_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    app_id = os.getenv("DERIV_APP_ID", "").strip()
+    if not app_id:
+        raise HTTPException(status_code=503, detail="Deriv application ID is not configured on the server")
+    try:
+        verified = await get_demo_status_for_credentials(payload.token, payload.account_id, app_id)
+        saved = save_demo(customer["id"], payload.account_id, payload.token)
+        return {**verified, "credential_saved": saved.get("connected", False)}
+    except DerivConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except DerivConnectionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except VaultError as exc:
