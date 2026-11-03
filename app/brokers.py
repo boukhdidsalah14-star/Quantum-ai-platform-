@@ -8,6 +8,14 @@ def broker_capabilities() -> dict:
     deriv_configured = all(os.getenv(name, "").strip() for name in (
         "DERIV_APP_ID", "DERIV_DEMO_ACCOUNT_ID", "DERIV_DEMO_TOKEN"
     ))
+    persistent_storage_ready = (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+    )
+    demo_execution_enabled = (
+        persistent_storage_ready
+        and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
+    )
     return {
         "brokers": [
             {
@@ -20,7 +28,9 @@ def broker_capabilities() -> dict:
                                     "forex_binary_signals", "synthetic_binary_signals",
                                     "binary_contract_quote_preview", "demo_account_status", "balance_read"],
                 "execution_enabled": False,
-                "note": "Public Forex and synthetic market data, CALL/PUT/WAIT analysis, and binary quote previews are available. Customer demo account connection is not verified; no orders can be placed.",
+                "demo_execution_code_available": True,
+                "demo_execution_enabled": demo_execution_enabled,
+                "note": ("Deriv VRTC demo binary execution is enabled behind customer verification and risk controls." if demo_execution_enabled else "Public Forex and synthetic market data, signals, and binary quote previews are available. The demo execution engine is implemented but locked until persistent encrypted storage and the explicit demo switch are enabled. Real trading is disabled."),
             },
             {
                 "id": "iq_option",
