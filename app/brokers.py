@@ -78,13 +78,15 @@ def broker_capabilities() -> dict:
             "id": "mexc",
             "name": "MEXC",
             "category": "crypto_spot",
-            "status": "public_market_data_connected",
+            "status": "read_only_customer_account_connection_implemented",
             "connection_verified": False,
-            "supported_scope": ["public_spot_market_data", "public_candles"],
+            "supported_scope": ["public_spot_market_data", "public_candles",
+                                "customer_signed_read_only_account_verification",
+                                "encrypted_customer_credential_storage_when_durable_storage_is_ready"],
             "execution_enabled": False,
             "demo_execution_enabled": False,
             "real_execution_enabled": False,
-            "note": "Public MEXC Spot quotes and candles are connected read-only. Customer account authentication and order execution remain disabled; MEXC has no sandbox.",
+            "note": "Public Spot data and authenticated read-only customer account verification are implemented. Credentials are stored only with durable encrypted storage. No order route is connected; MEXC has no sandbox, so live orders remain locked pending a complete audited execution and reconciliation workflow.",
         },
     ]
     return {
