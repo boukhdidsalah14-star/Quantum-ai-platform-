@@ -94,8 +94,8 @@ async def get_demo_status_for_credentials(token: str, account_id: str, app_id: s
         raise DerivConfigError("Deriv demo token or application ID is missing")
     if not ACCOUNT_RE.fullmatch(account_id):
         raise DerivConfigError("Only Deriv virtual demo account IDs (VRTC...) are accepted")
-    ws_url = await _get_demo_ws_url(token, account_id, app_id)
     try:
+        ws_url = await _get_demo_ws_url(token, account_id, app_id)
         async with websockets.connect(
             ws_url, open_timeout=10, close_timeout=3, max_size=1_000_000
         ) as ws:
@@ -122,7 +122,7 @@ async def get_demo_status_for_credentials(token: str, account_id: str, app_id: s
             }
     except DerivConnectionError:
         raise
-    except DerivConnectionError:
-        raise
     except Exception as exc:
-        raise DerivConnectionError("Could not verify this Deriv demo account; check the token, app ID, and network") from exc
+        raise DerivConnectionError(
+            "Could not verify this Deriv demo account; check the token, app ID, and network"
+        ) from exc
