@@ -6,7 +6,7 @@ import httpx
 
 BASE_URL = "https://api.binance.com/api/v3"
 ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "AVAXUSDT", "DOTUSDT", "LTCUSDT", "BCHUSDT", "ATOMUSDT", "NEARUSDT", "UNIUSDT", "ETCUSDT", "FILUSDT", "APTUSDT", "ARBUSDT"}
-ALLOWED_INTERVALS = {"1h", "4h", "1d"}
+ALLOWED_INTERVALS = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 8.0
 
@@ -36,3 +36,19 @@ async def get_candles(symbol: str, interval: str, limit: int = 72) -> list[dict[
     bounded_limit = max(20, min(int(limit), 200))
     rows = await _get_json("klines", {"symbol": symbol, "interval": interval, "limit": str(bounded_limit)})
     return [{"time": int(r[0]), "open": float(r[1]), "high": float(r[2]), "low": float(r[3]), "close": float(r[4]), "volume": float(r[5])} for r in rows]
+
+
+async def get_order_book(symbol: str, limit: int = 10) -> dict[str, Any]:
+    """Return real public Binance spot depth for the supported watchlist."""
+    symbol = symbol.upper()
+    if symbol not in ALLOWED_SYMBOLS:
+        raise ValueError("Unsupported market symbol")
+    bounded_limit = max(5, min(int(limit), 20))
+    payload = await _get_json("depth", {"symbol": symbol, "limit": str(bounded_limit)})
+    bids = [[float(price), float(quantity)] for price, quantity in payload.get("bids", [])]
+    asks = [[float(price), float(quantity)] for price, quantity in payload.get("asks", [])]
+    if not bids or not asks:
+        raise httpx.HTTPError("Binance returned an empty order book")
+    return {"symbol": symbol, "bids": bids, "asks": asks,
+            "last_update_id": payload.get("lastUpdateId"),
+            "spread": asks[0][0] - bids[0][0]}
