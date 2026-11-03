@@ -23,7 +23,7 @@ from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trade
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
 
-from app.olymp_paper import init_db as init_olymp_paper_db, open_trade as open_olymp_paper_trade, list_trades as list_olymp_paper_trades, settle_trade as settle_olymp_paper_trade
+from app.olymp_paper import (init_db as init_olymp_paper_db, open_trade as open_olymp_paper_trade, list_trades as list_olymp_paper_trades, settle_trade as settle_olymp_paper_trade, set_account_balance as set_olymp_paper_balance, get_risk_snapshot as olymp_paper_risk_snapshot)
 
 from app.auth import (
     authenticate_customer, create_customer, create_session,
@@ -75,13 +75,13 @@ class OlympSignalRequest(BaseModel):
 class OlympPaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=2, max_length=30)
     direction: str
-    stake: float = Field(gt=0, le=2)
+    stake: float = Field(gt=0, le=1000000000)
     expiry_minutes: int = Field(ge=1, le=60)
     reference_price: float = Field(gt=0)
     price_source: str = Field(min_length=3, max_length=80)
 
 
-class OlympPaperSettlementRequest(BaseModel):
+class OlympPaperBalanceRequest(BaseModel):\n    account_balance: float = Field(gt=0, le=1000000000)\n\n\nclass OlympPaperSettlementRequest(BaseModel):
     exit_price: float = Field(gt=0)
     payout_rate: float = Field(gt=0, le=1, default=0.82)
 
@@ -462,6 +462,32 @@ async def analyze_olymp_trade_signal(payload: OlympSignalRequest, request: Reque
         result["customer_visible_data_note"] = "Candles were supplied by the caller and have not been verified against Olymp Trade."
         return result
     except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/olymp-trade/paper/settings")
+async def get_olymp_paper_settings(request: Request):
+    init_auth_db()
+    init_olymp_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"broker": "olymp_trade", "mode": "paper",
+            "risk": olymp_paper_risk_snapshot(customer["id"])}
+
+
+@app.put("/api/olymp-trade/paper/settings")
+async def update_olymp_paper_settings(payload: OlympPaperBalanceRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_olymp_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return {"broker": "olymp_trade", "mode": "paper",
+                "risk": set_olymp_paper_balance(customer["id"], payload.account_balance)}
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
