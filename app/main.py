@@ -13,6 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
+from app.mexc_live_execution import get_account_info as get_mexc_account_info, MexcExecutionError
+from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
 from app.signals import analyze_candles
@@ -59,6 +61,11 @@ class Credentials(BaseModel):
 class DerivDemoCredentials(BaseModel):
     account_id: str = Field(min_length=4, max_length=64)
     token: str = Field(min_length=1, max_length=4096)
+
+
+class MexcCredentials(BaseModel):
+    api_key: str = Field(min_length=1, max_length=256)
+    api_secret: str = Field(min_length=1, max_length=512)
 
 
 class PaperTradeRequest(BaseModel):
@@ -163,6 +170,7 @@ async def lifespan(app: FastAPI):
     init_paper_db()
     init_olymp_paper_db()
     init_vault_db()
+    init_mexc_vault_db()
     if _persistent_credentials_ready():
         init_deriv_trading_db()
     monitor_task = None
@@ -380,6 +388,57 @@ async def remove_deriv_demo_connection(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"deleted": delete_demo(customer["id"])}
+
+
+@app.get("/api/connections/mexc")
+async def mexc_connection(request: Request):
+    init_auth_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return mexc_credential_metadata(customer["id"])
+
+
+@app.post("/api/connections/mexc/verify")
+async def verify_and_save_mexc_connection(payload: MexcCredentials, request: Request):
+    """Verify MEXC account access using a signed read-only request.
+
+    MEXC Spot has no sandbox. This endpoint never places or cancels orders.
+    Customers should use an API key with read-only permission and IP restrictions.
+    """
+    _check_same_origin(request)
+    init_auth_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        verified = await get_mexc_account_info(payload.api_key, payload.api_secret)
+        if not _persistent_credentials_ready():
+            return {**verified, "credential_saved": False, "persistence_required": True,
+                    "note": "Account key verified with a read-only request; credentials were not saved because durable encrypted storage is unavailable."}
+        saved = save_mexc_credentials(customer["id"], payload.api_key, payload.api_secret)
+        return {**verified, "credential_saved": saved.get("connected", False),
+                "persistence_required": False,
+                "note": "Account verified and credentials encrypted. No order was placed."}
+    except MexcExecutionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except MexcVaultError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.delete("/api/connections/mexc")
+async def remove_mexc_connection(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"deleted": delete_mexc_credentials(customer["id"])}
 
 
 @app.get("/api/deriv/demo/trades")
