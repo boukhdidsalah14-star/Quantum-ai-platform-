@@ -181,6 +181,34 @@ window.addEventListener("resize",renderChart);
 $("market-source")?.addEventListener("change",event=>{marketSource=event.target.value;if(!marketSource.startsWith("deriv_")&&!symbols.includes(selected))selected=symbols[0];loadMarkets()});
 loadMarkets();setInterval(loadMarkets,15000);
 
+/* Shared workspace selector: order events switch the central live chart to the traded market. */
+window.QUANTUM_SELECT_MARKET = async function (detail) {
+  if (!detail || !detail.symbol) return;
+  const raw = String(detail.symbol).trim().toUpperCase();
+  const platform = String(detail.platform || "").toLowerCase();
+  if (platform === "crypto" || /USDT$/.test(raw)) {
+    marketSource = "binance";
+    selected = raw;
+    if (!symbols.includes(selected)) {
+      $("feed-status").textContent = "UNSUPPORTED CRYPTO PAIR";
+      return;
+    }
+  } else {
+    marketSource = platform === "binary" || platform === "forex" ? "deriv_forex" : marketSource;
+    selected = raw.startsWith("FRX") ? raw : "frx" + raw.replace("/", "");
+  }
+  $("market-source").value = marketSource;
+  if (detail.timeframe && ["5m","15m","1h","4h","1d"].includes(detail.timeframe)) timeframe = detail.timeframe;
+  configureChartTimeframes();
+  await loadMarkets();
+  document.querySelectorAll(".timeframes [data-tf]").forEach(button => button.classList.toggle("active", button.dataset.tf === timeframe));
+  $("markets").scrollIntoView({behavior:"smooth",block:"start"});
+};
+window.addEventListener("quantum:trade", event => {
+  window.QUANTUM_SELECT_MARKET(event.detail).catch(() => {});
+});
+
+
 
 const derivButton=$("deriv-check");
 if(derivButton){
