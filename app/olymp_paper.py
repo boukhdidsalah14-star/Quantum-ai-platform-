@@ -48,8 +48,8 @@ def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_pric
         if (stats["open_count"] or 0) >= MAX_OPEN_TRADES: raise ValueError("Maximum of three open Olymp Trade paper positions reached")
         if float(stats["daily_loss"]) >= DAILY_LOSS_LIMIT_USD: raise ValueError("Daily paper loss limit reached")
         trade_id = secrets.token_urlsafe(18)
-        db.execute("""INSERT INTO olymp_paper_trades (id,customer_id,symbol,direction,stake,expiry_minutes,entry_price,status,idempotency_key,created_at)
-            VALUES(?,?,?,?,?,?,?,'open',?,?)""", (trade_id,customer_id,symbol,price_source,direction,stake,expiry_minutes,entry_price,idempotency_key,now))
+        db.execute("""INSERT INTO olymp_paper_trades (id,customer_id,symbol,price_source,direction,stake,expiry_minutes,entry_price,status,idempotency_key,created_at)
+            VALUES(?,?,?,?,?,?,?,?,'open',?,?)""", (trade_id,customer_id,symbol,price_source,direction,stake,expiry_minutes,entry_price,idempotency_key,now))
         return dict(db.execute("SELECT * FROM olymp_paper_trades WHERE id=?", (trade_id,)).fetchone())
 
 def list_trades(customer_id):
