@@ -296,6 +296,7 @@ async def execute_demo_binary_trade(
     contract_type = str(contract_type or "").strip().upper()
     if not SYMBOL_RE.fullmatch(symbol) or contract_type not in ALLOWED_CONTRACT_TYPES:
         raise DerivExecutionError("Invalid symbol or binary contract direction")
+    buy_submitted = False
     try:
         ws_url = await _get_demo_ws_url(token, account_id, app_id)
         parsed = urlparse(ws_url)
@@ -326,6 +327,7 @@ async def execute_demo_binary_trade(
             if not proposal_id or ask_price <= 0 or ask_price > stake + 0.01:
                 raise DerivExecutionError("Deriv returned an invalid or over-limit contract proposal")
             try:
+                buy_submitted = True
                 buy_msg = await _ws_request(ws, {
                     "buy": str(proposal_id),
                     "price": ask_price,
@@ -358,9 +360,15 @@ async def execute_demo_binary_trade(
     except DerivExecutionError:
         raise
     except asyncio.TimeoutError as exc:
-        raise DerivExecutionError("Deriv demo request timed out; verify the portfolio before retrying", uncertain=True) from exc
+        raise DerivExecutionError(
+            "Deriv demo request timed out; verify the portfolio before retrying",
+            uncertain=buy_submitted,
+        ) from exc
     except Exception as exc:
-        raise DerivExecutionError("Could not complete the Deriv demo order request") from exc
+        raise DerivExecutionError(
+            "Could not complete the Deriv demo order request",
+            uncertain=buy_submitted,
+        ) from exc
 
 
 async def get_demo_contract_status(token: str, account_id: str, app_id: str, contract_id: str) -> dict[str, Any]:
