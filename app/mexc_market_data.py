@@ -48,7 +48,7 @@ async def get_candles(symbol: str, interval: str, limit: int = 72) -> list[dict[
         raise ValueError("Unsupported MEXC candle interval")
     bounded_limit = max(20, min(int(limit), 200))
     rows = await _get_json("klines", {
-        "symbol": symbol, "interval": interval, "limit": str(bounded_limit)
+        "symbol": symbol, "interval": {"1h": "60m"}.get(interval, interval), "limit": str(bounded_limit)
     })
     return [{
         "time": int(row[0]),
