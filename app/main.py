@@ -562,6 +562,13 @@ async def deriv_demo_status(x_admin_key: str = Header(default="", alias="X-Admin
         raise HTTPException(status_code=502, detail="Deriv demo account check failed; verify demo credentials and permissions")
 
 
+@app.head("/", include_in_schema=False)
+async def dashboard_head():
+    # Render and uptime monitors commonly probe the root with HEAD.
+    # Return a clean 200 without downloading the dashboard HTML.
+    return Response(status_code=200)
+
+
 @app.get("/")
 async def dashboard():
     return FileResponse(ROOT / "static" / "index.html")
