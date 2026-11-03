@@ -39,18 +39,6 @@ def broker_capabilities() -> dict:
                      if demo_execution_enabled else "Demo execution code exists but is locked until durable encrypted storage and the explicit demo switch are enabled. Real trading is disabled."),
         },
         {
-            "id": "iq_option",
-            "name": "IQ Option",
-            "category": "binary_options",
-            "status": "candidate_unofficial_interface_only",
-            "connection_verified": False,
-            "supported_scope": ["candidate_for_demo_connector_review", "signals"],
-            "execution_enabled": False,
-            "demo_execution_enabled": False,
-            "real_execution_enabled": False,
-            "note": "Third-party products advertise demo and live automation using browser session credentials, but no official public retail order API was verified. Not connected; do not submit broker passwords or session tokens to Quantum AI.",
-        },
-        {
             "id": "quotex",
             "name": "Quotex",
             "category": "binary_options",
