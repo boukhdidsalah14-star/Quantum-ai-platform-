@@ -80,13 +80,15 @@ def get_risk_snapshot(customer_id: str) -> dict:
             FROM olymp_paper_trades WHERE customer_id=?""", (now-86400, customer_id)).fetchone()
     limit = round(balance * DAILY_LOSS_LIMIT_PERCENT / 100.0, 2)
     loss = round(float(stats["daily_loss"]), 2)
+    open_stake = round(float(stats["open_stake"] or 0), 2)
+    remaining = round(max(0.0, limit-loss-open_stake), 2)
     return {"configured": True, "account_balance": balance,
             "daily_loss_limit_percent": DAILY_LOSS_LIMIT_PERCENT,
             "daily_loss_limit": limit, "daily_loss": loss,
-            "remaining_loss_allowance": round(max(0.0, limit-loss), 2),
+            "remaining_loss_allowance": remaining,
             "open_trades": int(stats["open_count"] or 0),
-            "open_stake": round(float(stats["open_stake"] or 0), 2),
-            "trading_paused": loss >= limit}
+            "open_stake": open_stake,
+            "trading_paused": remaining <= 0}
 
 
 def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_price, idempotency_key, price_source):
@@ -118,12 +120,16 @@ def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_pric
             COALESCE(SUM(CASE WHEN status='open' THEN stake ELSE 0 END),0) AS open_stake
             FROM olymp_paper_trades WHERE customer_id=?""", (now-86400,customer_id)).fetchone()
         loss_limit = balance * DAILY_LOSS_LIMIT_PERCENT / 100.0
-        if float(stats["daily_loss"]) >= loss_limit:
+        daily_loss = float(stats["daily_loss"])
+        open_stake = float(stats["open_stake"] or 0)
+        if daily_loss + open_stake >= loss_limit:
             raise ValueError("Daily loss limit reached (10% of your configured balance); new positions are paused")
         if stake > balance:
             raise ValueError("Trade amount cannot exceed your configured account balance")
-        if float(stats["open_stake"] or 0) + stake > balance:
+        if open_stake + stake > balance:
             raise ValueError("Combined open trade amounts cannot exceed your configured account balance")
+        if daily_loss + open_stake + stake > loss_limit:
+            raise ValueError("Trade amount would exceed your remaining 10% daily loss allowance")
         if (stats["open_count"] or 0) >= MAX_OPEN_TRADES:
             raise ValueError("Maximum of three open Olymp Trade paper positions reached")
         trade_id = secrets.token_urlsafe(18)
