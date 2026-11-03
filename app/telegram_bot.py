@@ -10,6 +10,7 @@ from telegram import (BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Me
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from app.market_data import ALLOWED_SYMBOLS, get_candles as get_crypto_candles, get_market_overview
+from app.mexc_market_data import get_market_overview as get_mexc_market_overview
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_contract_proposal as get_deriv_proposal
 from app.signals import analyze_candles
 from app.backtest import backtest_candles
@@ -117,13 +118,19 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def markets(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        rows = await get_market_overview()
+        source = "BINANCE"
+        try:
+            rows = await get_market_overview()
+        except httpx.HTTPError:
+            # Binance can reject shared cloud-hosting IPs; use the MEXC public feed as fallback.
+            rows = await get_mexc_market_overview()
+            source = "MEXC FALLBACK"
         rows = [row for row in rows if row.get("symbol") in ALLOWED_SYMBOLS]
         rows.sort(key=lambda row: row["symbol"])
         if not rows:
             raise RuntimeError("No market quotes returned")
         await update.effective_message.reply_text(
-            "📊 QUANTUM AI · PUBLIC MARKETS\n\n"
+            "📊 QUANTUM AI · PUBLIC MARKETS · " + source + "\n\n"
             + "\n".join(_price_line(row) for row in rows)
             + "\n\nRead-only public exchange prices. Not broker quotes or trade instructions."
         )
@@ -141,7 +148,10 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("Unsupported market. Try BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, or XRPUSDT.")
         return
     try:
-        rows = await get_market_overview()
+        try:
+            rows = await get_market_overview()
+        except httpx.HTTPError:
+            rows = await get_mexc_market_overview()
         row = next((item for item in rows if item.get("symbol") == symbol), None)
         if row is None:
             raise RuntimeError("Requested quote was not returned")
