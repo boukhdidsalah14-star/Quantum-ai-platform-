@@ -58,6 +58,7 @@ def test_registration_is_closed_by_default(monkeypatch):
 
 
 def test_customer_register_login_me_and_logout(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "customers.sqlite3"))
     with TestClient(main.app) as test_client:
@@ -161,6 +162,7 @@ def test_paper_trading_is_customer_isolated_and_risk_limited(monkeypatch, tmp_pa
 
 
 def test_paper_trade_api_requires_login_and_uses_public_quote(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "paper-api.sqlite3"))
 
@@ -317,7 +319,7 @@ def test_deriv_public_forex_market_endpoint(monkeypatch):
 
 def test_deriv_public_candles_endpoint(monkeypatch):
     async def fake_candles(symbol, granularity, count):
-        assert (symbol, granularity, count) == ("frxEURUSD", 900, 100)
+        assert (symbol, granularity, count) == ("frxEURUSD", 900, 40)
         return [{"time": i, "open": 1.1 + i * 0.0001, "high": 1.101 + i * 0.0001,
                  "low": 1.099 + i * 0.0001, "close": 1.1005 + i * 0.0001}
                 for i in range(40)]
