@@ -59,6 +59,7 @@ def test_customer_isolation(paper_db):
 
 
 def test_customer_can_choose_stake_above_old_two_dollar_cap(paper_db):
+    olymp_paper.set_account_balance(paper_db, 500)
     trade = olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 25, 5, 1.08, "custom-stake", "manual quote")
     assert trade["stake"] == 25
 
@@ -85,3 +86,11 @@ def test_trade_amount_cannot_exceed_configured_balance(paper_db):
 def test_account_balance_is_customer_specific(paper_db):
     snapshot = olymp_paper.get_risk_snapshot("another-customer")
     assert snapshot["configured"] is False
+
+
+def test_open_stakes_reserve_the_remaining_ten_percent_risk_allowance(paper_db):
+    olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 7, 5, 1.08, "risk-seven", "manual quote")
+    snapshot = olymp_paper.get_risk_snapshot(paper_db)
+    assert snapshot["remaining_loss_allowance"] == 3
+    with pytest.raises(ValueError, match="remaining 10%"):
+        olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 4, 5, 1.08, "risk-four", "manual quote")
