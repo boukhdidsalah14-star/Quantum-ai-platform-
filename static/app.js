@@ -435,3 +435,60 @@ async function loadAuthConfig(){
   }
 }
 loadAuthConfig();
+
+
+async function refreshOlympPaperTrades(){
+  const list=$("olymp-paper-trades"),message=$("olymp-paper-message");
+  if(!list||!message)return;
+  try{
+    const response=await fetch("/api/olymp-trade/paper/trades");
+    if(response.status===401){message.textContent="Sign in to save your private Olymp Trade paper history.";list.innerHTML="";return}
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Could not load Olymp Trade paper history");
+    message.textContent="PAPER MODE · Simulated only · Max $2 stake · 3 open positions · no broker orders.";
+    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+escapeHtml(t.symbol)+" · "+t.direction+"</strong><small>"+t.status.toUpperCase()+" · $"+Number(t.stake).toFixed(2)+" · "+t.expiry_minutes+"m · Entry "+t.entry_price+(t.exit_price!==null&&t.exit_price!==undefined?" · Exit "+t.exit_price:"")+(t.pnl!==null&&t.pnl!==undefined?" · P/L $"+Number(t.pnl).toFixed(2):"")+"</small></div>"+(t.status==="open"?"<button type='button' data-olymp-settle='"+t.id+"'>SETTLE SIMULATION</button>":"<span class='locked'>"+String(t.result||"SETTLED").toUpperCase()+"</span>")+"</article>").join(""):"<p class='disclaimer'>No Olymp Trade paper positions yet.</p>";
+    list.querySelectorAll("[data-olymp-settle]").forEach(button=>button.addEventListener("click",async()=>{
+      const exit=prompt("Enter the checked exit reference price from Olymp Trade (paper simulation only):");
+      if(exit===null)return;
+      const exitPrice=Number(exit);
+      if(!Number.isFinite(exitPrice)||exitPrice<=0){message.textContent="Enter a valid positive exit price.";return}
+      button.disabled=true;
+      try{
+        const settled=await fetch("/api/olymp-trade/paper/trades/"+encodeURIComponent(button.dataset.olympSettle)+"/settle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({exit_price:exitPrice,payout_rate:0.82})});
+        const data=await settled.json();
+        if(!settled.ok)throw new Error(data.detail||"Could not settle paper position");
+        message.textContent="SIMULATION SETTLED · "+String(data.trade.result).toUpperCase()+" · P/L $"+Number(data.trade.pnl).toFixed(2);
+        refreshOlympPaperTrades();
+      }catch(error){message.textContent=error.message;button.disabled=false}
+    }));
+  }catch(error){message.textContent=error.message||"Olymp Trade paper history unavailable"}
+}
+$("olymp-paper-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("olymp-paper-submit"),message=$("olymp-paper-message");
+  button.disabled=true;button.textContent="OPENING SIMULATION…";
+  try{
+    const key=crypto.randomUUID();
+    const payload={symbol:$("olymp-symbol").value,direction:$("olymp-direction").value,stake:Number($("olymp-stake").value),expiry_minutes:Number($("olymp-expiry").value),reference_price:Number($("olymp-entry-price").value),price_source:$("olymp-price-source").value};
+    const response=await fetch("/api/olymp-trade/paper/trades",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify(payload)});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Paper position could not be opened");
+    message.textContent="SIMULATED POSITION OPEN · No Olymp Trade order was sent.";
+    refreshOlympPaperTrades();
+  }catch(error){message.textContent=error.message||"Paper trade failed"}
+  finally{button.disabled=false;button.textContent="OPEN SIMULATED POSITION"}
+});
+$("olymp-analyze")?.addEventListener("click",async()=>{
+  const button=$("olymp-analyze"),result=$("olymp-signal-result");
+  if(!candles||candles.length<30){result.textContent="Load at least 30 chart candles before analysis.";return}
+  button.disabled=true;button.textContent="ANALYZING…";
+  try{
+    const tf=marketSource.startsWith("deriv_")?($("signal-timeframe").value||"15m"):timeframe;
+    const response=await fetch("/api/olymp-trade/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({timeframe:tf,candles:candles.map((c,i)=>({time:i,open:c.o,high:c.h,low:c.l,close:c.c}))})});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Signal analysis failed");
+    result.innerHTML="<strong>"+body.direction+"</strong> · "+body.trend+" · RSI "+body.rsi_14+" · Strength "+body.signal_strength+"<br>"+(body.reasons||[]).map(escapeHtml).join(" · ")+"<br><small>Chart source: "+escapeHtml(marketSource)+". Not an Olymp Trade quote feed; verify prices independently.</small>";
+  }catch(error){result.textContent=error.message||"Signal analysis failed"}
+  finally{button.disabled=false;button.textContent="ANALYZE CURRENT CHART"}
+});
+refreshOlympPaperTrades();
