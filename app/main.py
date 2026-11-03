@@ -487,8 +487,7 @@ async def create_olymp_trade_paper_trade(payload: OlympPaperTradeRequest, reques
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
         trade = open_olymp_paper_trade(customer["id"], payload.symbol, payload.direction,
-            payload.stake, payload.expiry_minutes, payload.reference_price, idempotency_key)
-        trade["price_source"] = payload.price_source
+            payload.stake, payload.expiry_minutes, payload.reference_price, idempotency_key, payload.price_source)
         return {"broker": "olymp_trade", "mode": "paper", "execution": "simulated_only",
                 "broker_order_sent": False, "trade": trade}
     except ValueError as exc:
