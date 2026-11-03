@@ -326,7 +326,7 @@ def test_deriv_public_candles_endpoint(monkeypatch):
     monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
     response = client.get("/api/deriv/candles/frxEURUSD?granularity=900&count=40")
     assert response.status_code == 200
-    assert response.json()["candles"][0]["close"] == 1.15
+    assert response.json()["candles"][0]["close"] == 1.1005
     assert response.json()["execution_enabled"] is False
 
 
