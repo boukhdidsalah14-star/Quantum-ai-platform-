@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://api.binance.com/api/v3"
-ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"}
+ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "AVAXUSDT", "DOTUSDT", "LTCUSDT", "BCHUSDT", "ATOMUSDT", "NEARUSDT", "UNIUSDT", "ETCUSDT", "FILUSDT", "APTUSDT", "ARBUSDT"}
 ALLOWED_INTERVALS = {"1h", "4h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 8.0

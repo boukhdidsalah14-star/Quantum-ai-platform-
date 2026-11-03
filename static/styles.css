@@ -187,3 +187,20 @@ body:before{box-shadow:none;border-color:#17365a;border-radius:0}
 .account-disclosure{max-width:980px;margin:0 auto 18px;padding:12px 14px;border:1px solid #29496c;border-radius:8px;background:#081629;color:#91aaca;font:10px 'DM Mono';line-height:1.7}
 @media(max-width:900px){.virtual-form{grid-template-columns:repeat(2,minmax(0,1fr))}.virtual-form button{grid-column:1/-1}}
 @media(max-width:520px){.virtual-platform{border-radius:12px}.virtual-form{grid-template-columns:1fr 1fr}.virtual-form label{font-size:9px}.virtual-balance strong{font-size:29px}.account-disclosure{margin:0 12px 16px}}
+
+/* Live-quote linked broker-style terminal controls */
+.virtual-platform{background:linear-gradient(145deg,#081a2e,#07111f 62%,#0a1b30);border:1px solid #244a70;box-shadow:0 18px 42px #0005,inset 0 1px #ffffff08}
+.virtual-heading{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #24415f;padding-bottom:13px}
+.virtual-heading h2{letter-spacing:.7px}
+.virtual-balance{display:grid;grid-template-columns:1fr 1fr;gap:12px;background:linear-gradient(110deg,#102b49,#0a192b);border:1px solid #244c73;border-radius:12px;padding:17px;margin:16px 0}
+.virtual-balance strong{color:#a6d5ff;text-shadow:0 0 16px #168bff30;font-variant-numeric:tabular-nums}
+.virtual-form{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:end}
+.virtual-form label{display:flex;flex-direction:column;gap:7px;color:#a9bfd8;font-size:10px;letter-spacing:.7px}
+.virtual-form input,.virtual-form select{width:100%;min-width:0;min-height:44px;padding:10px;border:1px solid #29496a;border-radius:7px;background:#050e1b;color:#eef6ff;font:12px monospace}
+.virtual-form input[readonly]{color:#9ee6a8;border-color:#315a45;background:#07160f}
+.virtual-form button{min-height:44px;white-space:nowrap}
+.virtual-risk{margin-top:14px;padding:12px;border:1px solid #254666;border-radius:8px;background:#08172a;color:#b7cbe0;font-size:12px}
+.virtual-position{border:1px solid #1f3e5d;background:#081629;border-radius:8px;padding:12px;margin:8px 0;color:#d9e8f7}
+.virtual-position .virtual-close{margin-top:8px}
+@media(max-width:900px){.virtual-form{grid-template-columns:repeat(2,minmax(0,1fr))}.virtual-form button{grid-column:1/-1}}
+@media(max-width:520px){.virtual-balance{padding:12px}.virtual-balance strong{font-size:24px}.virtual-form{grid-template-columns:1fr 1fr}.virtual-form label{font-size:9px}.virtual-form button{grid-column:1/-1}}

@@ -9,7 +9,7 @@ if (window.Telegram && window.Telegram.WebApp) {
   } catch (_) {}
 }
 
-const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
+const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","TRXUSDT","LINKUSDT","AVAXUSDT","DOTUSDT","LTCUSDT","BCHUSDT","ATOMUSDT","NEARUSDT","UNIUSDT","ETCUSDT","FILUSDT","APTUSDT","ARBUSDT"];
 let selected="BTCUSDT",prices={},candles=[],timeframe="1h",marketSource="binance",selectedCategory="forex",selectedPipSize=null;
 function configureSignalTimeframes(){const select=$("signal-timeframe");if(!select)return;const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["1m","5m","15m","30m","1h"]:["1h","4h","1d"];[...select.options].forEach(option=>option.hidden=!allowed.includes(option.value));if(!allowed.includes(select.value))select.value=deriv?"15m":"1h";}
 function configureChartTimeframes(){const deriv=marketSource.startsWith("deriv_");const allowed=deriv?["5m","15m","1h","4h","1d"]:["1h","4h","1d"];const buttons=[...document.querySelectorAll(".timeframes [data-tf]")];buttons.forEach(button=>button.hidden=!allowed.includes(button.dataset.tf));if(!allowed.includes(timeframe))timeframe="1h";buttons.forEach(button=>button.classList.toggle("active",button.dataset.tf===timeframe));}
@@ -98,6 +98,13 @@ async function loadMarkets(){
     if(!$("ticker").dataset.failed){$("ticker").innerHTML="<div class='ticker-item'>Public market data is temporarily unavailable.</div>";$("ticker").dataset.failed="1"}
   }
 }
+
+function publishWorkspaceMarket(list){
+  window.dispatchEvent(new CustomEvent("quantum:markets",{detail:{source:marketSource,markets:list}}));
+  const item=(list||[]).find(x=>x.symbol===selected);
+  if(item)window.dispatchEvent(new CustomEvent("quantum:market",{detail:{source:marketSource,symbol:item.symbol,price:item.price,timeframe,platform:marketSource.startsWith("deriv_")?"forex":"crypto"}}));
+}
+
 function renderMarkets(list){
   $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
   $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
@@ -195,7 +202,7 @@ window.QUANTUM_SELECT_MARKET = async function (detail) {
     }
   } else {
     marketSource = platform === "binary" || platform === "forex" ? "deriv_forex" : marketSource;
-    selected = raw.startsWith("FRX") ? raw : "frx" + raw.replace("/", "");
+    selected = "frx" + raw.replace(/^FRX/, "").replace("/", "");
   }
   $("market-source").value = marketSource;
   if (detail.timeframe && ["5m","15m","1h","4h","1d"].includes(detail.timeframe)) timeframe = detail.timeframe;
