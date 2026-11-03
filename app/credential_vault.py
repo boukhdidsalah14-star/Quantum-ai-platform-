@@ -45,7 +45,7 @@ def init_vault_db():
 
 
 def save_demo(customer_id, account_id, token):
-    account_id, token = account_id.strip(), token.strip()
+    account_id, token = account_id.strip().upper(), token.strip()
     if not account_id.startswith("VRTC") or len(account_id) > 64:
         raise ValueError("Only Deriv virtual demo accounts (VRTC IDs) are supported")
     if not token or len(token) > 4096:
