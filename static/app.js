@@ -282,6 +282,7 @@ function showCustomer(customer){
   showAuthMessage("Signed in. Paper trading is available; broker order execution remains disabled.");
   refreshPaperTrades();
   refreshDerivConnection();
+  refreshDerivTrades();
 }
 function showSignedOut(){
   $("auth-form").hidden=false;
@@ -344,6 +345,41 @@ async function refreshDerivConnection(){
     remove.hidden=!body.connected;
   }catch(error){status.textContent=error.message||"Could not load Deriv connection status."}
 }
+async function refreshDerivTrades(){
+  const gate=$("deriv-trade-gate"),submit=$("deriv-trade-submit"),list=$("deriv-trades-list"),risk=$("deriv-risk-status");
+  if(!gate||!submit||!list)return;
+  try{
+    const response=await fetch("/api/deriv/demo/trades");
+    const body=await response.json();
+    if(response.status===401){gate.textContent="Sign in to use your own Deriv demo account.";submit.disabled=true;return}
+    if(!response.ok){gate.textContent=body.detail||"Demo trading is locked.";submit.disabled=true;return}
+    const enabled=Boolean(body.execution_enabled);
+    submit.disabled=!enabled;
+    gate.textContent=enabled?"DEMO ENGINE READY · VRTC ACCOUNTS ONLY · REAL TRADING DISABLED":"Demo history is available, but the demo execution switch is still disabled.";
+    if(body.risk){
+      const r=body.risk;
+      risk.textContent="RISK · Daily net loss "+money(r.daily_net_loss)+" / "+money(r.daily_loss_limit)+" · Consecutive losses "+r.consecutive_losses+" / "+r.max_consecutive_losses+" · Open contracts "+r.open_contracts+" / "+r.max_open_contracts+(r.trading_paused?" · PAUSED: "+r.pause_reasons.join(", "):"");
+    }
+    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='deriv-trade-row'><div><strong>"+String(t.symbol)+" · "+String(t.contract_type)+" · "+String(t.status).toUpperCase()+"</strong><small>Stake "+money(t.stake)+" · "+t.duration_minutes+"m · "+(t.contract_id?"Contract "+String(t.contract_id):"Awaiting confirmation")+(t.profit!==null&&t.profit!==undefined?" · P/L "+money(t.profit):"")+(t.error_message?" · "+String(t.error_message):"")+"</small></div><span class='locked'>DEMO</span></article>").join(""):"<p class='disclaimer'>No Deriv demo contracts yet.</p>";
+  }catch(error){gate.textContent=error.message||"Demo trade status unavailable.";submit.disabled=true}
+}
+const derivTradeForm=$("deriv-trade-form");
+derivTradeForm?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("deriv-trade-submit"),gate=$("deriv-trade-gate");
+  button.disabled=true;button.textContent="REQUESTING DERIV PROPOSAL…";
+  gate.textContent="Checking risk limits, market availability and your saved VRTC account…";
+  try{
+    const key=crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random();
+    const response=await fetch("/api/deriv/demo/trades",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify({symbol:$("deriv-trade-symbol").value,contract_type:$("deriv-trade-direction").value,stake:Number($("deriv-trade-stake").value),duration_minutes:Number($("deriv-trade-duration").value)})});
+    const body=await response.json();
+    if(!response.ok)throw new Error(body.detail||"Deriv demo order failed");
+    gate.textContent=(body.duplicate?"DUPLICATE REQUEST BLOCKED · ":"DEMO CONTRACT OPEN · ")+body.trade.symbol+" "+body.trade.contract_type+" · "+body.trade.status.toUpperCase()+". "+body.note;
+    await refreshDerivTrades();
+  }catch(error){gate.textContent=error.message||"Demo order failed.";await refreshDerivTrades()}
+  finally{button.textContent="OPEN DEMO CONTRACT";await refreshDerivTrades()}
+});
+
 $("deriv-customer-form")?.addEventListener("submit",async event=>{
   event.preventDefault();
   const button=$("deriv-customer-submit"),status=$("deriv-customer-status");
@@ -372,6 +408,8 @@ $("deriv-customer-remove")?.addEventListener("click",async()=>{
   }catch(error){status.textContent=error.message||"Could not remove the connection."}
   finally{button.disabled=false}
 });
+
+setInterval(()=>{if(!$("account-profile")?.hidden)refreshDerivTrades()},15000);
 
 $("auth-logout")?.addEventListener("click",async()=>{
   try{await fetch("/api/auth/logout",{method:"POST"});authMode="login";showSignedOut();showAuthMessage("You have signed out.")}
