@@ -451,7 +451,7 @@ async function refreshOlympPaperTrades(){
   if(!list||!message)return;
   try{
     const response=await fetch("/api/olymp-trade/paper/trades");
-    if(response.status===401){message.textContent="Sign in to save your private Olymp Trade paper history.";list.innerHTML="";return}
+    if(response.status===401){message.textContent="Sign in to save your private Olymp Trade paper history.";list.innerHTML="";$("olymp-paper-submit").disabled=true;$("olymp-risk-save").disabled=true;return}
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Could not load Olymp Trade paper history");
     message.textContent="PAPER MODE · Choose your trade amount · 10% daily loss cap · 3 open positions · no broker orders.";
