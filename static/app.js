@@ -202,7 +202,7 @@ window.QUANTUM_SELECT_MARKET = async function (detail) {
     }
   } else {
     marketSource = platform === "binary" || platform === "forex" ? "deriv_forex" : marketSource;
-    selected = raw.startsWith("FRX") ? raw : "frx" + raw.replace("/", "");
+    selected = "frx" + raw.replace(/^FRX/, "").replace("/", "");
   }
   $("market-source").value = marketSource;
   if (detail.timeframe && ["5m","15m","1h","4h","1d"].includes(detail.timeframe)) timeframe = detail.timeframe;
