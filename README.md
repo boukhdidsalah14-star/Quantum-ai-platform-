@@ -20,6 +20,12 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Browser-origin checks reject cross-origin register/login/logout requests when an Origin header is present.
 - SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
 
+## Olymp Trade integration foundation
+
+Olymp Trade is represented as a signal-and-paper-trading candidate. The initial module in `app/olymp_trade.py` reuses the transparent candle-based indicator engine and explicitly reports that the broker account and market-data feed are not connected. It accepts completed candles only from a separately verified market-data source. Paper execution is a simulation and does not send orders.
+
+Olymp Trade's help center says trading robots are allowed subject to conditions, but this does not establish a supported public third-party order API. Quantum AI does not collect Olymp Trade passwords, extract browser session tokens, reverse-engineer private WebSocket messages, or automate the broker website. Demo and real broker order placement remain disabled until Olymp Trade supplies written authorization and documented integration credentials/endpoints. See the [Olymp Trade robot policy](https://plus.olymptrade.com/en/help/category/trading/can-i-use-robots-when-trading-on-the-platform).
+
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
