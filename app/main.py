@@ -132,7 +132,6 @@ async def _deriv_demo_monitor_loop():
 
 
 @asynccontextmanager
-@asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
     init_paper_db()
@@ -309,24 +308,6 @@ async def deriv_demo_connection(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return demo_credential_metadata(customer["id"])
-
-
-@app.put("/api/connections/deriv/demo")
-async def save_deriv_demo_connection(payload: DerivDemoCredentials, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_vault_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    if not _persistent_credentials_ready():
-        raise HTTPException(status_code=503, detail="Durable encrypted storage is required before saving broker credentials")
-    try:
-        return save_demo(customer["id"], payload.account_id, payload.token)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except VaultError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @app.post("/api/connections/deriv/demo/verify")
