@@ -20,14 +20,14 @@ def init_db():
     with _connect() as db:
         db.execute("""CREATE TABLE IF NOT EXISTS olymp_paper_trades (
             id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-            symbol TEXT NOT NULL, direction TEXT NOT NULL CHECK(direction IN ('CALL','PUT')),
+            symbol TEXT NOT NULL, price_source TEXT NOT NULL, direction TEXT NOT NULL CHECK(direction IN ('CALL','PUT')),
             stake REAL NOT NULL, expiry_minutes INTEGER NOT NULL, entry_price REAL NOT NULL, exit_price REAL,
             status TEXT NOT NULL CHECK(status IN ('open','settled','cancelled')),
             result TEXT, pnl REAL, idempotency_key TEXT NOT NULL, created_at INTEGER NOT NULL, settled_at INTEGER,
             UNIQUE(customer_id,idempotency_key))""")
         db.execute("CREATE INDEX IF NOT EXISTS idx_olymp_paper_customer ON olymp_paper_trades(customer_id,created_at)")
 
-def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_price, idempotency_key):
+def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_price, idempotency_key, price_source):
     symbol, direction = symbol.strip().upper(), direction.strip().upper()
     stake, entry_price, expiry_minutes = float(stake), float(entry_price), int(expiry_minutes)
     if not symbol or len(symbol) > 30: raise ValueError("Invalid asset symbol")
@@ -36,6 +36,8 @@ def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_pric
     if expiry_minutes not in ALLOWED_EXPIRIES: raise ValueError("Expiry must be 1, 5, 15, 30, or 60 minutes")
     if not entry_price > 0: raise ValueError("Entry price must be positive")
     if not idempotency_key or len(idempotency_key) > 100: raise ValueError("A valid idempotency key is required")
+    price_source = str(price_source).strip()
+    if not price_source or len(price_source) > 80: raise ValueError("A valid reference-price source is required")
     now = int(time.time())
     with _connect() as db:
         prior = db.execute("SELECT * FROM olymp_paper_trades WHERE customer_id=? AND idempotency_key=?", (customer_id,idempotency_key)).fetchone()
@@ -47,7 +49,7 @@ def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_pric
         if float(stats["daily_loss"]) >= DAILY_LOSS_LIMIT_USD: raise ValueError("Daily paper loss limit reached")
         trade_id = secrets.token_urlsafe(18)
         db.execute("""INSERT INTO olymp_paper_trades (id,customer_id,symbol,direction,stake,expiry_minutes,entry_price,status,idempotency_key,created_at)
-            VALUES(?,?,?,?,?,?,?,'open',?,?)""", (trade_id,customer_id,symbol,direction,stake,expiry_minutes,entry_price,idempotency_key,now))
+            VALUES(?,?,?,?,?,?,?,'open',?,?)""", (trade_id,customer_id,symbol,price_source,direction,stake,expiry_minutes,entry_price,idempotency_key,now))
         return dict(db.execute("SELECT * FROM olymp_paper_trades WHERE id=?", (trade_id,)).fetchone())
 
 def list_trades(customer_id):
@@ -61,6 +63,8 @@ def settle_trade(customer_id, trade_id, exit_price, payout_rate=0.82):
     with _connect() as db:
         row = db.execute("SELECT * FROM olymp_paper_trades WHERE id=? AND customer_id=? AND status='open'", (trade_id,customer_id)).fetchone()
         if not row: return None
+        if int(time.time()) < int(row["created_at"]) + int(row["expiry_minutes"]) * 60:
+            raise ValueError("Paper position has not reached its selected expiry yet")
         if exit_price == row["entry_price"]: result, pnl = "draw", 0.0
         else:
             won = (exit_price > row["entry_price"] and row["direction"]=="CALL") or (exit_price < row["entry_price"] and row["direction"]=="PUT")
