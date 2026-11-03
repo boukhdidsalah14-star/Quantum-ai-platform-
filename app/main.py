@@ -25,6 +25,8 @@ from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trade
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
 
+from app.virtual_platforms import init_db as init_virtual_db, snapshot as virtual_snapshot, positions as virtual_positions, open_position as open_virtual_position, settle as settle_virtual_position
+
 from app.olymp_paper import (init_db as init_olymp_paper_db, open_trade as open_olymp_paper_trade, list_trades as list_olymp_paper_trades, settle_trade as settle_olymp_paper_trade, set_account_balance as set_olymp_paper_balance, get_risk_snapshot as olymp_paper_risk_snapshot)
 
 from app.auth import (
@@ -169,6 +171,7 @@ async def lifespan(app: FastAPI):
     init_auth_db()
     init_paper_db()
     init_olymp_paper_db()
+    init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
     if _persistent_credentials_ready():
@@ -919,3 +922,73 @@ async def dashboard_head():
 @app.get("/")
 async def dashboard():
     return FileResponse(ROOT / "static" / "index.html")
+
+
+class VirtualPositionRequest(BaseModel):
+    symbol: str = Field(min_length=2, max_length=30)
+    side: str
+    stake: float = Field(gt=0, le=1000000000)
+    entry_price: float = Field(gt=0)
+    expiry_minutes: int = Field(default=5, ge=1, le=60)
+
+
+class VirtualSettlementRequest(BaseModel):
+    exit_price: float = Field(gt=0)
+
+
+@app.get("/api/virtual/accounts")
+async def get_virtual_accounts(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Sign in to access your private virtual accounts")
+    return {"accounts": virtual_snapshot(customer["id"]), "execution": "virtual_simulation_only"}
+
+
+@app.get("/api/virtual/{platform}/positions")
+async def get_virtual_positions(platform: str, request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return {"platform": platform, "positions": virtual_positions(customer["id"], platform),
+                "execution": "virtual_simulation_only"}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.post("/api/virtual/{platform}/positions")
+async def create_virtual_position(platform: str, payload: VirtualPositionRequest, request: Request,
+                                  idempotency_key: str = Header(default="", alias="Idempotency-Key")):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        position = open_virtual_position(customer["id"], platform, payload.symbol, payload.side,
+                                          payload.stake, payload.entry_price, payload.expiry_minutes,
+                                          idempotency_key)
+        return {"position": position, "accounts": virtual_snapshot(customer["id"]),
+                "execution": "virtual_simulation_only", "broker_order_sent": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/virtual/{platform}/positions/{position_id}/settle")
+async def close_virtual_position(platform: str, position_id: str, payload: VirtualSettlementRequest,
+                                 request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        position = settle_virtual_position(customer["id"], platform, position_id, payload.exit_price)
+        if not position:
+            raise HTTPException(status_code=404, detail="Open virtual position not found")
+        return {"position": position, "accounts": virtual_snapshot(customer["id"]),
+                "execution": "virtual_simulation_only", "broker_order_sent": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
