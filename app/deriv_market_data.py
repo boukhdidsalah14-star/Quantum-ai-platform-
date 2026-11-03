@@ -93,10 +93,8 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
             PUBLIC_WS, open_timeout=7, close_timeout=2, ping_interval=20,
             ping_timeout=10, max_size=2_000_000,
         ) as ws:
-            # Deriv's ticks request accepts one symbol per request, not a list.
-            for symbol in requested:
-                await ws.send(json.dumps({"ticks": symbol}))
-            deadline = time.monotonic() + 8.0
+            await ws.send(json.dumps({"ticks": requested}))
+            deadline = time.monotonic() + 6.0
             while len(quotes) < len(requested) and time.monotonic() < deadline:
                 remaining = max(0.1, deadline - time.monotonic())
                 try:
@@ -109,8 +107,11 @@ async def get_tick_quotes(symbols: list[str]) -> dict[str, float]:
                     raise DerivMarketDataError(error.get("message", "Deriv tick request failed"))
                 tick = message.get("tick", {})
                 symbol = tick.get("underlying_symbol") or tick.get("symbol")
-                if symbol in requested and tick.get("quote") is not None:
-                    quotes[symbol] = float(tick["quote"])
+                if not symbol:
+                    symbol = next((item for item in requested if item not in quotes), None)
+                quote = tick.get("quote")
+                if symbol in requested and quote is not None:
+                    quotes[symbol] = float(quote)
     except (DerivMarketDataError, asyncio.TimeoutError):
         raise
     except Exception as exc:
