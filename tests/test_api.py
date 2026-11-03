@@ -111,7 +111,8 @@ def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
     brokers = {item["id"]: item for item in body["brokers"]}
     assert set(brokers) == {"deriv", "quotex", "expert_option", "olymp_trade", "mexc"}
     assert brokers["deriv"]["connection_verified"] is False
-    assert brokers["mexc"]["status"] == "public_market_data_connected"
+    assert brokers["mexc"]["status"] == "read_only_customer_account_connection_implemented"
+    assert brokers["mexc"]["real_execution_enabled"] is False
     assert brokers["olymp_trade"]["status"] == "signal_and_paper_foundation"
     assert brokers["olymp_trade"]["real_execution_enabled"] is False
     assert body["execution_enabled"] is False
