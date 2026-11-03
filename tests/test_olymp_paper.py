@@ -12,6 +12,7 @@ def paper_db(tmp_path, monkeypatch):
         db.execute("CREATE TABLE customers (id TEXT PRIMARY KEY)")
         db.execute("INSERT INTO customers (id) VALUES ('customer-1')")
     olymp_paper.init_db()
+    olymp_paper.set_account_balance("customer-1", 100)
     return "customer-1"
 
 
