@@ -234,6 +234,15 @@ async function refreshPaperTrades(){
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Could not load paper trades");
     message.textContent="PAPER MODE · Max $500 notional per trade · Up to 5 open trades.";
+    const risk=body.risk||{};
+    const riskSummary=$("olymp-risk-summary");
+    if(risk.configured){
+      $("olymp-account-balance").value=Number(risk.account_balance).toFixed(2);
+      riskSummary.textContent="ACCOUNT $"+Number(risk.account_balance).toFixed(2)+" · DAILY LOSS LIMIT 10% = $"+Number(risk.daily_loss_limit).toFixed(2)+" · LOSS TODAY $"+Number(risk.daily_loss).toFixed(2)+" · REMAINING $"+Number(risk.remaining_loss_allowance).toFixed(2)+(risk.trading_paused?" · TRADING PAUSED":"");
+      $("olymp-paper-submit").disabled=Boolean(risk.trading_paused);
+    }else{
+      riskSummary.textContent="Set your paper balance to calculate your 10% daily loss limit. Trading is locked until configured."; $("olymp-paper-submit").disabled=true;
+    }
     list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+t.symbol+" · "+t.side.toUpperCase()+"</strong><small>"+t.status.toUpperCase()+" · Qty "+Number(t.quantity)+" · Entry "+money(t.entry_price)+(t.exit_price?" · Exit "+money(t.exit_price):"")+(t.realized_pnl!==null&&t.realized_pnl!==undefined?" · Realized "+money(t.realized_pnl):(t.unrealized_pnl!==undefined?" · Unrealized "+money(t.unrealized_pnl):""))+"</small></div>"+(t.status==="open"?"<button type='button' data-close-paper='"+t.id+"'>CLOSE AT MARKET</button>":"<span class='locked'>SETTLED</span>")+"</article>").join(""):"<p class='disclaimer'>No paper trades yet. Open a simulated position above.</p>";
   }catch(error){message.textContent=error.message||"Paper trading unavailable"}
 }
@@ -445,7 +454,7 @@ async function refreshOlympPaperTrades(){
     if(response.status===401){message.textContent="Sign in to save your private Olymp Trade paper history.";list.innerHTML="";return}
     const body=await response.json();
     if(!response.ok)throw new Error(body.detail||"Could not load Olymp Trade paper history");
-    message.textContent="PAPER MODE · Simulated only · Max $2 stake · 3 open positions · no broker orders.";
+    message.textContent="PAPER MODE · Choose your trade amount · 10% daily loss cap · 3 open positions · no broker orders.";
     list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='paper-trade'><div><strong>"+escapeHtml(t.symbol)+" · "+t.direction+"</strong><small>"+t.status.toUpperCase()+" · $"+Number(t.stake).toFixed(2)+" · "+t.expiry_minutes+"m · Entry "+t.entry_price+(t.exit_price!==null&&t.exit_price!==undefined?" · Exit "+t.exit_price:"")+(t.pnl!==null&&t.pnl!==undefined?" · P/L $"+Number(t.pnl).toFixed(2):"")+"</small></div>"+(t.status==="open"?"<button type='button' data-olymp-settle='"+t.id+"'>SETTLE SIMULATION</button>":"<span class='locked'>"+String(t.result||"SETTLED").toUpperCase()+"</span>")+"</article>").join(""):"<p class='disclaimer'>No Olymp Trade paper positions yet.</p>";
     list.querySelectorAll("[data-olymp-settle]").forEach(button=>button.addEventListener("click",async()=>{
       const exit=prompt("Enter the checked exit reference price from Olymp Trade (paper simulation only):");
@@ -492,3 +501,16 @@ $("olymp-analyze")?.addEventListener("click",async()=>{
   finally{button.disabled=false;button.textContent="ANALYZE CURRENT CHART"}
 });
 refreshOlympPaperTrades();
+
+$("olymp-risk-form")?.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("olymp-risk-save"),summary=$("olymp-risk-summary");
+  button.disabled=true;button.textContent="SAVING…";
+  try{
+    const response=await fetch("/api/olymp-trade/paper/settings",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_balance:Number($("olymp-account-balance").value)})});
+    const body=await response.json(); if(!response.ok)throw new Error(body.detail||"Could not save paper balance");
+    const r=body.risk; summary.textContent="ACCOUNT $"+Number(r.account_balance).toFixed(2)+" · DAILY LOSS LIMIT 10% = $"+Number(r.daily_loss_limit).toFixed(2)+" · LOSS TODAY $"+Number(r.daily_loss).toFixed(2)+" · REMAINING $"+Number(r.remaining_loss_allowance).toFixed(2);
+    await refreshOlympPaperTrades();
+  }catch(error){summary.textContent=error.message||"Could not save paper balance"}
+  finally{button.disabled=false;button.textContent="SAVE BALANCE + 10% LOSS LIMIT"}
+});
