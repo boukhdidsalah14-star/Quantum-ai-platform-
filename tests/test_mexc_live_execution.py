@@ -1,4 +1,5 @@
 import pytest
+from decimal import Decimal
 
 from app.mexc_live_execution import (
     MexcExecutionError,
@@ -31,4 +32,4 @@ def test_mexc_amount_rejects_non_positive_or_non_finite(value):
 
 
 def test_mexc_amount_accepts_decimal_string():
-    assert _amount("1.25") == 1.25
+    assert _amount("1.25") == Decimal("1.25")
