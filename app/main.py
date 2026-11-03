@@ -187,6 +187,10 @@ async def health(request: Request):
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "deriv_demo_connector": "available",
         "customer_auth": "available",
+        "credential_storage_ready": (
+            os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+            and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+        ),
         "order_execution": False,
         "trading_enabled": False,
     }
@@ -280,8 +284,19 @@ async def verify_and_save_deriv_demo_connection(payload: DerivDemoCredentials, r
         raise HTTPException(status_code=503, detail="Deriv application ID is not configured on the server")
     try:
         verified = await get_demo_status_for_credentials(payload.token, payload.account_id, app_id)
+        persistent_storage_ready = (
+            os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+            and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+        )
+        if not persistent_storage_ready:
+            return {
+                **verified,
+                "credential_saved": False,
+                "persistence_required": True,
+                "note": "Account verified, but credentials were not saved because persistent encrypted storage is not configured.",
+            }
         saved = save_demo(customer["id"], payload.account_id, payload.token)
-        return {**verified, "credential_saved": saved.get("connected", False)}
+        return {**verified, "credential_saved": saved.get("connected", False), "persistence_required": False}
     except DerivConfigError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except DerivConnectionError as exc:
