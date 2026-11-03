@@ -129,3 +129,14 @@ Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 5. Keep real-account execution disabled until demo testing, explicit consent, and provider/legal review are complete.
 
 Never commit `.env`, bot tokens, broker API keys, or customer credentials.
+
+
+## Live execution foundation (not activated)
+
+The branch `feature/broker-execution-foundation` adds `app/mexc_live_execution.py`, a signed MEXC Spot account-verification and market-order adapter. It requires both the server-side `QUANTUM_MEXC_LIVE_TRADING_ENABLED=true` kill switch and explicit per-customer consent, limits each order to 10 USDT, and returns an unknown-outcome error on a timeout. MEXC has no sandbox, so this adapter is intentionally not wired to customer routes, Telegram, or automatic strategy execution. Before wiring it, implement encrypted per-customer API-key storage, durable idempotency reservations, order reconciliation, customer-level daily loss limits, and integration tests against read-only account permissions. Start with API keys that have withdrawals disabled and IP restrictions enabled.
+
+Deriv's current engine remains demo-only. The official API provides separate authenticated demo and real WebSocket endpoints; real execution needs a separately verified CR account, trade-scoped token/OAuth authorization, real OTP session creation, a real-account ledger, and reconciliation. Do not change the existing VRTC checks to make a real account pass them.
+
+IQ Option remains unavailable for automated execution in this product: no official supported retail trading API has been verified. Do not request or store IQ Option passwords/session cookies or ship reverse-engineered community clients. The app may add a clearly labelled third-party read-only data feed later, but that is not IQ Option account execution and must not be marketed as such.
+
+No live order is placed by this branch, and the production service is not changed until this branch is reviewed, tested, and merged.
