@@ -110,3 +110,56 @@ h3{font-size:18px}
 .brand-mark:before,.brand-mark:after{position:absolute;display:grid;place-items:center;font:800 17px 'Barlow Condensed',sans-serif;color:#d9efff;text-shadow:0 0 10px #168bff;transform-style:preserve-3d}
 .brand-mark:before{content:"Q";left:7px;top:6px;transform:translateZ(8px)}
 .brand-mark:after{content:"A";right:5px;bottom:4px;color:#42a5ff;transform:translateZ(15px)}
+
+
+/* MOBILE PERFORMANCE PASS: keep the terminal responsive on low-end phones */
+html{scroll-behavior:auto}
+.ambient:before,body:after{display:none!important;animation:none!important}
+body:before{box-shadow:none;border-color:#17365a;border-radius:0}
+.ambient{background:linear-gradient(145deg,#030712,#071326 60%,#030712)}
+.topbar,.page-nav{backdrop-filter:none!important}
+.brand-mark,.orb-core,.orb-ring,.pulse,.ticker-track{animation:none!important}
+.ticker-track{will-change:auto}
+.panel,.paper-panel,.integration,.ticker-wrap{box-shadow:none}
+.page-nav{position:relative;top:auto;gap:6px;padding:8px 12px}
+.page-nav a{padding:9px 10px;min-width:0}
+#overview,#markets,#trade-center{scroll-margin-top:12px}
+.hero{min-height:220px;padding:36px 20px 28px}
+.hero-orb{width:125px;height:125px}
+.orb-core{width:72px;height:72px}
+.ticker-wrap{margin-bottom:24px;min-height:48px}
+.trades-heading{margin-top:28px}
+.integration-grid{padding-top:14px;padding-bottom:14px}
+@media(max-width:700px){
+  .hero{min-height:190px;padding:26px 16px 20px}
+  .hero-orb{width:90px;height:90px}
+  .orb-core{width:56px;height:56px;font-size:20px}
+  .ticker-wrap{margin:0 12px 18px}
+  .section-head{padding:0 14px 12px}
+  .market-grid{padding:0 12px;gap:10px}
+  .chart-panel{padding:13px 11px}
+  .chart-holder{height:185px}
+  .side-stack{gap:10px}
+  .asset-panel,.status-panel{padding:13px}
+  .signal-panel{margin:10px 12px 0;padding:13px}
+  .paper-panel{margin:0 12px 18px;padding:13px}
+  .integration-grid{padding:14px 12px;gap:8px}
+  .empty-trades{margin:0 12px;padding:20px 14px}
+  footer{margin-top:14px;padding:18px 14px 24px}
+}
+@media(max-width:520px){
+  .topbar{height:58px;padding:0 12px}
+  .page-nav{padding:7px 10px}
+  .page-nav a{font-size:9px;padding:8px 4px}
+  .hero{padding:22px 14px 18px;min-height:170px}
+  h1{font-size:42px;line-height:1}
+  h2{font-size:27px}
+  .sub{font-size:12px;line-height:1.55}
+  .chart-holder{height:165px}
+  .trades-heading{margin-top:24px}
+  .deriv-trades-list{max-height:150px}
+  .account-panel{top:64px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}
