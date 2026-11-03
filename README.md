@@ -26,6 +26,16 @@ Olymp Trade is represented as a signal-and-paper-trading candidate. The initial 
 
 Olymp Trade's help center says trading robots are allowed subject to conditions, but this does not establish a supported public third-party order API. Quantum AI does not collect Olymp Trade passwords, extract browser session tokens, reverse-engineer private WebSocket messages, or automate the broker website. Demo and real broker order placement remain disabled until Olymp Trade supplies written authorization and documented integration credentials/endpoints. See the [Olymp Trade robot policy](https://plus.olymptrade.com/en/help/category/trading/can-i-use-robots-when-trading-on-the-platform).
 
+## Olymp Trade signal and paper workflow
+
+The authenticated application API now exposes:
+- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 30). The candle source is not verified by this endpoint.
+- `GET /api/olymp-trade/paper/trades` for the signed-in customer's isolated paper ledger.
+- `POST /api/olymp-trade/paper/trades` to open a simulated CALL/PUT position using a caller-supplied reference price and required idempotency key.
+- `POST /api/olymp-trade/paper/trades/{trade_id}/settle` to settle a simulation using a supplied exit reference price.
+
+Paper risk limits: $2 maximum stake, three open simulated positions, supported expiries of 1/5/15/30/60 minutes, and a $10 rolling 24-hour realized-loss pause. The API returns `broker_order_sent: false`; these routes never connect to Olymp Trade. Caller-supplied candles and prices are not independently verified, so this is a development simulator, not broker-grade execution or a performance guarantee.
+
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
