@@ -105,3 +105,8 @@ h3{font-size:18px}
 @keyframes frame-candles{0%{background-position:0 0}100%{background-position:0 96px}}
 @media(max-width:700px){.page-nav{top:64px;gap:6px;padding:9px 10px 14px}.page-nav a{flex:1;min-width:0;padding:10px 5px;font-size:10px}.hero{padding-top:45px}.brand{font-size:15px}}
 @media(prefers-reduced-motion:reduce){.brand-mark,.orb-core,.ambient:before,body:after{animation:none!important}}
+
+.brand-mark{font-size:0;overflow:visible}
+.brand-mark:before,.brand-mark:after{position:absolute;display:grid;place-items:center;font:800 17px 'Barlow Condensed',sans-serif;color:#d9efff;text-shadow:0 0 10px #168bff;transform-style:preserve-3d}
+.brand-mark:before{content:"Q";left:7px;top:6px;transform:translateZ(8px)}
+.brand-mark:after{content:"A";right:5px;bottom:4px;color:#42a5ff;transform:translateZ(15px)}
