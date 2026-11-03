@@ -19,7 +19,7 @@ from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
-from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
+from app.credential_vault import (init_vault_db, save_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.auth import (
     authenticate_customer, create_customer, create_session,
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
