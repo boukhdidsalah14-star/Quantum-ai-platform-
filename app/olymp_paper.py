@@ -52,6 +52,9 @@ def set_account_balance(customer_id: str, account_balance: float) -> dict:
         raise ValueError("Account balance must be greater than zero and no more than 1,000,000,000")
     now = int(time.time())
     with _connect() as db:
+        exposure = db.execute("SELECT COALESCE(SUM(stake),0) AS open_stake FROM olymp_paper_trades WHERE customer_id=? AND status='open'", (customer_id,)).fetchone()
+        if float(exposure["open_stake"]) > balance:
+            raise ValueError("Configured balance cannot be lower than the amount committed to open paper positions")
         db.execute("""INSERT INTO olymp_paper_settings(customer_id,account_balance,updated_at)
             VALUES(?,?,?) ON CONFLICT(customer_id) DO UPDATE SET
             account_balance=excluded.account_balance,updated_at=excluded.updated_at""",
