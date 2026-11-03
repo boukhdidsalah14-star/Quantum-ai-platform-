@@ -15,10 +15,11 @@ def paper_db(tmp_path, monkeypatch):
     return "customer-1"
 
 
-def test_open_and_settle_olymp_paper_call(paper_db):
-    trade = olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 5, 1.08, "key-1")
+def test_open_and_settle_olymp_paper_call(paper_db, monkeypatch):
+    trade = olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 5, 1.08, "key-1", "manual quote")
     assert trade["status"] == "open"
     assert trade["direction"] == "CALL"
+    monkeypatch.setattr(olymp_paper.time, "time", lambda: trade["created_at"] + 5 * 60 + 1)
     settled = olymp_paper.settle_trade(paper_db, trade["id"], 1.081, 0.8)
     assert settled["status"] == "settled"
     assert settled["result"] == "win"
@@ -26,7 +27,7 @@ def test_open_and_settle_olymp_paper_call(paper_db):
 
 
 def test_idempotency_does_not_create_duplicate_paper_trade(paper_db):
-    first = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key")
+    first = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key", "manual quote")
     second = olymp_paper.open_trade(paper_db, "EURUSD", "PUT", 1, 1, 1.08, "same-key")
     assert first["id"] == second["id"]
     assert len(olymp_paper.list_trades(paper_db)) == 1
@@ -45,11 +46,11 @@ def test_invalid_paper_trade_inputs_are_rejected(paper_db, stake, expiry, direct
 
 def test_maximum_open_paper_trades_is_enforced(paper_db):
     for i in range(3):
-        olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, f"key-{i}")
+        olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, f"key-{i}", "manual quote")
     with pytest.raises(ValueError, match="Maximum"):
-        olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, "key-4")
+        olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, "key-4", "manual quote")
 
 
 def test_customer_isolation(paper_db):
-    olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, "private-key")
+    olymp_paper.open_trade(paper_db, "EURUSD", "CALL", 1, 1, 1.08, "private-key", "manual quote")
     assert olymp_paper.list_trades("another-customer") == []
