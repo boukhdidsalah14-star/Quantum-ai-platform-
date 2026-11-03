@@ -311,6 +311,9 @@ async def execute_demo_binary_trade(
             currency = str(balance.get("currency") or "").upper()
             if currency != "USD":
                 raise DerivExecutionError("This first demo release supports USD-denominated accounts only")
+            available_balance = float(balance.get("balance") or 0.0)
+            if available_balance < stake:
+                raise DerivExecutionError("The Deriv demo balance is lower than the requested stake")
             proposal_msg = await _ws_request(ws, {
                 "proposal": 1,
                 "amount": float(stake),
