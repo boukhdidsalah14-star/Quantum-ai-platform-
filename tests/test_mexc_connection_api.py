@@ -48,7 +48,6 @@ def test_mexc_verify_is_read_only_and_does_not_save_without_durable_storage(monk
         assert body["credential_saved"] is False
         assert body["persistence_required"] is True
         assert "test-secret" not in response.text
-        assert vault.load(create_customer_id_for_test()) is None if False else True
 
 
 def test_mexc_verify_saves_encrypted_credentials_when_durable_storage_is_enabled(monkeypatch, tmp_path):
