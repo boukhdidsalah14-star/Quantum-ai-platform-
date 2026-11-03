@@ -13,9 +13,13 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY tests ./tests
 COPY static ./static
 COPY run_bot.py .
 COPY README.md .
+
+RUN python -m compileall -q app tests \
+    && python -m unittest discover -s tests -v
 
 RUN useradd --create-home --uid 10001 quantum \
     && mkdir -p /var/data \
