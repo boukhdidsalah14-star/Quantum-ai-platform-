@@ -83,3 +83,44 @@ async def get_demo_status() -> dict:
             }
     except (asyncio.TimeoutError, OSError) as exc:
         raise DerivConnectionError("Could not complete the Deriv demo status check") from exc
+
+
+async def get_demo_status_for_credentials(token: str, account_id: str, app_id: str) -> dict:
+    """Verify a customer's own virtual account using read-only authenticated requests."""
+    token = str(token or "").strip()
+    account_id = str(account_id or "").strip().upper()
+    app_id = str(app_id or "").strip()
+    if not token or len(token) > 4096 or not app_id:
+        raise DerivConfigError("Deriv demo token or application ID is missing")
+    if not ACCOUNT_RE.fullmatch(account_id):
+        raise DerivConfigError("Only Deriv virtual demo account IDs (VRTC...) are accepted")
+    ws_url = await _get_demo_ws_url(token, account_id, app_id)
+    try:
+        async with websockets.connect(
+            ws_url, open_timeout=10, close_timeout=3, max_size=1_000_000
+        ) as ws:
+            await ws.send('{"balance":1,"req_id":1}')
+            raw = await asyncio.wait_for(ws.recv(), timeout=12)
+            import json
+            message = json.loads(raw)
+            if message.get("error"):
+                raise DerivConnectionError(message["error"].get("message", "Deriv account check failed"))
+            balance = message.get("balance")
+            if not isinstance(balance, dict) or balance.get("balance") is None:
+                raise DerivConnectionError("Deriv did not return a valid account balance")
+            return {
+                "connected": True,
+                "broker": "deriv",
+                "mode": "demo",
+                "account_id": account_id,
+                "balance": {
+                    "amount": float(balance["balance"]),
+                    "currency": str(balance.get("currency") or ""),
+                },
+                "read_only": True,
+                "order_execution": False,
+            }
+    except DerivConnectionError:
+        raise
+    except (asyncio.TimeoutError, OSError) as exc:
+        raise DerivConnectionError("Could not verify this Deriv demo account") from exc
