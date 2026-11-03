@@ -108,7 +108,6 @@ def _session_cookie(response: Response, token: str) -> None:
     )
 
 
-@asynccontextmanager
 async def _deriv_demo_monitor_loop():
     """Refresh open customer demo contracts while the service is running."""
     while True:
@@ -132,6 +131,7 @@ async def _deriv_demo_monitor_loop():
         await asyncio.sleep(15)
 
 
+@asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
