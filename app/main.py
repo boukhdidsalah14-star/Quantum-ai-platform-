@@ -81,7 +81,11 @@ class OlympPaperTradeRequest(BaseModel):
     price_source: str = Field(min_length=3, max_length=80)
 
 
-class OlympPaperBalanceRequest(BaseModel):\n    account_balance: float = Field(gt=0, le=1000000000)\n\n\nclass OlympPaperSettlementRequest(BaseModel):
+class OlympPaperBalanceRequest(BaseModel):
+    account_balance: float = Field(gt=0, le=1000000000)
+
+
+class OlympPaperSettlementRequest(BaseModel):
     exit_price: float = Field(gt=0)
     payout_rate: float = Field(gt=0, le=1, default=0.82)
 
