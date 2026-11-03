@@ -76,11 +76,17 @@ The bot is informational only. It does not execute trades.
 
 ## Customer Deriv demo connection and execution
 
-- `GET /api/connections/deriv/demo` — show whether the signed-in customer's Deriv demo credentials are stored; never returns secrets.
-- `PUT /api/connections/deriv/demo` — save `{\"account_id\":\"VRTC...\",\"token\":\"...\"}` encrypted for that customer. Only virtual/demo account IDs are accepted.
+- `POST /api/connections/deriv/demo/verify` — verify a customer's VRTC account with a read-only balance request; credentials are encrypted and saved only when durable storage is configured.
+- `GET /api/connections/deriv/demo` — show connection metadata; never returns secrets.
 - `DELETE /api/connections/deriv/demo` — delete that customer's stored demo credentials.
+- `POST /api/deriv/demo/trades` — request a CALL/PUT contract on a verified VRTC demo account; requires an `Idempotency-Key`.
+- `GET /api/deriv/demo/trades` — list that customer's demo trade history and risk state.
 
-Set `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before use. Keep it in the hosting provider's private environment settings and back it up securely; losing it makes stored credentials undecryptable. Never commit the key or paste it into chat. The vault does not connect to Deriv or place orders.
+Deriv demo order execution uses the current REST OTP + authenticated demo WebSocket workflow: verify a USD demo balance, request a CALL/PUT proposal, buy by proposal ID, then monitor the returned contract ID. An uncertain buy is marked `unknown` and blocks further entries rather than risking a duplicate. Open contracts are refreshed every 15 seconds by the single-instance service monitor.
+
+The engine has two independent safety gates: set `QUANTUM_PERSISTENT_STORAGE=true` only after attaching durable storage at `QUANTUM_DB_PATH`, and set `QUANTUM_DERIV_DEMO_TRADING_ENABLED=true` only after the encryption key and a customer's own demo account are configured. Both default to false. Real-account order execution is not implemented.
+
+Set `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` to a privately generated Fernet key before use. Keep it in the hosting provider's private environment settings and back it up securely; losing it makes stored credentials undecryptable. Never commit the key or paste it into chat.
 
 ## Paper trading API
 
@@ -104,7 +110,7 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /api/deriv/proposal/R_100?contract_type=CALL&amount=1&duration=5` — public binary contract price preview only; the endpoint never buys a contract.
 - `GET /api/backtest/deriv/frxEURUSD?category=forex&timeframe=15m` — no-lookahead historical directional test; no orders or profit forecast.
 - `GET /api/signals/crypto/BTCUSDT?source=binance&timeframe=1h` and `GET /api/backtest/crypto/BTCUSDT?source=binance&timeframe=1h` — read-only crypto signals and historical direction tests (Binance or MEXC).
-- `GET /api/risk/policy` — demo-only limits: $1 default stake, $2 maximum stake, $25 daily-loss limit, three consecutive losses, and one open contract. Risk monitoring/enforcement is not active yet.
+- `GET /api/risk/policy` — static demo risk policy. Deriv customer demo execution has a separate per-customer ledger and enforces its limits only when its explicit safety gates are enabled.
 
 Telegram commands: `/forex`, `/binary`, `/signal SYMBOL 15m forex`, `/signal SYMBOL 5m synthetic`, `/signal BTCUSDT 1h crypto`, `/quote R_100 CALL 1 5`, and `/backtest SYMBOL 15m forex` or `/backtest BTCUSDT 1h crypto`. Quotes are previews only; no orders are placed. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` privately in the hosting environment to activate the bot.
 - `GET /api/mexc/candles/{symbol}?interval=1h&limit=72` — validated MEXC Spot candles.
@@ -118,8 +124,8 @@ Allowed intervals: 1h, 4h, 1d. Candle limits are bounded to 20–200.
 
 1. Complete customer authentication hardening, email verification, account recovery, and tenant-owned resource coverage. (Initial identity/session layer and isolated paper-trade ledger are present.)
 2. Add broker connection verification, provider-specific permission checks, and key-rotation procedures. (Encrypted per-customer Deriv demo credential storage foundation is present.)
-3. Implement a broker demo adapter and verify order/settlement events.
-4. Enforce the demo risk policy with a trade ledger, daily-loss monitoring, consecutive-loss lockout, idempotency, audit logs and emergency stop. (Policy values are defined; enforcement is not active.)
+3. Broker demo adapter, order submission, idempotency, customer trade ledger, and contract status monitor are implemented for Deriv VRTC binary contracts; live demo use remains locked pending durable storage and configuration.
+4. Extend monitoring with reconciliation for uncertain buys, audit export, manual emergency stop, and broader end-to-end demo testing.
 5. Keep real-account execution disabled until demo testing, explicit consent, and provider/legal review are complete.
 
 Never commit `.env`, bot tokens, broker API keys, or customer credentials.
