@@ -14,7 +14,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Customer-isolated Deriv demo trade ledger with idempotency keys, one-open-contract limit, $0.35–$2 stake bounds, a $25 daily net-loss pause, and a three-consecutive-loss pause. The engine is protected by a separate explicit environment kill switch.
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
 - Customer-isolated paper-trading ledger with public-quote simulated entries, manual simulated closes, realized/unrealized P/L, idempotency keys, a $500 per-position notional cap, and a five-open-position cap.
-- Backend-driven broker capability registry for Deriv, IQ Option, and MEXC; the UI distinguishes implemented read-only scope from pending provider integrations.
+- Backend-driven broker capability registry for Deriv, Olymp Trade, and MEXC; the UI distinguishes implemented read-only scope from pending provider integrations.
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
 - Login attempts are throttled per normalized email + client IP using a persistent 15-minute SQLite bucket; successful login clears the bucket.
 - Browser-origin checks reject cross-origin register/login/logout requests when an Origin header is present.
@@ -92,7 +92,7 @@ The bot is informational only. It does not execute trades.
 
 ## Broker capability API
 
-- `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
+- `GET /api/brokers` — returns the current verified integration scope for supported broker candidates; IQ Option is not included. It never reports a broker as connected merely because it is planned or configured.
 
 ## Customer Deriv demo connection and execution
 
@@ -157,6 +157,6 @@ The branch `feature/broker-execution-foundation` adds `app/mexc_live_execution.p
 
 Deriv's current engine remains demo-only. The official API provides separate authenticated demo and real WebSocket endpoints; real execution needs a separately verified CR account, trade-scoped token/OAuth authorization, real OTP session creation, a real-account ledger, and reconciliation. Do not change the existing VRTC checks to make a real account pass them.
 
-IQ Option remains unavailable for automated execution in this product: no official supported retail trading API has been verified. Do not request or store IQ Option passwords/session cookies or ship reverse-engineered community clients. The app may add a clearly labelled third-party read-only data feed later, but that is not IQ Option account execution and must not be marketed as such.
+IQ Option has been removed from the product scope and is not listed as a broker.
 
 No live order is placed by this branch, and the production service is not changed until this branch is reviewed, tested, and merged.
