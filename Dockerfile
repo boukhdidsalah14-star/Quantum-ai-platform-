@@ -8,9 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements.txt requirements-test.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements-test.txt
 
 COPY app ./app
 COPY tests ./tests
@@ -18,7 +18,9 @@ COPY static ./static
 COPY run_bot.py .
 COPY README.md .
 
+# Run the complete pytest suite and the dedicated unittest safety suite.
 RUN python -m compileall -q app tests \
+    && python -m pytest -q tests \
     && python -m unittest discover -s tests -p 'test_deriv_trading.py' -v
 
 RUN useradd --create-home --uid 10001 quantum \
