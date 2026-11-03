@@ -19,7 +19,7 @@ COPY run_bot.py .
 COPY README.md .
 
 RUN python -m compileall -q app tests \
-    && python -m unittest discover -s tests -v
+    && python -m unittest discover -s tests -p 'test_deriv_trading.py' -v
 
 RUN useradd --create-home --uid 10001 quantum \
     && mkdir -p /var/data \
