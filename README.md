@@ -8,7 +8,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP from selectable Binance and MEXC Spot feeds.
 - Initial Deriv public market-data adapter for Forex and synthetic underlyings: active symbols, OHLC candles, and available binary/option contract metadata. This uses the official unauthenticated public WebSocket and cannot place trades.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
-- Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, and `/price BTCUSDT`; market commands use allowlisted public read-only quotes. When `TELEGRAM_BOT_TOKEN` is configured, the bot can run alongside the FastAPI dashboard in one service.
+- Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, `/price BTCUSDT`, `/forex`, `/binary`, `/signal`, `/quote`, and `/backtest`; market commands use allowlisted public read-only quotes. In production, Telegram updates are delivered through an authenticated HTTPS webhook handled by the FastAPI service.
 - Deriv demo account status connector using the REST OTP + authenticated WebSocket flow; reads balance and active-symbol count only.
 - Customer identity API and dashboard account panel: register, login, current session, and logout.
 - Customer-isolated paper-trading ledger with public-quote simulated entries, manual simulated closes, realized/unrealized P/L, idempotency keys, a $500 per-position notional cap, and a five-open-position cap.
@@ -41,7 +41,7 @@ Registration/login JSON body: `{"email":"you@example.com","password":"at-least-1
 
 A `render.yaml` Blueprint and production `Dockerfile` are included. In Render, create a new Blueprint from this repository and review the selected service and persistent-disk cost before confirming. The blueprint mounts `/var/data` so the SQLite customer and paper-trade database survives restarts. Keep signup closed until HTTPS, monitoring, backups, and abuse controls have been reviewed.
 
-After creating the service, add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` as private environment values in Render. Add Deriv demo secrets only if you are using the read-only admin demo status check. Never paste secrets into GitHub source files. The Telegram bot uses polling inside the single web-service instance; do not scale this service to multiple replicas without moving bot polling to a dedicated worker.
+After creating the service, add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBAPP_URL`, and a private random `TELEGRAM_WEBHOOK_SECRET` (at least 32 characters) as private environment values in Render. The app registers the Telegram webhook at `TELEGRAM_WEBAPP_URL/telegram/webhook`; do not run a second polling process with the same bot token. Add Deriv demo secrets only if you are using the read-only admin demo status check. Never paste secrets into GitHub source files.
 
 ## Run the dashboard
 
@@ -59,7 +59,7 @@ Open `http://localhost:8000`.
 
 ## Run the Telegram bot
 
-Set `TELEGRAM_BOT_TOKEN` as a private environment variable. After deploying the dashboard over HTTPS, set `TELEGRAM_WEBAPP_URL` to its public URL. The FastAPI service starts the Telegram polling bot automatically when the token is present; use a single web-service instance to avoid multiple polling processes.
+Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBAPP_URL`, and `TELEGRAM_WEBHOOK_SECRET` as private environment variables. `TELEGRAM_WEBAPP_URL` must be the public HTTPS dashboard URL. The FastAPI service registers an authenticated Telegram webhook at `/telegram/webhook`; do not start `run_bot.py` or another `getUpdates` polling process with the same token while the webhook is active.
 
 ```bash
 python run_bot.py
