@@ -109,9 +109,8 @@ def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     brokers = {item["id"]: item for item in body["brokers"]}
-    assert set(brokers) == {"deriv", "iq_option", "quotex", "expert_option", "olymp_trade", "mexc"}
+    assert set(brokers) == {"deriv", "quotex", "expert_option", "olymp_trade", "mexc"}
     assert brokers["deriv"]["connection_verified"] is False
-    assert brokers["iq_option"]["status"] == "candidate_unofficial_interface_only"
     assert brokers["mexc"]["status"] == "public_market_data_connected"
     assert brokers["olymp_trade"]["status"] == "signal_and_paper_foundation"
     assert brokers["olymp_trade"]["real_execution_enabled"] is False
