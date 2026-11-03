@@ -101,23 +101,26 @@ async def lifespan(app: FastAPI):
             telegram_identity = await bot.bot.get_me()
             logger.info("Telegram token authenticated from %s for bot @%s", token_env_name, telegram_identity.username)
             await configure_telegram_menu(bot)
-            if bot.updater is None:
-                raise RuntimeError("Telegram polling updater is unavailable")
-            # getUpdates cannot run while a webhook is configured. Preserve queued messages.
-            await bot.bot.delete_webhook(drop_pending_updates=False)
-            await bot.updater.start_polling(
+            webhook_base = os.getenv("TELEGRAM_WEBAPP_URL", "").strip().rstrip("/")
+            webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+            if not webhook_base.startswith("https://"):
+                raise RuntimeError("TELEGRAM_WEBAPP_URL must be an HTTPS public URL")
+            if len(webhook_secret) < 32:
+                raise RuntimeError("TELEGRAM_WEBHOOK_SECRET must be configured with at least 32 characters")
+            # Webhooks avoid competing getUpdates pollers and work reliably with one Render web service.
+            await bot.start()
+            await bot.bot.set_webhook(
+                url=webhook_base + "/telegram/webhook",
+                secret_token=webhook_secret,
                 allowed_updates=["message"],
                 drop_pending_updates=False,
-                bootstrap_retries=-1,
             )
-            await bot.start()
             app.state.telegram_bot = bot
-            logger.info("QUANTUM AI Telegram bot polling started successfully")
+            app.state.telegram_webhook_secret = webhook_secret
+            logger.info("QUANTUM AI Telegram webhook registered successfully")
         except Exception:
             logger.exception("Telegram bot could not start; keeping the dashboard available")
             try:
-                if bot.updater is not None and bot.updater.running:
-                    await bot.updater.stop()
                 if bot.running:
                     await bot.stop()
                 await bot.shutdown()
@@ -130,8 +133,6 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         if bot is not None:
-            if bot.updater is not None and bot.updater.running:
-                await bot.updater.stop()
             if bot.running:
                 await bot.stop()
             await bot.shutdown()
@@ -139,6 +140,26 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="QUANTUM AI", version="0.5.0", description="Mobile trading workspace with customer identity foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(
+    request: Request,
+    secret_header: str = Header(default="", alias="X-Telegram-Bot-Api-Secret-Token"),
+):
+    bot = getattr(request.app.state, "telegram_bot", None)
+    expected = getattr(request.app.state, "telegram_webhook_secret", "")
+    if bot is None or not expected or not hmac.compare_digest(secret_header, expected):
+        raise HTTPException(status_code=403, detail="Invalid Telegram webhook")
+    try:
+        from telegram import Update
+        payload = await request.json()
+        update = Update.de_json(payload, bot.bot)
+        await bot.process_update(update)
+    except Exception:
+        logger.exception("Telegram webhook update processing failed")
+        raise HTTPException(status_code=400, detail="Telegram update could not be processed")
+    return {"ok": True}
 
 
 @app.get("/api/brokers")
@@ -161,7 +182,8 @@ async def health(request: Request):
         "service": "quantum-ai",
         "market_data": "public-read-only",
         "telegram_configured": bool(_configured_telegram_token()[0]),
-        "telegram_bot_running": bool(bot and bot.running and bot.updater and bot.updater.running),
+        "telegram_bot_running": bool(bot and bot.running),
+        "telegram_webhook_active": bool(bot and getattr(request.app.state, "telegram_webhook_secret", "")),
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "deriv_demo_connector": "available",
         "customer_auth": "available",
