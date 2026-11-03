@@ -16,6 +16,7 @@ function configureChartTimeframes(){const deriv=marketSource.startsWith("deriv_"
 const $=id=>document.getElementById(id);
 const money=n=>"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:n>100?2:4});
 const pct=n=>(n>=0?"+":"")+Number(n).toFixed(2)+"%";
+const escapeHtml=value=>String(value??"").replace(/[&<>"\']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","\'":"&#39;"}[char]));
 const derivDecimals=pip=>{const value=Number(pip);return Number.isFinite(value)&&value>0?Math.min(8,Math.max(0,Math.round(-Math.log10(value)))):4};
 const formatDerivPrice=(value,pip)=>Number(value).toFixed(derivDecimals(pip));
 const formatMarketPrice=item=>marketSource.startsWith("deriv_")?formatDerivPrice(item.price,item.pip_size):money(item.price);
@@ -360,7 +361,7 @@ async function refreshDerivTrades(){
       const r=body.risk;
       risk.textContent="RISK · Daily net loss "+money(r.daily_net_loss)+" / "+money(r.daily_loss_limit)+" · Consecutive losses "+r.consecutive_losses+" / "+r.max_consecutive_losses+" · Open contracts "+r.open_contracts+" / "+r.max_open_contracts+(r.trading_paused?" · PAUSED: "+r.pause_reasons.join(", "):"");
     }
-    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='deriv-trade-row'><div><strong>"+String(t.symbol)+" · "+String(t.contract_type)+" · "+String(t.status).toUpperCase()+"</strong><small>Stake "+money(t.stake)+" · "+t.duration_minutes+"m · "+(t.contract_id?"Contract "+String(t.contract_id):"Awaiting confirmation")+(t.profit!==null&&t.profit!==undefined?" · P/L "+money(t.profit):"")+(t.error_message?" · "+String(t.error_message):"")+"</small></div><span class='locked'>DEMO</span></article>").join(""):"<p class='disclaimer'>No Deriv demo contracts yet.</p>";
+    list.innerHTML=body.trades.length?body.trades.map(t=>"<article class='deriv-trade-row'><div><strong>"+String(t.symbol)+" · "+String(t.contract_type)+" · "+String(t.status).toUpperCase()+"</strong><small>Stake "+money(t.stake)+" · "+t.duration_minutes+"m · "+(t.contract_id?"Contract "+String(t.contract_id):"Awaiting confirmation")+(t.profit!==null&&t.profit!==undefined?" · P/L "+money(t.profit):"")+(t.error_message?" · "+escapeHtml(t.error_message):"")+"</small></div><span class='locked'>DEMO</span></article>").join(""):"<p class='disclaimer'>No Deriv demo contracts yet.</p>";
   }catch(error){gate.textContent=error.message||"Demo trade status unavailable.";submit.disabled=true}
 }
 const derivTradeForm=$("deriv-trade-form");
@@ -392,7 +393,7 @@ $("deriv-customer-form")?.addEventListener("submit",async event=>{
     $("deriv-customer-token").value="";
     $("deriv-customer-id").value="";
     status.textContent=body.credential_saved?"DEMO VERIFIED + ENCRYPTED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Read-only; no trade placed.":"DEMO ACCOUNT VERIFIED · "+body.account_id+" · Balance "+Number(body.balance.amount).toFixed(2)+" "+body.balance.currency+". Credentials were NOT saved because durable encrypted storage is not configured. No trade placed.";
-    if(body.credential_saved){await refreshDerivConnection()}
+    if(body.credential_saved){await refreshDerivConnection();await refreshDerivTrades()}
   }catch(error){status.textContent=error.message||"Deriv demo verification failed."}
   finally{button.disabled=false;button.textContent="VERIFY + SAVE DEMO"}
 });
