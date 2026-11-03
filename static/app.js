@@ -43,6 +43,7 @@ async function loadMarkets(){
       const list=sourceMarkets.map(x=>({symbol:x.symbol,name:x.name,pip_size:x.pip_size,price:x.price??(x.symbol===selected&&last?last.c:null),change_percent:null}));
       renderMarkets(list);
       renderChart();
+      window.dispatchEvent(new CustomEvent('quantum:candles',{detail:{symbol:selected,timeframe,candles,source:marketSource,price:prices[selected]?.price??candles[candles.length-1]?.c}}));
       $("feed-status").textContent="DERIV PUBLIC · "+category.toUpperCase();
       $("feed-status").style.color="var(--green)";
       const selectedMarket=sourceMarkets.find(x=>x.symbol===selected);
@@ -83,6 +84,7 @@ async function loadMarkets(){
         $("market-source").value=source;
         renderMarkets(list);
         renderChart();
+      window.dispatchEvent(new CustomEvent('quantum:candles',{detail:{symbol:selected,timeframe,candles,source:marketSource,price:prices[selected]?.price??candles[candles.length-1]?.c}}));
         $("feed-status").textContent="LIVE · "+source.toUpperCase()+" PUBLIC DATA";
         $("feed-status").style.color="var(--green)";
         $("pair-title").innerHTML=selected.replace("USDT"," / USDT")+" <span class='live-tag'>LIVE</span>";
@@ -106,6 +108,7 @@ function publishWorkspaceMarket(list){
 }
 
 function renderMarkets(list){
+  publishWorkspaceMarket(list);
   $("watchlist").innerHTML=list.map(x=>"<div class='asset-row' data-symbol='"+x.symbol+"'><div><span class='asset-name'>"+(x.name||x.symbol.replace("USDT",""))+"</span><span class='asset-symbol'>"+(x.name?" · "+x.symbol:" / USDT")+"</span></div><span class='asset-price'>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+"</span><span class='asset-change "+(x.change_percent===null?"":"")+(x.change_percent!==null&&x.change_percent!==undefined?(+x.change_percent>=0?"positive":"negative"):"")+"'>"+(x.change_percent===null||x.change_percent===undefined?"MARKET":pct(x.change_percent))+"</span></div>").join("");
   $("ticker").innerHTML=list.map(x=>"<div class='ticker-item'><b>"+(x.name||x.symbol.replace("USDT","/USDT"))+"</b>"+(x.price!==null&&x.price!==undefined&&Number.isFinite(Number(x.price))?formatMarketPrice(x):"—")+(x.change_percent!==null&&x.change_percent!==undefined?"<span class='"+(+x.change_percent>=0?"positive":"negative")+"'>"+pct(x.change_percent)+"</span>":"")+"</div>").join("");
   $("ticker").dataset.failed="";
