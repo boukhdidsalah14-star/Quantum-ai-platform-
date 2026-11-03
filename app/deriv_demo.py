@@ -52,8 +52,8 @@ async def _get_demo_ws_url(token: str, account_id: str, app_id: str) -> str:
 
 async def get_demo_status() -> dict:
     token, account_id, app_id = _settings()
-    ws_url = await _get_demo_ws_url(token, account_id, app_id)
     try:
+        ws_url = await _get_demo_ws_url(token, account_id, app_id)
         async with websockets.connect(ws_url, open_timeout=10, close_timeout=3, max_size=1_000_000) as ws:
             await ws.send('{"balance":1,"req_id":1}')
             await ws.send('{"active_symbols":"brief","req_id":2}')
@@ -122,5 +122,7 @@ async def get_demo_status_for_credentials(token: str, account_id: str, app_id: s
             }
     except DerivConnectionError:
         raise
-    except (asyncio.TimeoutError, OSError) as exc:
-        raise DerivConnectionError("Could not verify this Deriv demo account") from exc
+    except DerivConnectionError:
+        raise
+    except Exception as exc:
+        raise DerivConnectionError("Could not verify this Deriv demo account; check the token, app ID, and network") from exc
