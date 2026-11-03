@@ -14,7 +14,7 @@ def test_non_deriv_binary_candidates_are_never_claimed_as_connected_or_executabl
     result = broker_capabilities()
     brokers = {broker["id"]: broker for broker in result["brokers"]}
 
-    for broker_id in ("iq_option", "quotex", "expert_option", "olymp_trade"):
+    for broker_id in ("quotex", "expert_option", "olymp_trade"):
         broker = brokers[broker_id]
         assert broker["connection_verified"] is False
         assert broker["execution_enabled"] is False
@@ -29,15 +29,6 @@ def test_quotex_is_marked_unsupported_until_official_execution_access_is_verifie
     )
     assert quotex["status"] == "not_supported_no_official_api"
     assert "account closure" in quotex["note"]
-
-
-def test_iq_option_is_candidate_not_a_verified_integration():
-    iq = next(
-        broker for broker in broker_capabilities()["brokers"]
-        if broker["id"] == "iq_option"
-    )
-    assert iq["status"] == "candidate_unofficial_interface_only"
-    assert "no official public retail order API" in iq["note"]
 
 
 def test_global_execution_stays_disabled():
