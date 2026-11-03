@@ -25,7 +25,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
 - Customer-owned Deriv demo credentials are accepted only after a read-only balance verification and are encrypted per customer. Configure a private Fernet `QUANTUM_CREDENTIALS_ENCRYPTION_KEY` and attach durable storage before setting `QUANTUM_PERSISTENT_STORAGE=true`. The API never returns stored tokens.
 - Deriv demo order execution is code-complete behind two independent gates: `QUANTUM_PERSISTENT_STORAGE=true` and `QUANTUM_DERIV_DEMO_TRADING_ENABLED=true`. Both must remain false until the service has a real persistent disk, the encryption key is set, and a customer's own VRTC account has been verified. The execution endpoint rejects real account IDs and non-demo WebSocket URLs. Real-account order execution remains disabled.
-- IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a roadmap/status display, not proof of connectivity. The initial Deriv connector uses server-side environment secrets for one demo account only.
+- IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a capability display, not proof of a live customer connection.
 - The crypto paper-trading feature is a simulation only. Deriv binary execution is restricted to a customer-verified VRTC demo account and remains locked by default. No real-account trading is implemented or enabled.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
@@ -74,7 +74,7 @@ The bot is informational only. It does not execute trades.
 
 - `GET /api/brokers` — returns the current verified integration scope for Deriv, IQ Option, and MEXC. It never reports a broker as connected merely because it is planned or configured.
 
-## Customer broker credential vault
+## Customer Deriv demo connection and execution
 
 - `GET /api/connections/deriv/demo` — show whether the signed-in customer's Deriv demo credentials are stored; never returns secrets.
 - `PUT /api/connections/deriv/demo` — save `{\"account_id\":\"VRTC...\",\"token\":\"...\"}` encrypted for that customer. Only virtual/demo account IDs are accepted.
