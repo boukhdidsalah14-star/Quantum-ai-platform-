@@ -36,6 +36,10 @@ The authenticated application API now exposes:
 
 Paper risk limits: $2 maximum stake, three open simulated positions, supported expiries of 1/5/15/30/60 minutes, and a $10 rolling 24-hour realized-loss pause. The API returns `broker_order_sent: false`; these routes never connect to Olymp Trade. Caller-supplied candles and prices are not independently verified, so this is a development simulator, not broker-grade execution or a performance guarantee.
 
+### Customer-configured paper risk controls
+
+Each customer must configure a paper account balance before opening an Olymp Trade paper position. The customer chooses each trade amount (minimum $0.10); an individual position and the combined open positions cannot exceed the configured balance. The system pauses new paper positions when realized losses in the rolling previous 24 hours reach 10% of that configured balance. For example, a $100 configured balance gives a $10 loss threshold; a $500 balance gives a $50 threshold. The balance is a manually configured simulation value, not a verified Olymp Trade account balance. These controls do not protect or control any real broker account.
+
 ## Not enabled / important limits
 
 - Customer registration is closed by default. Set `ALLOW_CUSTOMER_SIGNUP=true` only when you are ready to accept signups and have deployed HTTPS, persistent storage, and abuse protection.
