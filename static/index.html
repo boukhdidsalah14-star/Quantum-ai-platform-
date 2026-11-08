@@ -28,12 +28,8 @@ button{cursor:pointer}
 .nav button:hover,.nav button.active{background:#1765c9;color:white;border-color:#3288ff}
 main{max-width:1450px;margin:auto;padding:22px 4% 60px}
 body{overflow-x:hidden}
-/* Stable page viewport: only the selected workspace is rendered. */
-.page-track{display:block;width:100%;min-width:0;overflow:clip;touch-action:pan-y}
-.app-page{display:none;width:100%;min-width:0;padding:0 0 12px;animation:pageEnter .22s ease both}
-.app-page.active{display:block}
-.app-page[aria-hidden="true"]{pointer-events:none}
-@keyframes pageEnter{from{opacity:.72;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+/* One continuous dashboard: every section stays visible in normal page flow. */
+main{display:block;min-width:0}
 .section-head>div,.panel,.grid,.field{min-width:0}
 .section-head h2{line-height:1.25;overflow-wrap:anywhere}
 .sub{line-height:1.45;overflow-wrap:anywhere}
@@ -55,7 +51,6 @@ body{overflow-x:hidden}
   .controls{gap:8px}
   .field{flex:1 1 135px}
 }
-@media(prefers-reduced-motion:reduce){.app-page{animation:none}}
 .notice{border:1px solid #735b24;background:#2c2412;color:#f5d88d;border-radius:10px;padding:11px 14px;font-size:11px;margin-bottom:20px;line-height:1.5}
 .section{margin:30px 0;scroll-margin-top:125px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}
@@ -137,12 +132,12 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
   </div>
 </header>
 
-<nav class="nav" id="navigation" aria-label="App pages">
-  <button class="active" data-page="0">Dashboard</button>
-  <button data-page="1">Binance</button>
-  <button data-page="2">Olymp Trade</button>
-  <button data-page="3">MetaTrader 4</button>
-  <button data-page="4">Trade History</button>
+<nav class="nav" id="navigation" aria-label="Jump to dashboard sections">
+  <button class="active" data-section="overview">Dashboard</button>
+  <button data-section="crypto">Binance</button>
+  <button data-section="binary">Olymp Trade</button>
+  <button data-section="forex">MetaTrader 4</button>
+  <button data-section="history">Trade History</button>
 </nav>
 
 <main>
@@ -333,74 +328,27 @@ function notify(message){
   window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-// Five-page navigation: show one isolated workspace at a time.
-const pageDefinitions = [
-  {label:'Dashboard', ids:['overview','bot']},
-  {label:'Binance', ids:['crypto']},
-  {label:'Olymp Trade', ids:['binary']},
-  {label:'MetaTrader 4', ids:['forex']},
-  {label:'Trade History', ids:['history']}
-];
-const mainElement = document.querySelector('main');
-const noticeElement = mainElement.querySelector('.notice');
-const footerElement = mainElement.querySelector('.footer');
-const pageTrack = document.createElement('div');
-pageTrack.className = 'page-track';
-pageTrack.id = 'pageTrack';
-const pageElements = [];
-pageDefinitions.forEach((definition,index)=>{
-  const page = document.createElement('section');
-  page.className = 'app-page';
-  page.dataset.page = String(index);
-  page.setAttribute('aria-label',definition.label);
-  page.setAttribute('aria-hidden','true');
-  if(index===0 && noticeElement) page.appendChild(noticeElement);
-  definition.ids.forEach(id=>{const section=$(id);if(section)page.appendChild(section);});
-  if(index===4 && footerElement) page.appendChild(footerElement);
-  pageTrack.appendChild(page);
-  pageElements.push(page);
+// Single-page navigation: buttons only scroll to sections; all content stays visible.
+const navigationButtons = Array.from(document.querySelectorAll('#navigation button'));
+navigationButtons.forEach(button=>{
+  button.addEventListener('click',()=>{
+    const target=document.getElementById(button.dataset.section);
+    if(!target)return;
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+    navigationButtons.forEach(item=>item.classList.toggle('active',item===button));
+  });
 });
-mainElement.appendChild(pageTrack);
-let currentPage = 0;
-function showPage(index,behavior='smooth'){
-  const next=Math.max(0,Math.min(pageDefinitions.length-1,index));
-  if(next===currentPage && pageElements[next].classList.contains('active'))return;
-  currentPage=next;
-  pageElements.forEach((page,i)=>{
-    const active=i===currentPage;
-    page.classList.toggle('active',active);
-    page.setAttribute('aria-hidden',active?'false':'true');
+const sectionObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries=>{
+  const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+  if(!visible)return;
+  navigationButtons.forEach(button=>button.classList.toggle('active',button.dataset.section===visible.target.id));
+},{rootMargin:'-20% 0px -65% 0px',threshold:[0,.15,.35,.6]}) : null;
+if(sectionObserver){
+  ['overview','crypto','binary','forex','history'].forEach(id=>{
+    const section=document.getElementById(id);
+    if(section)sectionObserver.observe(section);
   });
-  document.querySelectorAll('#navigation button').forEach((button,i)=>{
-    const active=i===currentPage;
-    button.classList.toggle('active',active);
-    button.setAttribute('aria-current',active?'page':'false');
-  });
-  window.scrollTo({top:0,behavior:behavior==='instant'?'auto':'smooth'});
 }
-document.querySelectorAll('#navigation button').forEach(button=>{
-  button.addEventListener('click',()=>showPage(Number(button.dataset.page)));
-});
-let swipeStartX=null,swipeStartY=null;
-pageTrack.addEventListener('touchstart',event=>{
-  if(event.touches.length!==1)return;
-  if(event.target.closest('button,input,select,textarea,a,canvas,table'))return;
-  swipeStartX=event.touches[0].clientX;
-  swipeStartY=event.touches[0].clientY;
-},{passive:true});
-pageTrack.addEventListener('touchend',event=>{
-  if(swipeStartX===null||swipeStartY===null)return;
-  const dx=event.changedTouches[0].clientX-swipeStartX;
-  const dy=event.changedTouches[0].clientY-swipeStartY;
-  if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){
-    showPage(currentPage+(dx<0?1:-1));
-  }
-  swipeStartX=null;swipeStartY=null;
-},{passive:true});
-pageTrack.addEventListener('touchcancel',()=>{
-  swipeStartX=null;swipeStartY=null;
-},{passive:true});
-showPage(0,'instant');
 
 // Lightweight illustrative candlestick chart.
 function drawChart(canvasId, count=38, volume=false){
