@@ -1,43 +1,401 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#030712"><title>QUANTUM AI — Trading Terminal</title><link rel="stylesheet" href="/static/styles.css?v=20261108-book-six-motion2"></head>
-<body><div class="ambient"></div><header class="topbar"><a class="brand" href="#"><span class="brand-mark"><i></i><b></b><em></em></span><span>QUANTUM<span class="green"> AI</span><small>INTELLIGENT TRADING TERMINAL</small></span></a><div class="top-actions"><span class="connection"><i></i> MARKET DATA</span><button class="avatar" id="account-toggle" aria-expanded="false" aria-controls="account-panel">Q</button></div></header>
-<nav class="page-nav" aria-label="Main sections"><a href="#overview">OVERVIEW</a><a href="#markets">MARKETS</a><a href="#trade-center">TRADING</a><a href="#virtual-binary">BINARY</a><a href="#virtual-forex">FOREX</a><a href="#virtual-crypto">CRYPTO</a></nav>
-<section id="account-panel" class="account-panel" hidden><div class="account-panel-head"><div><div class="eyebrow">QUANTUM IDENTITY</div><h3 id="account-title">Account access</h3></div><button id="account-close" class="account-close" aria-label="Close account panel">×</button></div><form id="auth-form"><label for="auth-email">EMAIL</label><input id="auth-email" type="email" maxlength="254" autocomplete="email" required placeholder="you@example.com"><label for="auth-password">PASSWORD</label><input id="auth-password" type="password" minlength="12" maxlength="256" autocomplete="current-password" required placeholder="At least 12 characters"><button id="auth-submit" class="tf active auth-submit" type="submit">SIGN IN</button></form><button id="auth-mode" class="auth-mode" type="button">Need an account? Create one</button><div id="auth-message" class="auth-message" role="status">Sign in to access your customer workspace.</div><div id="account-profile" hidden><p id="account-email"></p><section class="customer-broker"><div class="eyebrow">YOUR DERIV DEMO ACCOUNT</div><p class="disclaimer">Connect your own Deriv virtual account. Use a Deriv API token with read and trade permissions — never your Deriv password. The app verifies it with a read-only balance check. Credentials are saved only when durable encrypted storage is configured. No real-account orders are allowed.</p><form id="deriv-customer-form"><label for="deriv-customer-id">DERIV VIRTUAL ACCOUNT ID</label><input id="deriv-customer-id" autocomplete="off" maxlength="64" placeholder="VRTC..." required><label for="deriv-customer-token">DERIV API TOKEN</label><input id="deriv-customer-token" type="password" autocomplete="new-password" maxlength="4096" placeholder="Paste demo token" required><button id="deriv-customer-submit" class="tf active auth-submit" type="submit">VERIFY + SAVE DEMO</button></form><p id="deriv-customer-status" class="auth-message" role="status">No customer Deriv account verified.</p><button id="deriv-customer-remove" class="tf auth-submit" type="button" hidden>REMOVE SAVED CONNECTION</button></section><section class="deriv-trade-panel"><div class="eyebrow">DERIV · VIRTUAL ACCOUNT ONLY</div><h3>DEMO BINARY EXECUTION</h3><p id="deriv-trade-gate" class="auth-message">Checking durable storage and demo execution controls…</p><form id="deriv-trade-form" class="deriv-trade-form"><label for="deriv-trade-symbol">MARKET<select id="deriv-trade-symbol"><option value="frxEURUSD">EUR/USD</option><option value="frxGBPUSD">GBP/USD</option><option value="frxUSDJPY">USD/JPY</option><option value="frxAUDUSD">AUD/USD</option><option value="1HZ100V">Volatility 100 (1s)</option></select></label><label for="deriv-trade-direction">DIRECTION<select id="deriv-trade-direction"><option value="CALL">CALL / UP</option><option value="PUT">PUT / DOWN</option></select></label><label for="deriv-trade-stake">STAKE (USD)<input id="deriv-trade-stake" type="number" min="0.35" max="2" step="0.05" value="1" required></label><label for="deriv-trade-duration">DURATION<select id="deriv-trade-duration"><option value="1">1 minute</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option></select></label><button id="deriv-trade-submit" class="tf active auth-submit" type="submit" disabled>OPEN DEMO CONTRACT</button></form><p id="deriv-risk-status" class="auth-message">Risk controls: max $2 stake · one open contract · 3 consecutive losses pause · $25 daily net loss limit.</p><div id="deriv-trades-list" class="deriv-trades-list"><p class="disclaimer">No demo contracts recorded.</p></div></section><button id="auth-logout" class="tf auth-submit" type="button">SIGN OUT</button></div></section>
-<main><section class="hero" id="overview"><div><div class="eyebrow"><span class="pulse"></span> NEXT-GENERATION TRADING WORKSPACE</div><h1>See the market.<br><span>Move with precision.</span></h1><p class="sub">One terminal for Forex, crypto and binary-market research. Demo and paper modes are clearly separated from broker execution.</p></div><div class="hero-orb"><div class="orb-ring ring-a"></div><div class="orb-ring ring-b"></div><div class="orb-core">Q<span>AI</span></div></div></section>
-<section class="ticker-wrap"><div class="ticker-label">LIVE MARKETS <span>●</span></div><div class="ticker-viewport"><div id="ticker" class="ticker-track"><div class="ticker-item">Connecting to public market feed…</div></div></div></section>
-<section class="section-head" id="markets"><div><div class="eyebrow">MARKET OVERVIEW</div><h2>Market <span class="green">intelligence</span></h2></div><div class="feed-status"><select id="market-source" aria-label="Market data source"><option value="binance">BINANCE FEED</option><option value="mexc">MEXC FEED</option><option value="deriv_forex">FOREX · DERIV</option><option value="deriv_binary">BINARY OPTIONS · DERIV</option><option value="deriv_synthetic">SYNTHETIC INDICES · DERIV</option></select><i></i><span id="feed-status">CONNECTING</span></div></section>
-<section class="market-grid"><article class="panel chart-panel"><div class="panel-head"><div><div class="muted tiny">SELECTED MARKET</div><h3 id="pair-title">BTC / USDT <span class="live-tag">LIVE</span></h3></div><div class="price-block"><strong id="price">—</strong><span id="change" class="positive">—</span></div></div><div class="chart-tools"><div class="timeframes"><button class="tf" data-tf="5m">5M</button><button class="tf" data-tf="15m">15M</button><button class="tf active" data-tf="1h">1H</button><button class="tf" data-tf="4h">4H</button><button class="tf" data-tf="1d">1D</button></div><span class="chart-note">CUSTOM CANVAS CHART</span><button id="binary-contract-check" class="tf" type="button" hidden>CHECK CONTRACTS</button><span id="binary-contract-status" class="chart-note"></span></div><div class="chart-holder"><canvas id="chart"></canvas></div><div class="chart-legend"><span><i class="up-dot"></i> BULLISH</span><span><i class="down-dot"></i> BEARISH</span><span>PUBLIC MARKET DATA</span></div></article>
-<aside class="side-stack"><article class="panel asset-panel"><div class="panel-head"><div><div class="muted tiny">WATCHLIST</div><h3>Market watchlist</h3></div><span class="count">20</span></div><div id="watchlist" class="watchlist"><p class="muted">Loading markets…</p></div></article><article class="panel status-panel"><div class="eyebrow">PLATFORM STATUS</div><h3>Built for <span class="green">control.</span></h3><div class="status-row"><span>Market data</span><b class="status-live">● Connected</b></div><div class="status-row"><span>Broker accounts</span><b class="status-pending">Demo check ready</b></div><div class="status-row"><span>Auto execution</span><b class="status-off">Disabled</b></div><input id="deriv-admin-key" class="deriv-key" type="password" placeholder="Admin status key" autocomplete="off"><button id="deriv-check" class="tf deriv-check">CHECK DERIV DEMO</button><p id="deriv-status-result" class="disclaimer">Deriv demo status has not been checked. Configure server-side demo secrets to connect.</p><p class="disclaimer">No trades are being placed. Live prices are public market quotes, not broker execution prices.</p></article></aside></section>
-<section class="panel signal-panel" id="signal-panel" hidden><div class="panel-head"><div><div class="eyebrow">QUANTUM SIGNAL ENGINE</div><h3>Multi-market signal analysis</h3></div><div class="signal-controls"><select id="signal-timeframe" aria-label="Signal timeframe"><option value="1m">1 MIN</option><option value="5m">5 MIN</option><option value="15m" selected>15 MIN</option><option value="30m">30 MIN</option><option value="1h">1 HOUR</option><option value="4h">4 HOURS</option><option value="1d">1 DAY</option></select><button id="analyze-signal" class="tf active" type="button">ANALYZE MARKET</button></div></div><div id="signal-result" class="signal-result" role="status">Select a market to analyze.</div><p class="disclaimer">Indicator-based CALL / PUT / WAIT research using public completed candles. Not a guaranteed prediction or broker execution. Test on demo.</p><div class="quote-preview backtest-preview" id="backtest-preview"><div class="eyebrow">STRATEGY VALIDATION · HISTORICAL ONLY</div><div class="quote-controls"><button id="run-backtest" class="tf" type="button">TEST LAST 200 CANDLES</button></div><div id="backtest-result" class="signal-result" role="status">Backtest checks historical direction only; it does not estimate real-money profit.</div></div>
-<div class="quote-preview" id="quote-preview"><div class="eyebrow">BINARY CONTRACT · PRICE PREVIEW ONLY</div><div class="quote-controls"><select id="quote-direction" aria-label="Contract direction"><option value="CALL">CALL</option><option value="PUT">PUT</option></select><select id="quote-stake" aria-label="Demo quote stake"><option value="1">1 USD</option><option value="0.5">0.50 USD</option><option value="2">2 USD</option></select><select id="quote-duration" aria-label="Contract duration"><option value="1">1 MIN</option><option value="5" selected>5 MIN</option><option value="10">10 MIN</option><option value="15">15 MIN</option><option value="30">30 MIN</option><option value="60">60 MIN</option></select><button id="get-demo-quote" class="tf" type="button">GET PRICE QUOTE</button></div><div id="quote-result" class="signal-result" role="status">A price preview does not place a trade.</div></div></section>
-<section class="section-head trades-heading" id="trade-center"><div><div class="eyebrow">EXECUTION CENTER</div><h2>Active <span class="green">trades</span></h2></div><span class="demo-label">DEMO PREVIEW ONLY</span></section><section class="panel paper-panel"><div class="panel-head"><div><div class="muted tiny">PRACTICE MODE</div><h3>Paper trading simulator</h3></div><span class="demo-label">NO REAL ORDERS</span></div><p class="disclaimer">Simulated trades use public Binance prices. They do not reach any broker or exchange; every simulated fill is clearly labelled paper trading.</p><form id="paper-form" class="paper-form"><label>Market<select id="paper-symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option></select></label><label>Direction<select id="paper-side"><option value="long">LONG</option><option value="short">SHORT</option></select></label><label>Quantity<input id="paper-quantity" type="number" min="0.000001" step="0.000001" value="0.001" required></label><button class="tf deriv-check" type="submit" id="paper-submit">OPEN PAPER TRADE</button></form><p id="paper-message" class="disclaimer">Sign in to save your private paper-trading history.</p><div id="paper-trades-list" class="paper-trades-list"></div></section>
-<section class="panel paper-panel" id="olymp-panel"><div class="panel-head"><div><div class="eyebrow">OLYMP TRADE WORKSPACE</div><h3>Signal + paper execution</h3></div><span class="demo-label">ACCOUNT</span></div><p class="disclaimer">No Olymp Trade account is connected and no broker orders are sent. For signal analysis, the current chart candles are used and may not match Olymp Trade quotes. For paper entries, enter a reference price you have checked yourself in Olymp Trade.</p><div class="quote-controls"><button id="olymp-analyze" class="tf" type="button">ANALYZE CURRENT CHART</button></div><div id="olymp-signal-result" class="signal-result" role="status">Load a market chart, then run the indicator analysis.</div><form id="olymp-risk-form" class="paper-form"><label>Paper account balance (USD)<input id="olymp-account-balance" type="number" min="0.01" step="0.01" placeholder="Enter your paper balance" required></label><button class="tf" type="submit" id="olymp-risk-save">SAVE BALANCE + 10% LOSS LIMIT</button></form><p id="olymp-risk-summary" class="disclaimer">Set your paper balance to calculate your personal 10% loss limit.</p><form id="olymp-paper-form" class="paper-form"><label>Asset<input id="olymp-symbol" maxlength="30" value="EURUSD" required></label><label>Direction<select id="olymp-direction"><option value="CALL">CALL</option><option value="PUT">PUT</option></select></label><label>Paper stake (USD)<input id="olymp-stake" type="number" min="0.1" max="1000000000" step="0.01" value="1" required></label><label>Expiry<select id="olymp-expiry"><option value="1">1 MIN</option><option value="5" selected>5 MIN</option><option value="15">15 MIN</option><option value="30">30 MIN</option><option value="60">60 MIN</option></select></label><label>Broker reference price<input id="olymp-entry-price" type="number" min="0.00000001" step="any" placeholder="Enter checked price" required></label><label>Price source<input id="olymp-price-source" value="Manually checked in broker app" maxlength="80" required></label><button class="tf deriv-check" type="submit" id="olymp-paper-submit">OPEN POSITION</button></form><p id="olymp-paper-message" class="disclaimer">Sign in to use the customer-isolated paper ledger. Choose your trade amount within the remaining 10% daily risk allowance. Open positions reserve part of that allowance.</p><div id="olymp-paper-trades" class="paper-trades-list"></div></section>
-<section class="section-head"><div><div class="eyebrow">BROKER CONNECTIVITY</div><h2>One platform. <span class="green">Multiple brokers.</span></h2></div><span class="demo-label">DEMO FIRST</span></section><section class="integration-grid"><article class="integration"><span class="integration-icon">◉</span><div><b>Deriv</b><p id="deriv-capability">Read-only demo status connector</p></div><span id="deriv-capability-tag" class="tag-pending">SETUP REQUIRED</span></article><article class="integration"><span class="integration-icon">◈</span><div><b>Olymp Trade</b><p>Signal analysis + isolated paper ledger · no broker orders</p></div><span class="tag-pending">PAPER ONLY</span></article><article class="integration"><span class="integration-icon">₿</span><div><b>MEXC</b><p>Public Spot quotes and candles connected · account trading pending</p></div><span class="tag-pending">MARKET DATA LIVE</span></article></section>
 
-<section class="terminal-shell platform-suite" id="virtual-terminal">
-<header class="suite-head"><div><span class="suite-kicker">QUANTUM AI · MULTI-MARKET WORKSPACE</span><h2>Trading workspace</h2></div><span class="practice-chip">PRACTICE ACCOUNT</span></header>
-<nav class="terminal-tabs platform-switch" role="tablist"><button class="terminal-tab active" data-terminal-tab="binary" type="button"><span>Olymp Trade</span><small>Fixed Time</small></button><button class="terminal-tab" data-terminal-tab="forex" type="button"><span>MetaTrader 4</span><small>Forex</small></button><button class="terminal-tab" data-terminal-tab="crypto" type="button"><span>Binance</span><small>Spot</small></button></nav>
-<div class="terminal-view active olymp-screen" data-terminal-view="binary" id="virtual-binary">
-<div class="olymp-top"><div class="olymp-account"><span>ACCOUNT BALANCE</span><strong id="v-binary-balance">$63,578.00</strong><small>Practice account · USD</small></div><div class="olymp-stat"><span>AVAILABLE RISK</span><b id="v-binary-risk">—</b></div><div class="olymp-stat"><span>OPEN TRADES</span><b id="binary-open-count">0</b></div><div class="olymp-stat"><span>MARKET</span><b>FOREX</b></div></div>
-<div class="olymp-layout"><main class="olymp-main">
-<div class="olymp-marketbar"><div class="olymp-asset"><span class="asset-icon">€</span><div><b id="binary-chart-name">EUR/USD</b><small>Forex · OTC market feed</small></div></div><div class="olymp-price"><strong id="binary-chart-price">—</strong><small id="binary-chart-change">Waiting for market data</small></div><label class="olymp-select">ASSET<select name="binary-symbol" data-terminal-symbol="binary" data-market-kind="forex"><option value="frxEURUSD">EUR/USD</option></select></label></div>
-<div class="olymp-chartbox"><div class="chart-toolbar"><span>CHART</span><button type="button">15m</button><button type="button">1H</button><button type="button">4H</button><span class="feed-indicator">● MARKET DATA</span></div><div class="terminal-chart-wrap"><canvas class="terminal-chart" id="binary-terminal-chart"></canvas></div><div class="chart-axis"><span>PRICE CHART</span><span>Indicative public quote · not broker pricing</span></div></div>
-<div class="olymp-bottom"><div><small>TRADING ACTIVITY</small><b>Open trades &amp; history</b></div><div class="virtual-history" id="v-binary-history"></div></div>
-</main><aside class="olymp-ticket"><div class="ticket-top"><b>New trade</b><span>Practice</span></div><form class="virtual-form terminal-order-form" data-platform="binary"><label class="ticket-label">TRADE AMOUNT <span>USD</span></label><div class="amount-field"><button type="button" data-step="-10" data-form="binary">−</button><input name="stake" type="number" min="0.01" step="0.01" value="10" required><button type="button" data-step="10" data-form="binary">+</button></div><label class="ticket-label">TIME</label><select name="expiry_minutes"><option value="1">1 minute</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select><input type="hidden" name="symbol" value="frxEURUSD"><input type="hidden" name="entry_price" placeholder="Waiting for quote" readonly required><div class="payout-row"><span>Potential payout</span><b>+82%</b></div><button class="olymp-action higher" type="submit" data-binary-side="CALL">HIGHER <span>↑</span></button><button class="olymp-action lower" type="submit" data-binary-side="PUT">LOWER <span>↓</span></button><input type="hidden" name="side" value="CALL"></form><p class="virtual-risk" id="v-binary-status">Sign in to access your practice account.</p></aside></div>
-</div>
-<div class="terminal-view mt4-screen" data-terminal-view="forex" id="virtual-forex">
-<div class="mt4-toolbar"><div class="mt4-brand">MetaTrader <b>4</b></div><span class="mt4-connection">● CONNECTED TO MARKET FEED</span><span class="practice-chip">DEMO / PRACTICE</span></div>
-<div class="mt4-accountbar"><div><small>BALANCE</small><b id="v-forex-balance">$13,790.00</b></div><div><small>EQUITY</small><b id="mt4-equity">$13,790.00</b></div><div><small>FREE MARGIN</small><b id="mt4-margin">$13,790.00</b></div><div><small>LOSS LIMIT REMAINING</small><b id="v-forex-risk">—</b></div></div>
-<div class="mt4-layout"><aside class="mt4-watch"><div class="mt4-panel-title">MARKET WATCH <span>⌃</span></div><div class="watch-head"><span>SYMBOL</span><span>LAST PRICE</span></div><div class="watch-row selected"><b>EURUSD</b><span id="mt4-bid">—</span></div><div class="mt4-panel-title navigator-title">NAVIGATOR</div><div class="navigator-tree">▸ Accounts<br>▸ Indicators<br>▸ Expert Advisors<br>▸ Scripts</div></aside>
-<main class="mt4-chartpanel"><div class="mt4-charthead"><div><b id="forex-chart-name">EURUSD</b><span> · Forex · M15</span></div><strong id="forex-chart-price">—</strong><select name="forex-symbol" data-terminal-symbol="forex" data-market-kind="forex"><option value="frxEURUSD">EURUSD</option></select></div><div class="mt4-chartwrap"><div class="mt4-chart-tools">M1　M5　M15　M30　H1　H4　D1</div><div class="terminal-chart-wrap"><canvas class="terminal-chart" id="forex-terminal-chart"></canvas></div></div><div class="mt4-status"><span>● LIVE QUOTE FEED</span><span id="forex-chart-change">Waiting for price</span><span>Practice execution</span></div></main>
-<aside class="mt4-order"><div class="mt4-panel-title">NEW ORDER</div><div class="mt4-symbol-title"> <span id="mt4-order-symbol">EURUSD</span><small>Market Execution</small></div><form class="virtual-form terminal-order-form" data-platform="forex"><input type="hidden" name="symbol" value="frxEURUSD"><label>Volume (USD)<input name="stake" type="number" min="0.01" step="0.01" value="100" required></label><label>Price<input name="entry_price" type="text" placeholder="—" readonly required></label><div class="mt4-side-buttons"><button type="button" class="mt4-sell" data-mt4-side="SELL">SELL</button><button type="submit" class="mt4-buy" data-mt4-side="BUY">BUY</button></div><input type="hidden" name="side" value="BUY"></form><p class="virtual-risk" id="v-forex-status">Sign in to trade.</p></aside></div>
-<div class="mt4-terminal-bottom"><div class="mt4-panel-title">TERMINAL <span>TRADE · HISTORY · JOURNAL</span></div><div class="mt4-bottom-stats"><span>Positions: <b id="forex-open-count">0</b></span><span>Account: Practice</span><span>Risk control: 10%</span></div><div class="virtual-history" id="v-forex-history"></div></div>
-</div>
-<div class="terminal-view binance-screen" data-terminal-view="crypto" id="virtual-crypto">
-<div class="binance-topbar"><div class="bn-brand">BINANCE <span>TRADING</span></div><div class="bn-market-title"><b id="crypto-chart-name">BTC / USDT</b><strong id="crypto-chart-price">—</strong><small id="crypto-chart-change">Market price</small></div><div class="bn-wallet"><small>SPOT WALLET · PRACTICE</small><b id="v-crypto-balance">$78,578.00</b></div><div class="bn-loss"><small>LOSS LIMIT REMAINING</small><b id="v-crypto-risk">—</b></div></div>
-<div class="bn-layout"><main class="bn-center"><div class="bn-pair-tabs"><b>BTC/USDT</b><span>ETH/USDT</span><span>BNB/USDT</span><span>SOL/USDT</span><span class="bn-select-wrap"><select name="crypto-symbol" data-terminal-symbol="crypto"><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>SOLUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>DOGEUSDT</option><option>TRXUSDT</option><option>LINKUSDT</option><option>AVAXUSDT</option><option>DOTUSDT</option><option>LTCUSDT</option><option>BCHUSDT</option><option>ATOMUSDT</option><option>NEARUSDT</option><option>UNIUSDT</option><option>ETCUSDT</option><option>FILUSDT</option><option>APTUSDT</option><option>ARBUSDT</option></select></span></div><div class="bn-chart-head"><b>TradingView Chart</b><span>1h　4h　1D　Indicators</span></div><div class="terminal-chart-wrap"><canvas class="terminal-chart" id="crypto-terminal-chart"></canvas></div><div class="bn-chart-foot"><span>Public market data · simulated account fills</span><span>1H</span></div><div class="bn-bottom"><div class="bn-bottom-head">OPEN ORDERS <span id="crypto-open-count">0</span>　 ORDER HISTORY</div><div class="virtual-history" id="v-crypto-history"></div></div></main>
-<aside class="bn-orderbook"><div class="bn-book-tabs"><b>Order Book</b><span>Market Trades</span></div><div class="bn-book-head"><span>Price (USDT)</span><span>Amount</span><span>Total</span></div><div class="bn-book-rows sell"><div><span>Loading</span><span>—</span><span>—</span></div></div><div class="bn-book-mid" id="bn-book-price">—</div><div class="bn-book-rows buy"><div><span>Loading</span><span>—</span><span>—</span></div></div><div class="bn-book-footer">Spread —</div></aside>
-<aside class="bn-trade"><div class="bn-trade-tabs"><b>Buy</b><b>Sell</b></div><form class="virtual-form terminal-order-form" data-platform="crypto"><input type="hidden" name="symbol" value="BTCUSDT"><input type="hidden" name="side" value="BUY"><div class="bn-mode">Limit　 Market　 Stop-limit</div><label>Price (USDT)<input name="entry_price" type="text" placeholder="Waiting for price" readonly required></label><label>Amount (USD)<input name="stake" type="number" min="0.01" step="0.01" value="250" required></label><div class="bn-available">Available <b id="bn-available">$78,578.00</b></div><button type="submit" class="bn-submit">BUY BTC</button><p class="virtual-risk" id="v-crypto-status">Sign in to trade.</p></form></aside></div>
-</div>
-<p class="terminal-disclosure">Practice environment: account balances and fills are simulated. Public quotes are indicative and no broker or exchange orders are sent.</p></section>
-</main><script src="https://telegram.org/js/telegram-web-app.js"></script><script src="/static/app.js?v=20261108-book-six"></script><script src="/static/virtual-platforms.js?v=20261108-book-six"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUANTUM AI — Trading Terminal</title>
+<style>
+:root {
+  --bg:#070b14;--panel:#101827;--panel2:#141f31;
+  --line:#233149;--text:#edf4ff;--muted:#8292aa;
+  --blue:#3288ff;--cyan:#20d5e7;--green:#18d995;
+  --red:#ff526d;--gold:#ffc857;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.topbar{position:sticky;top:0;z-index:20;background:#080e19ed;backdrop-filter:blur(15px);border-bottom:1px solid var(--line);padding:13px 4%;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:2px}
+.logo{width:39px;height:39px;border-radius:12px;background:linear-gradient(135deg,#247bff,#18d9dc);display:grid;place-items:center;color:white;font-size:22px;box-shadow:0 0 25px #278bff66;animation:float 3s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-4px) rotate(8deg)}}
+.brand small{display:block;color:var(--cyan);font-size:9px;letter-spacing:3px;margin-top:3px}
+.total{text-align:right}.total small{color:var(--muted);display:block;font-size:10px;letter-spacing:1px}.total strong{font-size:22px}
+.nav{position:sticky;top:65px;z-index:15;background:#0b1220ee;border-bottom:1px solid var(--line);display:flex;gap:8px;padding:10px 4%;overflow-x:auto}
+.nav button{white-space:nowrap;border:1px solid var(--line);border-radius:9px;background:#121d2e;color:#aabbd2;padding:10px 15px;font-size:12px;font-weight:700}
+.nav button:hover,.nav button.active{background:#1765c9;color:white;border-color:#3288ff}
+main{max-width:1450px;margin:auto;padding:22px 4% 60px}
+.notice{border:1px solid #735b24;background:#2c2412;color:#f5d88d;border-radius:10px;padding:11px 14px;font-size:11px;margin-bottom:20px;line-height:1.5}
+.section{margin:30px 0;scroll-margin-top:125px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}
+h2{font-size:19px;margin:0;letter-spacing:.3px}
+.sub{color:var(--muted);font-size:11px;margin-top:5px}
+.grid{display:grid;gap:14px}
+.stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.panel{background:linear-gradient(145deg,#121e30,#0e1726);border:1px solid var(--line);border-radius:15px;padding:17px;min-width:0;box-shadow:0 10px 35px #0002}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:1px}
+.stat-value{font-size:24px;font-weight:800;margin:9px 0 5px}
+.positive{color:var(--green)}.negative{color:var(--red)}.muted{color:var(--muted)}
+.two{grid-template-columns:1.5fr 1fr}
+.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.market-strip{display:flex;gap:10px;overflow-x:auto;padding:3px 0 12px}
+.market{min-width:145px;background:#101c2d;border:1px solid var(--line);padding:12px;border-radius:11px}
+.market b{display:block;font-size:13px}.market span{font-size:11px;color:var(--muted)}
+.market strong{display:block;margin-top:8px;font-size:17px}
+.chart-wrap{height:270px;position:relative;margin-top:12px}
+canvas{width:100%;height:100%;display:block}
+.chart-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pill{padding:6px 9px;border-radius:20px;font-size:10px;background:#17263b;color:#a9c5e9;border:1px solid #2c4262}
+.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.field{flex:1;min-width:115px}
+.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:7px}
+.field input,.field select{width:100%;background:#091321;color:white;border:1px solid var(--line);border-radius:9px;padding:12px;outline:none}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
+.action{border:0;border-radius:10px;padding:15px;color:white;font-weight:900;font-size:14px}
+.call{background:linear-gradient(135deg,#08a977,#19d99a)}
+.put{background:linear-gradient(135deg,#c52e51,#ff526d)}
+.primary{background:var(--blue);border:0;color:white;padding:11px 15px;border-radius:9px;font-weight:700}
+.secondary{background:#1a2a40;border:1px solid var(--line);color:#dceaff;padding:10px 14px;border-radius:9px}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th{text-align:left;color:var(--muted);font-weight:500;padding:12px 9px;border-bottom:1px solid var(--line)}
+.table td{padding:13px 9px;border-bottom:1px solid #1b293b}
+.table tr:last-child td{border:0}
+.table tr{cursor:pointer}.table tbody tr:hover{background:#17253a}
+.toggle{width:49px;height:27px;background:#354258;border-radius:20px;border:0;position:relative}
+.toggle:after{content:"";position:absolute;width:19px;height:19px;left:4px;top:4px;background:white;border-radius:50%;transition:.2s}
+.toggle.on{background:#0ba978}.toggle.on:after{left:26px}
+.bot-status{display:flex;align-items:center;gap:9px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px currentColor}
+.dot.on{background:var(--green)}
+.trade-card{border:1px solid #225b55;background:linear-gradient(135deg,#102b30,#101b2b);border-radius:13px;padding:16px}
+.trade-card strong{font-size:21px}
+.trade-list{display:grid;gap:9px;margin-top:13px}
+.trade-row{display:flex;justify-content:space-between;border-bottom:1px solid #26384a;padding:9px 0;font-size:12px}
+.footer{text-align:center;color:#60728b;font-size:10px;padding:25px 0;border-top:1px solid var(--line)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);background:#17263b;border:1px solid #355477;color:white;padding:12px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:50;font-size:12px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.three{grid-template-columns:1fr 1fr}.topbar{padding:11px 4%}.total strong{font-size:18px}}
+@media(max-width:520px){main{padding:15px 3% 40px}.nav{top:62px;padding:8px 3%}.nav button{padding:10px 12px}.stats{gap:9px}.panel{padding:13px}.stat-value{font-size:20px}.three{grid-template-columns:1fr}.chart-wrap{height:225px}.brand{font-size:12px}.total strong{font-size:16px}.section{margin:23px 0}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">Q</div>
+    <div>QUANTUM AI<small>INTELLIGENT TRADING TERMINAL</small></div>
+  </div>
+  <div class="total">
+    <small>TOTAL BOT BALANCE · ILLUSTRATIVE</small>
+    <strong>$183,232.00</strong>
+  </div>
+</header>
+
+<nav class="nav" id="navigation">
+  <button class="active" data-target="overview">Overview</button>
+  <button data-target="binary">Binary / Olymp</button>
+  <button data-target="forex">Forex / MT4</button>
+  <button data-target="crypto">Crypto / Binance</button>
+  <button data-target="bot">Bot Control</button>
+</nav>
+
+<main>
+  <div class="notice">
+    <b>UI PREVIEW — NOT CONNECTED TO LIVE ACCOUNTS.</b>
+    All displayed balances, prices, charts and trade activity are illustrative. No broker connection or real-money order execution is active.
+  </div>
+
+  <section class="section" id="overview">
+    <div class="section-head">
+      <div><h2>Terminal Overview</h2><div class="sub">Your unified market command center</div></div>
+      <span class="pill">MARKET PREVIEW</span>
+    </div>
+    <div class="grid stats">
+      <div class="panel"><div class="stat-label">OLYMP TRADE LAYOUT</div><div class="stat-value">$65,890</div><div class="sub">Illustrative balance</div></div>
+      <div class="panel"><div class="stat-label">METATRADER LAYOUT</div><div class="stat-value">$82,562</div><div class="sub">Illustrative balance</div></div>
+      <div class="panel"><div class="stat-label">BINANCE LAYOUT</div><div class="stat-value">$34,780</div><div class="sub">Illustrative balance</div></div>
+      <div class="panel"><div class="stat-label">BOT STATUS</div><div class="stat-value" id="overviewBot">OFFLINE</div><div class="sub">Execution disabled</div></div>
+    </div>
+
+    <div class="section" style="margin-top:20px">
+      <div class="section-head"><div><h2>Market Watch</h2><div class="sub">Illustrative price feed</div></div></div>
+      <div class="market-strip">
+        <div class="market"><b>EUR/USD</b><span>FOREX</span><strong>1.08425</strong><span class="positive">+0.24%</span></div>
+        <div class="market"><b>GBP/USD</b><span>FOREX</span><strong>1.27180</strong><span class="positive">+0.18%</span></div>
+        <div class="market"><b>USD/JPY</b><span>FOREX</span><strong>149.820</strong><span class="negative">-0.12%</span></div>
+        <div class="market"><b>BTC/USDT</b><span>CRYPTO</span><strong>67,420</strong><span class="positive">+1.32%</span></div>
+        <div class="market"><b>ETH/USDT</b><span>CRYPTO</span><strong>3,520</strong><span class="negative">-0.42%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="binary">
+    <div class="section-head">
+      <div><h2>Binary Options · Olymp Trade Layout</h2><div class="sub">Trading interface preview</div></div>
+      <span class="pill">82% PAYOUT PREVIEW</span>
+    </div>
+    <div class="grid two">
+      <div class="panel">
+        <div class="chart-top"><div><b>EUR/USD</b><div class="sub">1.08425 · Illustrative quote</div></div><span class="pill">10 MIN CHART</span></div>
+        <div class="chart-wrap"><canvas id="binaryChart"></canvas></div>
+        <div class="controls">
+          <div class="field"><label>ASSET</label><select id="binaryAsset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>BTC/USDT</option><option>ETH/USDT</option></select></div>
+          <div class="field"><label>DURATION</label><select id="binaryDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
+          <div class="field"><label>TRADE AMOUNT ($)</label><input id="binaryAmount" type="number" min="1" value="1000"></div>
+        </div>
+        <div class="actions">
+          <button class="action call" onclick="previewTrade('CALL')">▲ UP / CALL</button>
+          <button class="action put" onclick="previewTrade('PUT')">▼ DOWN / PUT</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-head"><div><b>Active Trade Preview</b><div class="sub">Illustrative order only</div></div><span class="pill">PREVIEW</span></div>
+        <div class="trade-card">
+          <div class="bot-status"><span class="dot on"></span><span class="positive">ACTIVE PREVIEW</span></div>
+          <div style="margin:15px 0"><strong id="activeAsset">EUR/USD</strong><div class="sub">Binary Options</div></div>
+          <div class="trade-list">
+            <div class="trade-row"><span>Amount</span><b id="activeAmount">$1,000</b></div>
+            <div class="trade-row"><span>Duration</span><b id="activeDuration">10 minutes</b></div>
+            <div class="trade-row"><span>Direction</span><b id="activeDirection">CALL</b></div>
+            <div class="trade-row"><span>Countdown</span><b id="countdown">08:45</b></div>
+            <div class="trade-row"><span>Execution</span><b class="negative">NOT CONNECTED</b></div>
+          </div>
+        </div>
+        <p class="sub" style="line-height:1.6">Use the UP and DOWN buttons to preview an order card. This does not send an order to Olymp Trade.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="forex">
+    <div class="section-head">
+      <div><h2>Forex · MetaTrader 4 Layout</h2><div class="sub">Bid / Ask / Spread market watch</div></div>
+      <span class="pill">MT4 STYLE</span>
+    </div>
+    <div class="grid two">
+      <div class="panel">
+        <div class="chart-top"><div><b>Account Overview</b><div class="sub">Illustrative MT4 layout</div></div><span class="pill">ACCOUNT VIEW</span></div>
+        <div class="stat-value">$82,562.00</div>
+        <div class="sub">Illustrative account balance · Not a broker account</div>
+        <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <b>Market Watch</b><div class="sub">Select a pair to highlight it</div>
+        <div style="overflow-x:auto;margin-top:12px">
+          <table class="table">
+            <thead><tr><th>SYMBOL</th><th>BID</th><th>ASK</th><th>SPREAD</th></tr></thead>
+            <tbody id="forexRows">
+              <tr onclick="selectPair(this,'EUR/USD')"><td>EURUSD</td><td>1.08425</td><td>1.08438</td><td>1.3</td></tr>
+              <tr onclick="selectPair(this,'GBP/USD')"><td>GBPUSD</td><td>1.27180</td><td>1.27196</td><td>1.6</td></tr>
+              <tr onclick="selectPair(this,'USD/JPY')"><td>USDJPY</td><td>149.820</td><td>149.836</td><td>1.6</td></tr>
+              <tr onclick="selectPair(this,'AUD/USD')"><td>AUDUSD</td><td>0.65210</td><td>0.65225</td><td>1.5</td></tr>
+              <tr onclick="selectPair(this,'USD/CAD')"><td>USDCAD</td><td>1.36120</td><td>1.36138</td><td>1.8</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="trade-card" style="margin-top:15px">
+          <div class="sub">SELECTED INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
+          <div class="sub">Live broker data is not connected.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="crypto">
+    <div class="section-head">
+      <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average preview</div></div>
+      <span class="pill">SPOT STYLE</span>
+    </div>
+    <div class="panel">
+      <div class="chart-top">
+        <div><b style="font-size:18px">BTC / USDT</b><div class="sub">67,420.00 USDT · Illustrative quote</div></div>
+        <div class="positive">+1.32% (preview)</div>
+      </div>
+      <div class="controls">
+        <div class="field"><label>PAIR</label><select id="cryptoPair"><option>BTC/USDT</option><option>ETH/USDT</option><option>BNB/USDT</option><option>SOL/USDT</option></select></div>
+        <div class="field"><label>TIMEFRAME</label><select id="cryptoTime"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
+      </div>
+      <div class="chart-wrap" style="height:330px"><canvas id="cryptoChart"></canvas></div>
+      <div class="market-strip">
+        <div class="market"><b>24H HIGH</b><strong>68,120</strong></div>
+        <div class="market"><b>24H LOW</b><strong>66,180</strong></div>
+        <div class="market"><b>24H VOLUME</b><strong>1.28B</strong></div>
+        <div class="market"><b>MA(20)</b><strong>67,110</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="bot">
+    <div class="section-head">
+      <div><h2>Bot Control & Strategy</h2><div class="sub">Strategy settings preview — no automated execution</div></div>
+      <span class="pill">CONTROL CENTER</span>
+    </div>
+    <div class="grid two">
+      <div class="panel">
+        <div class="chart-top">
+          <div><b>Quantum AI Engine</b><div class="sub">Local interface state only</div></div>
+          <button class="toggle" id="botToggle" aria-label="Toggle bot preview" onclick="toggleBot()"></button>
+        </div>
+        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">OFFLINE</b></div>
+        <div class="controls">
+          <div class="field"><label>TRADE AMOUNT ($)</label><input id="botAmount" type="number" min="1" value="1000"></div>
+          <div class="field"><label>DURATION</label><select id="botDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
+          <div class="field"><label>LOSS LIMIT (%)</label><input id="lossLimit" type="number" min="1" max="100" value="10"></div>
+        </div>
+        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE PREVIEW SETTINGS</button>
+      </div>
+      <div class="panel">
+        <b>Strategy Monitor</b>
+        <div class="trade-list">
+          <div class="trade-row"><span>Strategy</span><b>Quantum AI</b></div>
+          <div class="trade-row"><span>Market</span><b>Multi-market</b></div>
+          <div class="trade-row"><span>Risk limit</span><b id="riskDisplay">10%</b></div>
+          <div class="trade-row"><span>Trade amount</span><b id="botAmountDisplay">$1,000</b></div>
+          <div class="trade-row"><span>Trade duration</span><b id="botDurationDisplay">10 minutes</b></div>
+          <div class="trade-row"><span>Broker connection</span><b class="negative">NOT CONNECTED</b></div>
+        </div>
+        <p class="sub" style="line-height:1.6">Turning this switch on changes only the interface preview. It cannot connect to an account, place orders or manage funds.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">QUANTUM AI TERMINAL · SINGLE-FILE INTERFACE PREVIEW · BROKER INTEGRATION NOT ACTIVE</div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function notify(message){
+  const t=$('toast');t.textContent=message;t.classList.add('show');
+  clearTimeout(window.toastTimer);
+  window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// Navigation: each top button scrolls to its exact section.
+document.querySelectorAll('#navigation button').forEach(button=>{
+  button.addEventListener('click',()=>{
+    const target=$(button.dataset.target);
+    if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+    document.querySelectorAll('#navigation button').forEach(b=>b.classList.remove('active'));
+    button.classList.add('active');
+  });
+});
+
+// Lightweight illustrative candlestick chart.
+function drawChart(canvasId, count=38, volume=false){
+  const canvas=$(canvasId);
+  if(!canvas)return;
+  const rect=canvas.getBoundingClientRect();
+  const ratio=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,rect.width*ratio);
+  canvas.height=Math.max(1,rect.height*ratio);
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  const w=rect.width,h=rect.height;
+  ctx.clearRect(0,0,w,h);
+  const pad=18, chartH=volume?h*.72:h-15;
+  ctx.strokeStyle='#233149';ctx.lineWidth=1;
+  for(let i=0;i<5;i++){
+    const y=pad+(chartH-pad)*i/4;
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+  }
+  let values=[],v=.52;
+  for(let i=0;i<count;i++){
+    v+=((Math.random()-.47)*.105);
+    v=Math.max(.13,Math.min(.88,v));
+    values.push(v);
+  }
+  const step=(w-2*pad)/count;
+  values.forEach((value,i)=>{
+    const x=pad+i*step+step*.5;
+    const spread=.025+Math.random()*.07;
+    const open=value+(Math.random()-.5)*.06;
+    const close=value+(Math.random()-.5)*.07;
+    const high=Math.max(open,close)+spread*.45;
+    const low=Math.min(open,close)-spread*.45;
+    const y=n=>pad+(1-n)*(chartH-pad);
+    const up=close>=open;
+    ctx.strokeStyle=up?'#18d995':'#ff526d';
+    ctx.fillStyle=ctx.strokeStyle;
+    ctx.beginPath();ctx.moveTo(x,y(high));ctx.lineTo(x,y(low));ctx.stroke();
+    const top=Math.min(y(open),y(close));
+    const height=Math.max(2,Math.abs(y(open)-y(close)));
+    ctx.fillRect(x-step*.29,top,step*.58,height);
+    if(volume){
+      ctx.globalAlpha=.4;
+      ctx.fillRect(x-step*.29,chartH+8,step*.58,(h-chartH-13)*(.15+Math.random()*.75));
+      ctx.globalAlpha=1;
+    }
+  });
+  if(volume){
+    ctx.strokeStyle='#3288ff';ctx.lineWidth=2;ctx.beginPath();
+    values.forEach((value,i)=>{
+      const x=pad+i*step+step*.5,y=pad+(1-value)* (chartH-pad);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+}
+function drawAll(){
+  drawChart('binaryChart',35);
+  drawChart('forexChart',35);
+  drawChart('cryptoChart',48,true);
+}
+window.addEventListener('load',drawAll);
+window.addEventListener('resize',drawAll);
+
+// Binary trade preview.
+function previewTrade(direction){
+  const amount=Number($('binaryAmount').value);
+  if(!Number.isFinite(amount)||amount<=0){notify('Enter a valid trade amount.');return;}
+  $('activeAsset').textContent=$('binaryAsset').value;
+  $('activeAmount').textContent='$'+amount.toLocaleString();
+  $('activeDuration').textContent=$('binaryDuration').value;
+  $('activeDirection').textContent=direction;
+  $('activeDirection').className=direction==='CALL'?'positive':'negative';
+  $('countdown').textContent='10:00';
+  notify(direction+' order preview created — no real order sent.');
+}
+
+// Forex row selection.
+function selectPair(row,pair){
+  document.querySelectorAll('#forexRows tr').forEach(r=>r.style.background='');
+  row.style.background='#1b3553';
+  $('selectedPair').textContent=pair;
+  notify(pair+' selected in preview.');
+}
+
+// Bot preview switch.
+function toggleBot(){
+  const toggle=$('botToggle');
+  const isOn=!toggle.classList.contains('on');
+  toggle.classList.toggle('on',isOn);
+  $('botStatus').textContent=isOn?'PREVIEW ON':'OFFLINE';
+  $('overviewBot').textContent=isOn?'PREVIEW ON':'OFFLINE';
+  $('botDot').classList.toggle('on',isOn);
+  notify(isOn?'Preview switch enabled. No trading is running.':'Preview switch disabled.');
+}
+function saveSettings(){
+  const amount=Number($('botAmount').value);
+  const risk=Number($('lossLimit').value);
+  if(!Number.isFinite(amount)||amount<=0){notify('Enter a valid amount.');return;}
+  if(!Number.isFinite(risk)||risk<1||risk>100){notify('Loss limit must be between 1 and 100%.');return;}
+  $('botAmountDisplay').textContent='$'+amount.toLocaleString();
+  $('botDurationDisplay').textContent=$('botDuration').value;
+  $('riskDisplay').textContent=risk+'%';
+  notify('Preview settings updated.');
+}
+$('cryptoPair').addEventListener('change',e=>{
+  notify(e.target.value+' selected — illustrative chart.');
+  drawChart('cryptoChart',48,true);
+});
+$('cryptoTime').addEventListener('change',e=>{
+  notify(e.target.value+' timeframe selected.');
+  drawChart('cryptoChart',48,true);
+});
+</script>
+</body>
+</html>
