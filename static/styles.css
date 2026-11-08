@@ -322,3 +322,11 @@ body{background:#020712}
 @media(prefers-reduced-motion:reduce){
   .brand-mark,.orb-core,.orb-ring,.page-nav a{animation:none!important;transition:none!important}
 }
+
+
+/* Restore subtle motion: moving ticker, candle frame and 3D identity. */
+.ticker-track{animation:marquee 35s linear infinite!important;will-change:transform}
+.ambient:before{display:block!important;animation:candle-drift 18s ease-in-out infinite alternate!important}
+body:after{display:block!important;animation:frame-candles 7s linear infinite!important}
+@media(max-width:700px){.ticker-track{animation-duration:42s!important}body:after{animation-duration:9s!important}}
+@media(prefers-reduced-motion:reduce){.ticker-track,.ambient:before,body:after,.brand-mark,.orb-core,.orb-ring{animation:none!important}}
