@@ -27,6 +27,12 @@ button{cursor:pointer}
 .nav button{white-space:nowrap;border:1px solid var(--line);border-radius:9px;background:#121d2e;color:#aabbd2;padding:10px 15px;font-size:12px;font-weight:700}
 .nav button:hover,.nav button.active{background:#1765c9;color:white;border-color:#3288ff}
 main{max-width:1450px;margin:auto;padding:22px 4% 60px}
+body{overflow-x:hidden}
+main{overflow:hidden}
+.page-track{display:flex;align-items:flex-start;width:100%;transition:transform .32s ease;will-change:transform;touch-action:pan-y}
+.app-page{flex:0 0 100%;width:100%;min-width:0;padding:0 0 12px}
+.app-page[aria-hidden="true"]{pointer-events:none}
+@media(prefers-reduced-motion:reduce){.page-track{transition:none}}
 .notice{border:1px solid #735b24;background:#2c2412;color:#f5d88d;border-radius:10px;padding:11px 14px;font-size:11px;margin-bottom:20px;line-height:1.5}
 .section{margin:30px 0;scroll-margin-top:125px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}
@@ -108,12 +114,12 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
   </div>
 </header>
 
-<nav class="nav" id="navigation">
-  <button class="active" data-target="overview">Overview</button>
-  <button data-target="binary">Binary / Olymp</button>
-  <button data-target="forex">Forex / MT4</button>
-  <button data-target="crypto">Crypto / Binance</button>
-  <button data-target="bot">Bot Control</button>
+<nav class="nav" id="navigation" aria-label="App pages">
+  <button class="active" data-page="0">Dashboard</button>
+  <button data-page="1">Binance</button>
+  <button data-page="2">Olymp Trade</button>
+  <button data-page="3">MetaTrader 4</button>
+  <button data-page="4">Trade History</button>
 </nav>
 
 <main>
@@ -275,6 +281,21 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
     </div>
   </section>
 
+  <section class="section" id="history">
+    <div class="section-head">
+      <div><h2>Trade History</h2><div class="sub">Order records and outcomes</div></div>
+      <span class="pill">ACTIVITY LOG</span>
+    </div>
+    <div class="panel">
+      <div class="chart-top"><div><b>Recent Trades</b><div class="sub">Only trades actually recorded by a connected broker will appear here.</div></div><span class="pill">NO LIVE CONNECTION</span></div>
+      <div style="overflow-x:auto;margin-top:12px">
+        <table class="table">
+          <thead><tr><th>TIME</th><th>MARKET</th><th>TYPE</th><th>AMOUNT</th><th>RESULT</th><th>STATUS</th></tr></thead>
+          <tbody id="historyRows"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--muted)">No recorded trades yet. Preview button clicks are not real broker orders.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
   <div class="footer">QUANTUM AI TERMINAL · SINGLE-FILE INTERFACE PREVIEW · BROKER INTEGRATION NOT ACTIVE</div>
 </main>
 
@@ -289,15 +310,62 @@ function notify(message){
   window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-// Navigation: each top button scrolls to its exact section.
-document.querySelectorAll('#navigation button').forEach(button=>{
-  button.addEventListener('click',()=>{
-    const target=$(button.dataset.target);
-    if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
-    document.querySelectorAll('#navigation button').forEach(b=>b.classList.remove('active'));
-    button.classList.add('active');
-  });
+// Five-page swipe navigation. Existing sections are moved intact; their IDs and controls stay unchanged.
+const pageDefinitions = [
+  {label:'Dashboard', ids:['overview','bot']},
+  {label:'Binance', ids:['crypto']},
+  {label:'Olymp Trade', ids:['binary']},
+  {label:'MetaTrader 4', ids:['forex']},
+  {label:'Trade History', ids:['history']}
+];
+const mainElement = document.querySelector('main');
+const noticeElement = mainElement.querySelector('.notice');
+const footerElement = mainElement.querySelector('.footer');
+const pageTrack = document.createElement('div');
+pageTrack.className = 'page-track';
+pageTrack.id = 'pageTrack';
+const pageElements = [];
+pageDefinitions.forEach((definition,index)=>{
+  const page = document.createElement('section');
+  page.className = 'app-page';
+  page.dataset.page = String(index);
+  page.setAttribute('aria-label',definition.label);
+  if(index===0 && noticeElement) page.appendChild(noticeElement);
+  definition.ids.forEach(id=>{const section=$(id);if(section)page.appendChild(section);});
+  if(index===4 && footerElement) page.appendChild(footerElement);
+  pageTrack.appendChild(page);
+  pageElements.push(page);
 });
+mainElement.appendChild(pageTrack);
+let currentPage = 0;
+function showPage(index,behavior='smooth'){
+  currentPage=Math.max(0,Math.min(pageDefinitions.length-1,index));
+  pageTrack.style.transition=behavior==='instant'?'none':'transform .32s ease';
+  pageTrack.style.transform='translateX(-'+(currentPage*100)+'%)';
+  document.querySelectorAll('#navigation button').forEach((button,i)=>{
+    const active=i===currentPage;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-current',active?'page':'false');
+  });
+  pageElements.forEach((page,i)=>page.setAttribute('aria-hidden',i===currentPage?'false':'true'));
+  window.scrollTo({top:0,behavior:behavior==='instant'?'auto':'smooth'});
+}
+document.querySelectorAll('#navigation button').forEach(button=>{
+  button.addEventListener('click',()=>showPage(Number(button.dataset.page)));
+});
+let swipeStartX=0,swipeStartY=0;
+mainElement.addEventListener('touchstart',event=>{
+  if(event.touches.length!==1)return;
+  swipeStartX=event.touches[0].clientX;swipeStartY=event.touches[0].clientY;
+},{passive:true});
+mainElement.addEventListener('touchend',event=>{
+  if(!swipeStartX&&!swipeStartY)return;
+  const dx=event.changedTouches[0].clientX-swipeStartX;
+  const dy=event.changedTouches[0].clientY-swipeStartY;
+  if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)showPage(currentPage+(dx<0?1:-1));
+  swipeStartX=0;swipeStartY=0;
+},{passive:true});
+showPage(0,'instant');
 
 // Lightweight illustrative candlestick chart.
 function drawChart(canvasId, count=38, volume=false){
