@@ -78,13 +78,28 @@ canvas{width:100%;height:100%;display:block}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:850px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.three{grid-template-columns:1fr 1fr}.topbar{padding:11px 4%}.total strong{font-size:18px}}
 @media(max-width:520px){main{padding:15px 3% 40px}.nav{top:62px;padding:8px 3%}.nav button{padding:10px 12px}.stats{gap:9px}.panel{padding:13px}.stat-value{font-size:20px}.three{grid-template-columns:1fr}.chart-wrap{height:225px}.brand{font-size:12px}.total strong{font-size:16px}.section{margin:23px 0}}
+
+/* QUANTUM AI animated market atmosphere */
+#marketBackdrop{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.34}
+.topbar,.nav,main{position:relative;z-index:1}
+body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:isolate}
+.panel{background:linear-gradient(145deg,rgba(18,30,48,.88),rgba(14,23,38,.88));backdrop-filter:blur(5px)}
+.market{background:rgba(16,28,45,.84)}
+.logo{width:48px;height:48px;flex:0 0 48px;perspective:500px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);border-radius:13px;background:linear-gradient(110deg,#08a96c 0 49.5%,#e13b55 50.5% 100%);box-shadow:0 0 22px rgba(24,217,149,.28),0 0 25px rgba(255,82,109,.2);animation:qaiSpin 6s ease-in-out infinite;transform-style:preserve-3d}
+.logo:before{content:"";position:absolute;inset:3px;border:1px solid #ffffff55;border-radius:9px;transform:translateZ(7px)}
+.logo-face{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:.78;font-size:13px;font-weight:1000;letter-spacing:-1px;color:#fff;text-shadow:0 2px 3px #00131b,0 0 7px #ffffffaa;transform:translateZ(12px)}
+.logo-face b{display:block;font-weight:1000}
+@keyframes qaiSpin{0%{transform:rotateY(-18deg) rotateX(8deg)}25%{transform:rotateY(90deg) rotateX(-5deg)}50%{transform:rotateY(180deg) rotateX(8deg)}75%{transform:rotateY(270deg) rotateX(-5deg)}100%{transform:rotateY(342deg) rotateX(8deg)}}
+@media(prefers-reduced-motion:reduce){.logo{animation:none}html{scroll-behavior:auto}}
+
 </style>
 </head>
 <body>
+<canvas id="marketBackdrop" aria-hidden="true"></canvas>
 
 <header class="topbar">
   <div class="brand">
-    <div class="logo">Q</div>
+    <div class="logo" aria-label="QAI three-dimensional logo"><span class="logo-face"><b>Q</b><b>A</b><b>I</b></span></div>
     <div>QUANTUM AI<small>INTELLIGENT TRADING TERMINAL</small></div>
   </div>
   <div class="total">
@@ -396,6 +411,41 @@ $('cryptoTime').addEventListener('change',e=>{
   notify(e.target.value+' timeframe selected.');
   drawChart('cryptoChart',48,true);
 });
+
+(function(){
+  const canvas=document.getElementById('marketBackdrop');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let width=0,height=0,dpr=1,last=0;
+  const lanes=Array.from({length:6},(_,i)=>({phase:i*1.17,speed:.00055+i*.000075,candles:Array.from({length:42},(_,j)=>({seed:j*.63+i*2.1,drift:Math.random()*Math.PI*2}))}));
+  function resize(){dpr=Math.min(window.devicePixelRatio||1,2);width=window.innerWidth;height=window.innerHeight;canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}
+  function draw(time){
+    if(!reduceMotion&&time-last<32){requestAnimationFrame(draw);return}
+    last=time;ctx.clearRect(0,0,width,height);
+    const laneH=height/6;
+    lanes.forEach((lane,index)=>{
+      const center=laneH*(index+.5);
+      ctx.strokeStyle='rgba(115,150,190,.075)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,center);ctx.lineTo(width,center);ctx.stroke();
+      const step=width/lane.candles.length;
+      lane.candles.forEach((c,j)=>{
+        const wave=Math.sin(time*lane.speed+c.seed+c.drift+lane.phase);
+        const wave2=Math.sin(time*lane.speed*.57+c.seed*.7+lane.phase);
+        const mid=center+wave*laneH*.29+wave2*laneH*.08;
+        const bodyH=7+Math.abs(Math.sin(time*.001+c.seed*2))*13;
+        const x=j*step+step*.5;
+        const rising=Math.sin(time*.0008+c.seed*1.35+lane.phase)>0;
+        const color=rising?'rgba(24,217,149,.82)':'rgba(255,82,109,.82)';
+        ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,mid-bodyH*1.35);ctx.lineTo(x,mid+bodyH*1.35);ctx.stroke();
+        ctx.globalAlpha=.82;ctx.fillRect(x-Math.max(2,step*.19),mid-bodyH*.5,Math.max(4,step*.38),bodyH);ctx.globalAlpha=1;
+      });
+    });
+    if(!reduceMotion)requestAnimationFrame(draw);
+  }
+  resize();window.addEventListener('resize',resize,{passive:true});
+  if(reduceMotion)draw(1200);else requestAnimationFrame(draw);
+})();
+
 </script>
 </body>
 </html>
