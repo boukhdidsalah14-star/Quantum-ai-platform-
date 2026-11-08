@@ -58,6 +58,21 @@ async function quote(p,symbol){
  }
  const d=await get("/api/deriv/markets?category=forex");const x=(d.markets||[]).find(x=>x.symbol===s);if(!x||!Number.isFinite(Number(x.price)))throw new Error("No live public Forex quote for "+s);return Number(x.price);
 }
+async function drawRealChart(p,symbol,position,price){
+ const isCrypto=p==="crypto"||(p==="binary"&&symbol.kind==="crypto");
+ const raw=typeof symbol==="string"?symbol:symbol.symbol;
+ const url=isCrypto?"/api/candles/"+encodeURIComponent(raw)+"?interval=1h&limit=72":"/api/deriv/candles/"+encodeURIComponent(raw)+"?granularity=900&count=72";
+ const data=await get(url);const rows=(data.candles||[]).map(c=>({o:Number(c.open??c.o),h:Number(c.high??c.h),l:Number(c.low??c.l),c:Number(c.close??c.c)})).filter(c=>[c.o,c.h,c.l,c.c].every(Number.isFinite));
+ const canvas=$(p==="binary"?"binaryChart":p==="forex"?"forexChart":"cryptoChart");if(!canvas||!rows.length)return;
+ const ctx=canvas.getContext("2d"),w=canvas.clientWidth,h=canvas.clientHeight,dpr=window.devicePixelRatio||1;
+ canvas.width=Math.max(1,w*dpr);canvas.height=Math.max(1,h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ let lo=Math.min(...rows.map(x=>x.l)),hi=Math.max(...rows.map(x=>x.h));if(position){lo=Math.min(lo,position.entry);hi=Math.max(hi,position.entry);}const pad=18,range=hi-lo||1,yy=v=>pad+(hi-v)/range*(h-pad*2),step=(w-pad*2)/rows.length,bw=Math.max(2,step*.62);
+ ctx.strokeStyle="#233b55";ctx.lineWidth=1;for(let i=0;i<5;i++){const y=pad+(h-pad*2)*i/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+ rows.forEach((c,i)=>{const x=pad+i*step+step/2,up=c.c>=c.o,color=up?"#18d995":"#ff526d";ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,yy(c.h));ctx.lineTo(x,yy(c.l));ctx.stroke();ctx.fillRect(x-bw/2,Math.min(yy(c.o),yy(c.c)),bw,Math.max(1,Math.abs(yy(c.o)-yy(c.c))));});
+ if(position){const y=yy(position.entry);ctx.setLineDash([5,4]);ctx.strokeStyle="#ffc857";ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#ffc857";ctx.font="bold 10px Arial";ctx.fillText("ENTRY "+position.side+" "+position.entry.toPrecision(7),8,Math.max(12,y-5));}
+ if(Number.isFinite(price)){ctx.strokeStyle="#53b7ff";ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(0,yy(price));ctx.lineTo(w,yy(price));ctx.stroke();ctx.setLineDash([]);}
+ const heading=canvas.closest(".panel")?.querySelector(".chart-top b");if(heading)heading.textContent=raw;
+}
 function start(p){
  if(state.running[p])return;
  state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Automatic test engine started");
@@ -69,7 +84,7 @@ async function tick(p){
  try{
   if(state.day!==new Date().toISOString().slice(0,10)){state.day=new Date().toISOString().slice(0,10);state.dailyLoss={};}
   const symbol=await getSymbol(p);const price=await quote(p,symbol);feeds[p]={symbol,price,market:typeof symbol==="string"?symbol:symbol.symbol};
-  const signal=await analyze(p,symbol);const direction=signal.direction||"WAIT";
+  const signal=await analyze(p,symbol);const direction=signal.direction||"WAIT";await drawRealChart(p,symbol,state.positions[p]||null,price);
   const analysis=$("auto-"+p+"-analysis");if(analysis)analysis.textContent="ANALYSER · "+direction+" · "+signal.trend+" · RSI "+signal.rsi_14+" · "+signal.signal_strength+" confidence · "+(signal.reasons||[]).slice(0,2).join(" / ");
   const existing=state.positions[p];
   if(existing){
