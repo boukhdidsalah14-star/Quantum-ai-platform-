@@ -28,11 +28,34 @@ button{cursor:pointer}
 .nav button:hover,.nav button.active{background:#1765c9;color:white;border-color:#3288ff}
 main{max-width:1450px;margin:auto;padding:22px 4% 60px}
 body{overflow-x:hidden}
-main{overflow:hidden}
-.page-track{display:flex;align-items:flex-start;width:100%;transition:transform .32s ease;will-change:transform;touch-action:pan-y}
-.app-page{flex:0 0 100%;width:100%;min-width:0;padding:0 0 12px}
+/* Stable page viewport: only the selected workspace is rendered. */
+.page-track{display:block;width:100%;min-width:0;overflow:clip;touch-action:pan-y}
+.app-page{display:none;width:100%;min-width:0;padding:0 0 12px;animation:pageEnter .22s ease both}
+.app-page.active{display:block}
 .app-page[aria-hidden="true"]{pointer-events:none}
-@media(prefers-reduced-motion:reduce){.page-track{transition:none}}
+@keyframes pageEnter{from{opacity:.72;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+.section-head>div,.panel,.grid,.field{min-width:0}
+.section-head h2{line-height:1.25;overflow-wrap:anywhere}
+.sub{line-height:1.45;overflow-wrap:anywhere}
+.table{min-width:520px}
+@media(max-width:520px){
+  .topbar{gap:8px;flex-wrap:nowrap}
+  .brand{gap:8px;min-width:0;letter-spacing:1px}
+  .brand>div:last-child{font-size:11px}
+  .brand small{font-size:8px;letter-spacing:1.5px}
+  .logo{width:40px;height:40px;flex-basis:40px}
+  .total{min-width:0;max-width:46%}
+  .total small{font-size:8px;line-height:1.3}
+  .total strong{font-size:14px;white-space:nowrap}
+  .nav{gap:6px}
+  .nav button{flex:0 0 auto;font-size:11px}
+  .section-head{align-items:flex-start;flex-wrap:wrap}
+  .section-head h2{font-size:17px}
+  .panel{border-radius:12px}
+  .controls{gap:8px}
+  .field{flex:1 1 135px}
+}
+@media(prefers-reduced-motion:reduce){.app-page{animation:none}}
 .notice{border:1px solid #735b24;background:#2c2412;color:#f5d88d;border-radius:10px;padding:11px 14px;font-size:11px;margin-bottom:20px;line-height:1.5}
 .section{margin:30px 0;scroll-margin-top:125px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}
@@ -310,7 +333,7 @@ function notify(message){
   window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-// Five-page swipe navigation. Existing sections are moved intact; their IDs and controls stay unchanged.
+// Five-page navigation: show one isolated workspace at a time.
 const pageDefinitions = [
   {label:'Dashboard', ids:['overview','bot']},
   {label:'Binance', ids:['crypto']},
@@ -330,6 +353,7 @@ pageDefinitions.forEach((definition,index)=>{
   page.className = 'app-page';
   page.dataset.page = String(index);
   page.setAttribute('aria-label',definition.label);
+  page.setAttribute('aria-hidden','true');
   if(index===0 && noticeElement) page.appendChild(noticeElement);
   definition.ids.forEach(id=>{const section=$(id);if(section)page.appendChild(section);});
   if(index===4 && footerElement) page.appendChild(footerElement);
@@ -339,31 +363,42 @@ pageDefinitions.forEach((definition,index)=>{
 mainElement.appendChild(pageTrack);
 let currentPage = 0;
 function showPage(index,behavior='smooth'){
-  currentPage=Math.max(0,Math.min(pageDefinitions.length-1,index));
-  pageTrack.style.transition=behavior==='instant'?'none':'transform .32s ease';
-  pageTrack.style.transform='translateX(-'+(currentPage*100)+'%)';
+  const next=Math.max(0,Math.min(pageDefinitions.length-1,index));
+  if(next===currentPage && pageElements[next].classList.contains('active'))return;
+  currentPage=next;
+  pageElements.forEach((page,i)=>{
+    const active=i===currentPage;
+    page.classList.toggle('active',active);
+    page.setAttribute('aria-hidden',active?'false':'true');
+  });
   document.querySelectorAll('#navigation button').forEach((button,i)=>{
     const active=i===currentPage;
     button.classList.toggle('active',active);
     button.setAttribute('aria-current',active?'page':'false');
   });
-  pageElements.forEach((page,i)=>page.setAttribute('aria-hidden',i===currentPage?'false':'true'));
   window.scrollTo({top:0,behavior:behavior==='instant'?'auto':'smooth'});
 }
 document.querySelectorAll('#navigation button').forEach(button=>{
   button.addEventListener('click',()=>showPage(Number(button.dataset.page)));
 });
-let swipeStartX=0,swipeStartY=0;
-mainElement.addEventListener('touchstart',event=>{
+let swipeStartX=null,swipeStartY=null;
+pageTrack.addEventListener('touchstart',event=>{
   if(event.touches.length!==1)return;
-  swipeStartX=event.touches[0].clientX;swipeStartY=event.touches[0].clientY;
+  if(event.target.closest('button,input,select,textarea,a,canvas,table'))return;
+  swipeStartX=event.touches[0].clientX;
+  swipeStartY=event.touches[0].clientY;
 },{passive:true});
-mainElement.addEventListener('touchend',event=>{
-  if(!swipeStartX&&!swipeStartY)return;
+pageTrack.addEventListener('touchend',event=>{
+  if(swipeStartX===null||swipeStartY===null)return;
   const dx=event.changedTouches[0].clientX-swipeStartX;
   const dy=event.changedTouches[0].clientY-swipeStartY;
-  if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.25)showPage(currentPage+(dx<0?1:-1));
-  swipeStartX=0;swipeStartY=0;
+  if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.35){
+    showPage(currentPage+(dx<0?1:-1));
+  }
+  swipeStartX=null;swipeStartY=null;
+},{passive:true});
+pageTrack.addEventListener('touchcancel',()=>{
+  swipeStartX=null;swipeStartY=null;
 },{passive:true});
 showPage(0,'instant');
 
