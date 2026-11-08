@@ -73,6 +73,14 @@ document.querySelectorAll(".bn-trade-tabs b").forEach((tab,i)=>tab.addEventListe
 document.querySelectorAll(".bn-select-wrap select").forEach(sel=>sel.addEventListener("change",()=>{const btn=document.querySelector(".bn-submit");if(btn)btn.textContent=(document.querySelector('.bn-trade form [name="side"]').value==="BUY"?"BUY ":"SELL ")+key(sel.value);}));
 document.querySelectorAll("[data-step]").forEach(btn=>btn.addEventListener("click",()=>{const input=btn.parentElement.querySelector('input[name="stake"]');if(input)input.value=String(Math.max(.01,Number(input.value||0)+Number(btn.dataset.step)));}));
 
+document.querySelectorAll(".page-nav a[href^=\"#virtual-\"]").forEach(link=>link.addEventListener("click",ev=>{
+ const targetId=link.getAttribute("href").slice(1),target=document.getElementById(targetId);
+ const view=target?.dataset.terminalView,tab=view&&document.querySelector('.terminal-tab[data-terminal-tab="'+view+'"]');
+ if(!target||!tab)return;
+ ev.preventDefault();
+ if(!tab.classList.contains("active"))tab.click();
+ requestAnimationFrame(()=>target.scrollIntoView({behavior:"smooth",block:"start"}));
+}));
 document.querySelectorAll(".terminal-tab").forEach(b=>b.addEventListener("click",()=>{
  document.querySelectorAll(".terminal-tab").forEach(x=>x.classList.toggle("active",x===b));
  document.querySelectorAll(".terminal-view").forEach(x=>x.classList.toggle("active",x.dataset.terminalView===b.dataset.terminalTab));
