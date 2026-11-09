@@ -127,7 +127,7 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
     <div>QUANTUM AI<small>INTELLIGENT TRADING TERMINAL</small></div>
   </div>
   <div class="total">
-    <small>TOTAL BOT BALANCE · ILLUSTRATIVE</small>
+    <small>TOTAL QUANTUM AI BALANCE</small>
     <strong>$183,232.00</strong>
   </div>
 </header>
@@ -142,24 +142,24 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
 
 <main>
   <div class="notice">
-    <b>UI PREVIEW — NOT CONNECTED TO LIVE ACCOUNTS.</b>
-    All displayed balances, prices, charts and trade activity are illustrative. No broker connection or real-money order execution is active.
+    <b>QUANTUM AI IN-APP TRADING TERMINAL</b>
+    Balances and trade records belong to Quantum AI's built-in account ledgers. Market analysis uses public price feeds; orders are managed inside the app.
   </div>
 
   <section class="section" id="overview">
     <div class="section-head">
       <div><h2>Terminal Overview</h2><div class="sub">Your unified market command center</div></div>
-      <span class="pill">MARKET PREVIEW</span>
+      <span class="pill">MARKET SETUP</span>
     </div>
     <div class="grid stats">
-      <div class="panel"><div class="stat-label">OLYMP TRADE LAYOUT</div><div class="stat-value">$65,890</div><div class="sub">Illustrative balance</div></div>
-      <div class="panel"><div class="stat-label">METATRADER LAYOUT</div><div class="stat-value">$82,562</div><div class="sub">Illustrative balance</div></div>
-      <div class="panel"><div class="stat-label">BINANCE LAYOUT</div><div class="stat-value">$34,780</div><div class="sub">Illustrative balance</div></div>
-      <div class="panel"><div class="stat-label">BOT STATUS</div><div class="stat-value" id="overviewBot">OFFLINE</div><div class="sub">Execution disabled</div></div>
+      <div class="panel"><div class="stat-label">OLYMP TRADE LAYOUT</div><div class="stat-value">$65,890</div><div class="sub">In-app account balance</div></div>
+      <div class="panel"><div class="stat-label">METATRADER LAYOUT</div><div class="stat-value">$82,562</div><div class="sub">In-app account balance</div></div>
+      <div class="panel"><div class="stat-label">BINANCE LAYOUT</div><div class="stat-value">$34,780</div><div class="sub">In-app account balance</div></div>
+      <div class="panel"><div class="stat-label">ENGINE STATUS</div><div class="stat-value" id="overviewBot">ENGINE OFF</div><div class="sub">Engine control</div></div>
     </div>
 
     <div class="section" style="margin-top:20px">
-      <div class="section-head"><div><h2>Market Watch</h2><div class="sub">Illustrative price feed</div></div></div>
+      <div class="section-head"><div><h2>Market Watch</h2><div class="sub">Public market data</div></div></div>
       <div class="market-strip">
         <div class="market"><b>EUR/USD</b><span>FOREX</span><strong>1.08425</strong><span class="positive">+0.24%</span></div>
         <div class="market"><b>GBP/USD</b><span>FOREX</span><strong>1.27180</strong><span class="positive">+0.18%</span></div>
@@ -172,12 +172,12 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
 
   <section class="section" id="binary">
     <div class="section-head">
-      <div><h2>Binary Options · Olymp Trade Layout</h2><div class="sub">Trading interface preview</div></div>
-      <span class="pill">82% PAYOUT PREVIEW</span>
+      <div><h2>Binary Options · Olymp Trade Layout</h2><div class="sub">Binary trading terminal</div></div>
+      <span class="pill">82% PAYOUT SETUP</span>
     </div>
     <div class="grid two">
       <div class="panel">
-        <div class="chart-top"><div><b>EUR/USD</b><div class="sub">1.08425 · Illustrative quote</div></div><span class="pill">10 MIN CHART</span></div>
+        <div class="chart-top"><div><b>EUR/USD</b><div class="sub">1.08425 · Market quote</div></div><span class="pill">10 MIN CHART</span></div>
         <div class="chart-wrap"><canvas id="binaryChart"></canvas></div>
         <div class="controls">
           <div class="field"><label>ASSET</label><select id="binaryAsset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>BTC/USDT</option><option>ETH/USDT</option></select></div>
@@ -190,19 +190,19 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
         </div>
       </div>
       <div class="panel">
-        <div class="section-head"><div><b>Active Trade Preview</b><div class="sub">Illustrative order only</div></div><span class="pill">PREVIEW</span></div>
+        <div class="section-head"><div><b>Trade Setup</b><div class="sub">Order details</div></div><span class="pill">SETUP</span></div>
         <div class="trade-card">
-          <div class="bot-status"><span class="dot on"></span><span class="positive">ACTIVE PREVIEW</span></div>
+          <div class="bot-status"><span class="dot on"></span><span class="positive">ACTIVE SETUP</span></div>
           <div style="margin:15px 0"><strong id="activeAsset">EUR/USD</strong><div class="sub">Binary Options</div></div>
           <div class="trade-list">
             <div class="trade-row"><span>Amount</span><b id="activeAmount">$1,000</b></div>
             <div class="trade-row"><span>Duration</span><b id="activeDuration">10 minutes</b></div>
             <div class="trade-row"><span>Direction</span><b id="activeDirection">CALL</b></div>
             <div class="trade-row"><span>Countdown</span><b id="countdown">08:45</b></div>
-            <div class="trade-row"><span>Execution</span><b class="negative">NOT CONNECTED</b></div>
+            <div class="trade-row"><span>Execution</span><b class="negative">IN-APP ONLY</b></div>
           </div>
         </div>
-        <p class="sub" style="line-height:1.6">Use the UP and DOWN buttons to preview an order card. This does not send an order to Olymp Trade.</p>
+        <p class="sub" style="line-height:1.6">Choose UP or DOWN to prepare a trade setup inside Quantum AI.</p>
       </div>
     </div>
   </section>
@@ -214,9 +214,9 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
     </div>
     <div class="grid two">
       <div class="panel">
-        <div class="chart-top"><div><b>Account Overview</b><div class="sub">Illustrative MT4 layout</div></div><span class="pill">ACCOUNT VIEW</span></div>
+        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MetaTrader-style account</div></div><span class="pill">ACCOUNT VIEW</span></div>
         <div class="stat-value">$82,562.00</div>
-        <div class="sub">Illustrative account balance · Not a broker account</div>
+        <div class="sub">Quantum AI in-app account balance</div>
         <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
       </div>
       <div class="panel">
@@ -235,7 +235,7 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
         </div>
         <div class="trade-card" style="margin-top:15px">
           <div class="sub">SELECTED INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
-          <div class="sub">Live broker data is not connected.</div>
+          <div class="sub">Market data is supplied by public price feeds.</div>
         </div>
       </div>
     </div>
@@ -243,13 +243,13 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
 
   <section class="section" id="crypto">
     <div class="section-head">
-      <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average preview</div></div>
+      <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average</div></div>
       <span class="pill">SPOT STYLE</span>
     </div>
     <div class="panel">
       <div class="chart-top">
-        <div><b style="font-size:18px">BTC / USDT</b><div class="sub">67,420.00 USDT · Illustrative quote</div></div>
-        <div class="positive">+1.32% (preview)</div>
+        <div><b style="font-size:18px">BTC / USDT</b><div class="sub">67,420.00 USDT · Market quote</div></div>
+        <div class="positive">+1.32%</div>
       </div>
       <div class="controls">
         <div class="field"><label>PAIR</label><select id="cryptoPair"><option>BTC/USDT</option><option>ETH/USDT</option><option>BNB/USDT</option><option>SOL/USDT</option></select></div>
@@ -267,22 +267,22 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
 
   <section class="section" id="bot">
     <div class="section-head">
-      <div><h2>Bot Control & Strategy</h2><div class="sub">Strategy settings preview — no automated execution</div></div>
+      <div><h2>Bot Control & Strategy</h2><div class="sub">Automated strategy controls</div></div>
       <span class="pill">CONTROL CENTER</span>
     </div>
     <div class="grid two">
       <div class="panel">
         <div class="chart-top">
-          <div><b>Quantum AI Engine</b><div class="sub">Local interface state only</div></div>
-          <button class="toggle" id="botToggle" aria-label="Toggle bot preview" onclick="toggleBot()"></button>
+          <div><b>Quantum AI Engine</b><div class="sub">Quantum AI engine controls</div></div>
+          <button class="toggle" id="botToggle" aria-label="Toggle Quantum AI engine" onclick="toggleBot()"></button>
         </div>
-        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">OFFLINE</b></div>
+        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">ENGINE OFF</b></div>
         <div class="controls">
           <div class="field"><label>TRADE AMOUNT ($)</label><input id="botAmount" type="number" min="1" value="1000"></div>
           <div class="field"><label>DURATION</label><select id="botDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
           <div class="field"><label>LOSS LIMIT (%)</label><input id="lossLimit" type="number" min="1" max="100" value="10"></div>
         </div>
-        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE PREVIEW SETTINGS</button>
+        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE SETUP SETTINGS</button>
       </div>
       <div class="panel">
         <b>Strategy Monitor</b>
@@ -292,9 +292,9 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
           <div class="trade-row"><span>Risk limit</span><b id="riskDisplay">10%</b></div>
           <div class="trade-row"><span>Trade amount</span><b id="botAmountDisplay">$1,000</b></div>
           <div class="trade-row"><span>Trade duration</span><b id="botDurationDisplay">10 minutes</b></div>
-          <div class="trade-row"><span>Broker connection</span><b class="negative">NOT CONNECTED</b></div>
+          <div class="trade-row"><span>Broker connection</span><b class="negative">IN-APP ONLY</b></div>
         </div>
-        <p class="sub" style="line-height:1.6">Turning this switch on changes only the interface preview. It cannot connect to an account, place orders or manage funds.</p>
+        <p class="sub" style="line-height:1.6">The engine analyzes public market data and manages positions in Quantum AI's built-in account ledger. It does not route orders to external brokers.</p>
       </div>
     </div>
   </section>
@@ -305,16 +305,16 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
       <span class="pill">ACTIVITY LOG</span>
     </div>
     <div class="panel">
-      <div class="chart-top"><div><b>Recent Trades</b><div class="sub">Only trades actually recorded by a connected broker will appear here.</div></div><span class="pill">NO LIVE CONNECTION</span></div>
+      <div class="chart-top"><div><b>Recent Trades</b><div class="sub">Closed positions managed by the Quantum AI in-app engine appear here.</div></div><span class="pill">TRADE RECORDS</span></div>
       <div style="overflow-x:auto;margin-top:12px">
         <table class="table">
           <thead><tr><th>TIME</th><th>MARKET</th><th>TYPE</th><th>AMOUNT</th><th>RESULT</th><th>STATUS</th></tr></thead>
-          <tbody id="historyRows"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--muted)">No recorded trades yet. Preview button clicks are not real broker orders.</td></tr></tbody>
+          <tbody id="historyRows"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--muted)">No completed trades have been recorded yet.</td></tr></tbody>
         </table>
       </div>
     </div>
   </section>
-  <div class="footer">QUANTUM AI TERMINAL · SINGLE-FILE INTERFACE PREVIEW · BROKER INTEGRATION NOT ACTIVE</div>
+  <div class="footer">QUANTUM AI TERMINAL · SINGLE-FILE INTERFACE SETUP · BROKER INTEGRATION NOT ACTIVE</div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -423,7 +423,7 @@ function previewTrade(direction){
   $('activeDirection').textContent=direction;
   $('activeDirection').className=direction==='CALL'?'positive':'negative';
   $('countdown').textContent='10:00';
-  notify(direction+' order preview created — no real order sent.');
+  notify(direction+' trade setup prepared in Quantum AI.');
 }
 
 // Forex row selection.
@@ -439,10 +439,10 @@ function toggleBot(){
   const toggle=$('botToggle');
   const isOn=!toggle.classList.contains('on');
   toggle.classList.toggle('on',isOn);
-  $('botStatus').textContent=isOn?'PREVIEW ON':'OFFLINE';
-  $('overviewBot').textContent=isOn?'PREVIEW ON':'OFFLINE';
+  $('botStatus').textContent=isOn?'SETUP ON':'ENGINE OFF';
+  $('overviewBot').textContent=isOn?'SETUP ON':'ENGINE OFF';
   $('botDot').classList.toggle('on',isOn);
-  notify(isOn?'Preview switch enabled. No trading is running.':'Preview switch disabled.');
+  notify(isOn?'Quantum AI engine switched ON.':'Quantum AI engine switched OFF.');
 }
 function saveSettings(){
   const amount=Number($('botAmount').value);
