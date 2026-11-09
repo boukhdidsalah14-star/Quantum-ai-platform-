@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 WEBAPP_URL = os.getenv("TELEGRAM_WEBAPP_URL", "").strip()
-MINI_APP_URL = WEBAPP_URL + "/?v=20261109-1835" if WEBAPP_URL.startswith("https://") else WEBAPP_URL
+MINI_APP_URL = WEBAPP_URL + "/?v=20261109-1905" if WEBAPP_URL.startswith("https://") else WEBAPP_URL
 
 def _normalise_deriv_symbol(symbol: str, category: str) -> str:
     value = symbol.strip().upper()
