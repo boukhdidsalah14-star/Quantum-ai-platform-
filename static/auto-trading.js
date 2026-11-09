@@ -118,8 +118,8 @@ function settle(p,t,price,pnl,result){
  if(pnl<0)state.dailyLoss[p]=Number(state.dailyLoss[p]||0)+Math.abs(pnl);
  state.history.unshift({time:Date.now(),platform:p,symbol:t.symbol,side:t.side,stake:t.stake,entry:t.entry,exit:price,pnl,result});
  state.history=state.history.slice(0,100);delete state.positions[p];save();
- status(p,(result==="WIN"?"TRADE WIN":result==="LOSS"?"TRADE LOSE":"TRADE DRAW")+" · "+money(pnl)+" · exit "+price);
- log(p,"TRADE "+result+" · "+money(pnl)+" · exit "+price);
+ status(p,(result==="WIN"?"WIN":result==="LOSS"?"LOSS":"DRAW")+" · "+money(pnl)+" · exit "+price);
+ log(p,result+" · "+money(pnl)+" · exit "+price);
  render(p);renderHistory();
 }
 function renderHistory(){
