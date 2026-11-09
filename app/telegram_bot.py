@@ -45,12 +45,13 @@ def _price_line(item: dict) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = (
-        "⚡ QUANTUM AI\n\n"
-        "Your trading workspace is ready. Explore Forex, binary-option underlyings, crypto markets, and indicator signals.\n\n"
-        "Market data is informational only. Broker trading and order execution are disabled."
+        "⚡ QUANTUM AI\n"
+        "YOUR MARKETS. ONE COMMAND CENTER.\n\n"
+        "Open your trading workspace for live public market data, custom charts, Forex and crypto analysis, and available account tools.\n\n"
+        "Signals are research tools. Only verified and explicitly enabled broker integrations can submit orders."
     )
     if WEBAPP_URL.startswith("https://"):
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))]])
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚀 LAUNCH QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))]])
         await update.effective_message.reply_text(message, reply_markup=keyboard)
     else:
         await update.effective_message.reply_text(message + "\n\nDashboard link is not configured yet.")
@@ -61,6 +62,19 @@ async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def configure_telegram_menu(application: Application) -> None:
+    # Keep the public Telegram identity aligned with the QUANTUM AI product.
+    # These are presentation settings only; they do not imply broker connectivity.
+    try:
+        await application.bot.set_my_name("QUANTUM AI")
+        await application.bot.set_my_description(
+            "QUANTUM AI trading workspace: market data, custom charts, Forex and crypto analysis, and account tools."
+        )
+        await application.bot.set_my_short_description(
+            "Your markets. One command center. Open the QUANTUM AI workspace."
+        )
+    except Exception:
+        logger.exception("Telegram profile text could not be updated")
+
     commands = [
         BotCommand("start", "Open QUANTUM AI dashboard"),
         BotCommand("help", "Show all commands"),
