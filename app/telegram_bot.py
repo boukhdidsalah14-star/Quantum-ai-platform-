@@ -19,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 WEBAPP_URL = os.getenv("TELEGRAM_WEBAPP_URL", "").strip()
+MINI_APP_URL = WEBAPP_URL + "/?v=20261109-1835" if WEBAPP_URL.startswith("https://") else WEBAPP_URL
 
 def _normalise_deriv_symbol(symbol: str, category: str) -> str:
     value = symbol.strip().upper()
@@ -51,7 +52,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Signals are research tools. Only verified and explicitly enabled broker integrations can submit orders."
     )
     if WEBAPP_URL.startswith("https://"):
-        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚀 LAUNCH QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))]])
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🚀 LAUNCH QUANTUM AI", web_app=WebAppInfo(url=MINI_APP_URL))]])
         await update.effective_message.reply_text(message, reply_markup=keyboard)
     else:
         await update.effective_message.reply_text(message + "\n\nDashboard link is not configured yet.")
@@ -94,7 +95,7 @@ async def configure_telegram_menu(application: Application) -> None:
     if WEBAPP_URL.startswith("https://"):
         try:
             await application.bot.set_chat_menu_button(
-                menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=WEBAPP_URL))
+                menu_button=MenuButtonWebApp(text="Open QUANTUM AI", web_app=WebAppInfo(url=MINI_APP_URL))
             )
         except Exception:
             logger.exception("Telegram Mini App menu button could not be configured; /start button remains available")
