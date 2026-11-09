@@ -185,8 +185,8 @@ body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:
           <div class="field"><label>TRADE AMOUNT ($)</label><input id="binaryAmount" type="number" min="1" value="1000"></div>
         </div>
         <div class="actions">
-          <button class="action call" onclick="previewTrade('CALL')">▲ UP / CALL</button>
-          <button class="action put" onclick="previewTrade('PUT')">▼ DOWN / PUT</button>
+          <button class="action call" onclick="prepareTrade('CALL')">▲ UP / CALL</button>
+          <button class="action put" onclick="prepareTrade('PUT')">▼ DOWN / PUT</button>
         </div>
       </div>
       <div class="panel">
@@ -350,7 +350,7 @@ if(sectionObserver){
   });
 }
 
-// Lightweight illustrative candlestick chart.
+// Candlestick chart renderer.
 function drawChart(canvasId, count=38, volume=false){
   const canvas=$(canvasId);
   if(!canvas)return;
@@ -413,8 +413,8 @@ function drawAll(){
 window.addEventListener('load',drawAll);
 window.addEventListener('resize',drawAll);
 
-// Binary trade preview.
-function previewTrade(direction){
+// Binary trade setup.
+function prepareTrade(direction){
   const amount=Number($('binaryAmount').value);
   if(!Number.isFinite(amount)||amount<=0){notify('Enter a valid trade amount.');return;}
   $('activeAsset').textContent=$('binaryAsset').value;
@@ -431,10 +431,10 @@ function selectPair(row,pair){
   document.querySelectorAll('#forexRows tr').forEach(r=>r.style.background='');
   row.style.background='#1b3553';
   $('selectedPair').textContent=pair;
-  notify(pair+' selected in preview.');
+  notify(pair+' selected.');
 }
 
-// Bot preview switch.
+// Bot engine switch.
 function toggleBot(){
   const toggle=$('botToggle');
   const isOn=!toggle.classList.contains('on');
@@ -452,10 +452,10 @@ function saveSettings(){
   $('botAmountDisplay').textContent='$'+amount.toLocaleString();
   $('botDurationDisplay').textContent=$('botDuration').value;
   $('riskDisplay').textContent=risk+'%';
-  notify('Preview settings updated.');
+  notify('Settings saved.');
 }
 $('cryptoPair').addEventListener('change',e=>{
-  notify(e.target.value+' selected — illustrative chart.');
+  notify(e.target.value+' selected.');
   drawChart('cryptoChart',48,true);
 });
 $('cryptoTime').addEventListener('change',e=>{
