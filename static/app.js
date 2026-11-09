@@ -127,18 +127,18 @@ function renderChart(){
 document.querySelectorAll(".timeframes [data-tf]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".timeframes [data-tf]").forEach(x=>x.classList.remove("active"));b.classList.add("active");timeframe=b.dataset.tf;loadMarkets()}));
 $("run-backtest")?.addEventListener("click",async()=>{
   const button=$("run-backtest"),result=$("backtest-result");
-  button.disabled=true;button.textContent="TESTING…";
+  button.disabled=true;button.textContent="ANALYZING…";
   result.textContent="Evaluating historical candles without placing trades…";
   try{
     const signalTimeframe=$("signal-timeframe").value;
     const url=marketSource.startsWith("deriv_")?"/api/backtest/deriv/"+encodeURIComponent(selected)+"?category="+encodeURIComponent(selectedCategory)+"&timeframe="+encodeURIComponent(signalTimeframe)+"&lookahead_candles=1":"/api/backtest/crypto/"+encodeURIComponent(selected)+"?source="+encodeURIComponent(marketSource)+"&timeframe="+encodeURIComponent(signalTimeframe)+"&lookahead_candles=1";
     const response=await fetch(url);
     const body=await response.json();
-    if(!response.ok)throw new Error(body.detail||"Backtest unavailable");
+    if(!response.ok)throw new Error(body.detail||"Historical review unavailable");
     const accuracy=body.directional_accuracy_percent===null?"Not enough directional signals":body.directional_accuracy_percent+"% directional accuracy";
-    result.textContent=accuracy+" · "+body.wins+" wins · "+body.losses+" losses · "+body.waits+" WAITs · "+body.candles_tested+" candles. Historical test only; not a profit forecast.";
-  }catch(error){result.textContent=error.message||"Backtest failed"}
-  finally{button.disabled=false;button.textContent="TEST LAST 200 CANDLES"}
+    result.textContent=accuracy+" · "+body.wins+" wins · "+body.losses+" losses · "+body.waits+" WAITs · "+body.candles_tested+" candles. Historical analysis only; not a profit forecast.";
+  }catch(error){result.textContent=error.message||"Historical review failed"}
+  finally{button.disabled=false;button.textContent="REVIEW LAST 200 CANDLES"}
 });
 $("get-demo-quote")?.addEventListener("click",async()=>{
   const button=$("get-demo-quote"),result=$("quote-result");
