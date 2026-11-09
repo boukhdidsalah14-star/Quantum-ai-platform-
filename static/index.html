@@ -147,6 +147,25 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 .balance-hero small{display:block;color:#d8efff;font-size:13px;font-weight:700}.balance-hero strong{display:block;color:#00f18b;font-size:clamp(27px,7vw,39px);margin-top:4px}.balance-icon{font-size:38px}
 @media(max-width:520px){.ticker span{font-size:9px;padding:11px 3px}.balance-hero{padding:14px 16px}.balance-icon{font-size:32px}}
 
+
+/* Final mobile terminal polish */
+.notice{display:none!important;border:0!important;background:transparent!important;color:inherit!important;padding:0!important;margin:0!important}
+.ticker{display:block;overflow:hidden;white-space:nowrap;position:relative}
+.ticker-track{display:flex;width:max-content;min-width:200%;animation:quantumTicker 28s linear infinite}
+.ticker-track span{flex:0 0 auto;min-width:150px;padding:12px 17px;text-align:center;border-right:1px solid #28516e;font-size:12px;font-weight:800}
+.ticker-track b{color:#00ef9a;text-shadow:0 0 9px #00ef9a66}
+@keyframes quantumTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.panel{box-shadow:0 10px 34px #0007,0 0 18px #087cff22,inset 0 0 18px #087cff0b}
+.section-head h2{font-size:clamp(20px,4.5vw,25px);letter-spacing:.2px}
+.stat-label{font-size:11px;letter-spacing:1.1px}
+.stat-value{font-size:clamp(22px,5vw,29px)}
+.topbar{box-shadow:0 5px 25px #006dff33}
+.logo{filter:drop-shadow(0 0 9px #00bfff66)}
+.balance-hero{position:relative;overflow:hidden}
+.balance-hero:after{content:"";position:absolute;width:170px;height:170px;right:-65px;top:-95px;border:1px solid #00e99a55;border-radius:50%;box-shadow:0 0 0 15px #00e99a0d,0 0 0 32px #00e99a08;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+@media(max-width:520px){.ticker-track span{min-width:132px;font-size:11px;padding:12px 13px}.section-head h2{font-size:20px}.stat-label{font-size:10px}}
+
 </style>
 </head>
 <body>
@@ -171,7 +190,7 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 </nav>
 
 <main>
-  <div class="ticker"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span></div>
+  <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
   <div class="balance-hero"><div><small>Total Quantum AI Balance</small><strong>$183,232</strong></div><div class="balance-icon">🪙</div></div>
   <section class="section" id="overview">
     <div class="section-head">
