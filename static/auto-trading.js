@@ -15,7 +15,7 @@ async function get(url){const r=await fetch(url,{cache:"no-store"});const b=awai
 function mount(p){
  const section=$(p);if(!section)return;
  const panel=document.createElement("div");panel.className="panel qai-auto-panel";panel.id="auto-"+p;
- panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · AUTOMATIC TEST ENGINE</b><div class='sub'>Live public market analysis · In-app simulated execution only</div></div><span class='qai-test-pill'>IN-APP TEST MODE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START AUTO TRADING</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>TEST BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>LIVE P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
+ panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · QUANTUM AI AUTO TRADING</b><div class='sub'>Public market analysis · In-app account execution</div></div><span class='qai-test-pill'>QUANTUM AI ENGINE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START AUTO TRADING</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>ACCOUNT BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>TRADE OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>TRADE OPEN P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
  section.appendChild(panel);
  $("auto-"+p+"-amount").addEventListener("change",e=>{const n=Number(e.target.value);if(Number.isFinite(n)&&n>0){state.amount[p]=Math.min(n,START[p]);e.target.value=state.amount[p];save();}});
  $("auto-"+p+"-expiry").addEventListener("change",e=>{state.expiry[p]=Number(e.target.value);save();});
@@ -41,7 +41,7 @@ async function getSymbol(p){
  if(p==="forex"){const raw=$("selectedPair")?.textContent||"EUR/USD";const markets=await get("/api/deriv/markets?category=forex");const key=raw.replace(/[^A-Z]/gi,"").toUpperCase();const found=(markets.markets||[]).find(x=>String(x.symbol).replace(/^frx/i,"").toUpperCase()===key)||markets.markets?.[0];if(!found)throw new Error("No public Forex market available");return found.symbol;}
  const raw=$("binaryAsset")?.value||"EUR/USD";
  if(raw.includes("USDT")){const s=raw.replace("/","").toUpperCase();return {kind:"crypto",symbol:s};}
- const markets=await get("/api/deriv/markets?category=forex");const key=raw.replace(/[^A-Z]/gi,"").toUpperCase();const found=(markets.markets||[]).find(x=>String(x.symbol).replace(/^frx/i,"").toUpperCase()===key)||markets.markets?.[0];if(!found)throw new Error("No public Binary test market available");return {kind:"forex",symbol:found.symbol};
+ const markets=await get("/api/deriv/markets?category=forex");const key=raw.replace(/[^A-Z]/gi,"").toUpperCase();const found=(markets.markets||[]).find(x=>String(x.symbol).replace(/^frx/i,"").toUpperCase()===key)||markets.markets?.[0];if(!found)throw new Error("No public binary market available");return {kind:"forex",symbol:found.symbol};
 }
 async function analyze(p,symbol){
  if(p==="crypto"||(p==="binary"&&symbol.kind==="crypto")){
@@ -75,10 +75,10 @@ async function drawRealChart(p,symbol,position,price){
 }
 function start(p){
  if(state.running[p])return;
- state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Automatic test engine started");
+ state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Automatic trading started");
  tick(p);
 }
-function stop(p){state.running[p]=false;save();status(p,"STOPPED · Existing simulated position remains open until closed or settled.");render(p);log(p,"Engine stopped by user");}
+function stop(p){state.running[p]=false;save();status(p,"ENGINE OFF · Existing open position remains open until closed or settled.");render(p);log(p,"Engine stopped by user");}
 async function tick(p){
  if(!state.running[p]||busy[p])return;busy[p]=true;
  try{
@@ -99,18 +99,18 @@ async function tick(p){
    }
   }else if(direction!=="WAIT"&&Math.abs(Number(signal.score||0))>=3){
    const amount=Number(state.amount[p]);const daily=Number(state.dailyLoss[p]||0);const maxLoss=START[p]*.10;
-   if(amount>state.accounts[p]){status(p,"PAUSED · Trade amount exceeds available test balance.");}
-   else if(daily>=maxLoss||daily+amount>maxLoss){state.running[p]=false;status(p,"RISK STOP · 10% daily loss allowance reached.");log(p,"Risk limit stopped the engine");}
+   if(amount>state.accounts[p]){status(p,"TRADING PAUSED · Trade amount exceeds available account balance.");}
+   else if(daily>=maxLoss||daily+amount>maxLoss){state.running[p]=false;status(p,"RISK STOP · 10% daily loss allowance reached.");log(p,"Risk limit paused the engine");}
    else{
     const side=p==="binary"?direction:(direction==="CALL"?"BUY":"SELL");
     const duration=Number(state.expiry[p]);
     state.positions[p]={id:"QAI-"+Date.now(),platform:p,symbol:typeof symbol==="string"?symbol:symbol.symbol,side,stake:amount,entry:price,mark:price,openedAt:Date.now(),expiresAt:Date.now()+duration*60000,expiry:duration};
-    status(p,"POSITION OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · simulated order");
-    log(p,"OPEN "+side+" "+state.positions[p].symbol+" · "+money(amount)+" at "+price);
+    status(p,"TRADE TRADE OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · in-app order");
+    log(p,"TRADE OPEN "+side+" "+state.positions[p].symbol+" · "+money(amount)+" at "+price);
    }
-  }else status(p,"RUNNING · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
+  }else status(p,"ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
   render(p);save();
- }catch(e){status(p,"DATA / ANALYSIS ERROR · "+e.message);}
+ }catch(e){status(p,"MARKET DATA ERROR · "+e.message);}
  finally{busy[p]=false;if(state.running[p])setTimeout(()=>tick(p),12000);}
 }
 function settle(p,t,price,pnl,result){
@@ -118,13 +118,13 @@ function settle(p,t,price,pnl,result){
  if(pnl<0)state.dailyLoss[p]=Number(state.dailyLoss[p]||0)+Math.abs(pnl);
  state.history.unshift({time:Date.now(),platform:p,symbol:t.symbol,side:t.side,stake:t.stake,entry:t.entry,exit:price,pnl,result});
  state.history=state.history.slice(0,100);delete state.positions[p];save();
- status(p,"POSITION CLOSED · "+result+" · "+money(pnl)+" · exit "+price);
- log(p,"CLOSE "+result+" · "+money(pnl)+" · exit "+price);
+ status(p,"TRADE CLOSED · "+result+" · "+money(pnl)+" · exit "+price);
+ log(p,"TRADE "+result+" · "+money(pnl)+" · exit "+price);
  render(p);renderHistory();
 }
 function renderHistory(){
  const body=$("historyRows");if(!body)return;
- body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+safe(t.result)+" · TEST</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No simulated trades yet.</td></tr>";
+ body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+safe(t.result)+"</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No completed trades yet.</td></tr>";
 }
 function renderPortfolio(){
  for(const p of ["binary","forex","crypto"])render(p);
@@ -135,6 +135,6 @@ function renderPortfolio(){
 const style=document.createElement("style");style.textContent=".qai-auto-panel{margin-top:18px;border-color:#245a79}.qai-auto-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.qai-test-pill{font-size:9px;letter-spacing:1px;border:1px solid #d7a83e;color:#f2ce75;padding:7px 9px;border-radius:20px}.qai-auto-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:15px}.qai-auto-grid label{display:block;color:#91a6c2;font-size:10px;margin-bottom:6px}.qai-auto-grid input,.qai-auto-grid select{width:100%;padding:11px;border-radius:8px;border:1px solid #2b4059;background:#081321;color:#fff}.qai-auto-grid small{display:block;color:#f0c66c;font-size:9px;margin-top:4px}.qai-auto-actions{display:flex;gap:9px;margin-top:13px}.qai-auto-actions button{flex:1}.qai-auto-status,.qai-auto-analysis{margin-top:12px;padding:11px;border-radius:8px;background:#0a1625;color:#a9c9e9;font-size:11px;line-height:1.5}.qai-auto-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.qai-auto-stats>div{padding:10px;background:#0b1726;border:1px solid #23364d;border-radius:9px;min-width:0}.qai-auto-stats small{display:block;color:#8ea2bd;font-size:9px}.qai-auto-stats strong{display:block;font-size:13px;margin-top:7px;overflow-wrap:anywhere}.qai-auto-log{font-size:10px;color:#92a6c0;max-height:90px;overflow:auto;margin-top:9px}.qai-auto-log div{padding:4px 0;border-bottom:1px solid #22334a}@media(max-width:600px){.qai-auto-grid{grid-template-columns:1fr 1fr}.qai-auto-stats{grid-template-columns:1fr 1fr}.qai-auto-actions{flex-direction:column}}";document.head.appendChild(style);
 ["binary","forex","crypto"].forEach(mount);
 renderPortfolio();
-["binary","forex","crypto"].forEach(p=>{if(state.running[p]){status(p,"Resuming automatic test engine after page reload…");tick(p);}});
+["binary","forex","crypto"].forEach(p=>{if(state.running[p]){status(p,"Resuming Quantum AI engine…");tick(p);}});
 window.addEventListener("beforeunload",save);
 })();
