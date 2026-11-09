@@ -124,7 +124,7 @@ function settle(p,t,price,pnl,result){
 }
 function renderHistory(){
  const body=$("historyRows");if(!body)return;
- body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+(t.result==="WIN"?"TRADE WIN":t.result==="LOSS"?"TRADE LOSE":"TRADE DRAW")+"</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No completed trades yet.</td></tr>";
+ body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+(t.result==="WIN"?"WIN":t.result==="LOSS"?"LOSS":"DRAW")+"</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No completed trades yet.</td></tr>";
 }
 function renderPortfolio(){
  for(const p of ["binary","forex","crypto"])render(p);
