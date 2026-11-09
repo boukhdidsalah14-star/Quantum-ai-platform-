@@ -108,7 +108,7 @@ async function tick(p){
     status(p,"TRADE OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · in-app order");
     log(p,"TRADE OPEN "+side+" "+state.positions[p].symbol+" · "+money(amount)+" at "+price);
    }
-  }else status(p,"ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
+  }else status(p,"MARKET DATA CONNECTED · ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
   render(p);save();
  }catch(e){status(p,"MARKET DATA ERROR · "+e.message);}
  finally{busy[p]=false;if(state.running[p])setTimeout(()=>tick(p),12000);}
@@ -118,13 +118,13 @@ function settle(p,t,price,pnl,result){
  if(pnl<0)state.dailyLoss[p]=Number(state.dailyLoss[p]||0)+Math.abs(pnl);
  state.history.unshift({time:Date.now(),platform:p,symbol:t.symbol,side:t.side,stake:t.stake,entry:t.entry,exit:price,pnl,result});
  state.history=state.history.slice(0,100);delete state.positions[p];save();
- status(p,"TRADE CLOSED · "+result+" · "+money(pnl)+" · exit "+price);
+ status(p,(result==="WIN"?"TRADE WIN":result==="LOSS"?"TRADE LOSE":"TRADE DRAW")+" · "+money(pnl)+" · exit "+price);
  log(p,"TRADE "+result+" · "+money(pnl)+" · exit "+price);
  render(p);renderHistory();
 }
 function renderHistory(){
  const body=$("historyRows");if(!body)return;
- body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+safe(t.result)+"</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No completed trades yet.</td></tr>";
+ body.innerHTML=state.history.length?state.history.slice(0,20).map(t=>"<tr><td>"+new Date(t.time).toLocaleString()+"</td><td>"+safe(t.symbol)+"</td><td>"+safe(t.platform.toUpperCase()+" "+t.side)+"</td><td>"+money(t.stake)+"</td><td class='"+(t.pnl>=0?"positive":"negative")+"'>"+money(t.pnl)+"</td><td>"+(t.result==="WIN"?"TRADE WIN":t.result==="LOSS"?"TRADE LOSE":"TRADE DRAW")+"</td></tr>").join(""):"<tr><td colspan='6' style='text-align:center;padding:28px;color:var(--muted)'>No completed trades yet.</td></tr>";
 }
 function renderPortfolio(){
  for(const p of ["binary","forex","crypto"])render(p);
