@@ -63,18 +63,9 @@ async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def configure_telegram_menu(application: Application) -> None:
-    # Keep the public Telegram identity aligned with the QUANTUM AI product.
-    # These are presentation settings only; they do not imply broker connectivity.
-    try:
-        await application.bot.set_my_name("QUANTUM AI")
-        await application.bot.set_my_description(
-            "QUANTUM AI trading workspace: market data, custom charts, Forex and crypto analysis, and account tools."
-        )
-        await application.bot.set_my_short_description(
-            "Your markets. One command center. Open the QUANTUM AI workspace."
-        )
-    except Exception:
-        logger.exception("Telegram profile text could not be updated")
+    # Do not rewrite Telegram profile metadata on every service restart.
+    # Telegram rate-limits these global profile changes; configure them once
+    # manually in BotFather. Runtime startup should only register commands/menu.
 
     commands = [
         BotCommand("start", "Open QUANTUM AI dashboard"),
