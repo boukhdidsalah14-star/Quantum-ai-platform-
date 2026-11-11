@@ -30,6 +30,10 @@ main{max-width:1450px;margin:auto;padding:22px 4% 60px}
 body{overflow-x:hidden}
 /* One continuous dashboard: every section stays visible in normal page flow. */
 main{display:block;min-width:0}
+.workspace{display:none;min-width:0;animation:workspaceFade .18s ease-out}
+.workspace.active{display:block}
+@keyframes workspaceFade{from{opacity:.65;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.workspace{animation:none}}
 .section-head>div,.panel,.grid,.field{min-width:0}
 .section-head h2{line-height:1.25;overflow-wrap:anywhere}
 .sub{line-height:1.45;overflow-wrap:anywhere}
@@ -182,17 +186,19 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
   </div>
 </header>
 
-<nav class="nav" id="navigation" aria-label="Jump to dashboard sections">
-  <button class="active" data-section="overview">⌂<br>Dashboard</button>
-  <button data-section="crypto">▥<br>Markets</button>
-  <button data-section="bot">◉<br>Auto Trading</button>
-  <button data-section="history">⚙<br>Settings</button>
+<nav class="nav" id="navigation" aria-label="Workspace navigation">
+  <button class="active" type="button" data-workspace="workspace-dashboard" aria-current="page">⌂<br>Dashboard</button>
+  <button type="button" data-workspace="workspace-binance">₿<br>Binance</button>
+  <button type="button" data-workspace="workspace-olymp">◈<br>Olymp Trade</button>
+  <button type="button" data-workspace="workspace-metatrader">▥<br>MetaTrader 4</button>
+  <button type="button" data-workspace="workspace-history">↻<br>Trade History</button>
 </nav>
 
 <main>
   <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
   <div class="balance-hero"><div><small>Total Quantum AI Balance</small><strong>$183,232</strong></div><div class="balance-icon">🪙</div></div>
-  <section class="section" id="overview">
+    <div class="workspace active" id="workspace-dashboard">
+<section class="section" id="overview">
     <div class="section-head">
       <div><h2>Terminal Overview</h2><div class="sub">Your unified market command center</div></div>
       <span class="pill">MARKET SETUP</span>
@@ -215,8 +221,43 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       </div>
     </div>
   </section>
+  <section class="section" id="bot">
+    <div class="section-head">
+      <div><h2>Bot Control & Strategy</h2><div class="sub">Automated strategy controls</div></div>
+      <span class="pill">CONTROL CENTER</span>
+    </div>
+    <div class="grid two">
+      <div class="panel">
+        <div class="chart-top">
+          <div><b>Quantum AI Engine</b><div class="sub">Quantum AI engine controls</div></div>
+          <button class="toggle" id="botToggle" aria-label="Toggle Quantum AI engine" onclick="toggleBot()"></button>
+        </div>
+        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">ENGINE OFF</b></div>
+        <div class="controls">
+          <div class="field"><label>TRADE AMOUNT ($)</label><input id="botAmount" type="number" min="1" value="1000"></div>
+          <div class="field"><label>DURATION</label><select id="botDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
+          <div class="field"><label>LOSS LIMIT (%)</label><input id="lossLimit" type="number" min="1" max="100" value="10"></div>
+        </div>
+        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE SETTINGS</button>
+      </div>
+      <div class="panel">
+        <b>Strategy Monitor</b>
+        <div class="trade-list">
+          <div class="trade-row"><span>Strategy</span><b>Quantum AI</b></div>
+          <div class="trade-row"><span>Market</span><b>Multi-market</b></div>
+          <div class="trade-row"><span>Risk limit</span><b id="riskDisplay">10%</b></div>
+          <div class="trade-row"><span>Trade amount</span><b id="botAmountDisplay">$1,000</b></div>
+          <div class="trade-row"><span>Trade duration</span><b id="botDurationDisplay">10 minutes</b></div>
+          <div class="trade-row"><span>Broker connection</span><b class="negative">IN-APP ONLY</b></div>
+        </div>
+        <p class="sub" style="line-height:1.6">The engine analyzes public market data and manages positions in Quantum AI's built-in account ledger. It does not route orders to external brokers.</p>
+      </div>
+    </div>
+  </section>
+  </div>
 
-  <section class="section" id="binary">
+    <div class="workspace" id="workspace-olymp">
+<section class="section" id="binary">
     <div class="section-head">
       <div><h2>Binary Options · Olymp Trade Layout</h2><div class="sub">Binary trading terminal</div></div>
       <span class="pill">82% PAYOUT SETUP</span>
@@ -252,8 +293,10 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       </div>
     </div>
   </section>
+  </div>
 
-  <section class="section" id="forex">
+    <div class="workspace" id="workspace-metatrader">
+<section class="section" id="forex">
     <div class="section-head">
       <div><h2>Forex · MetaTrader 4 Layout</h2><div class="sub">Bid / Ask / Spread market watch</div></div>
       <span class="pill">MT4 STYLE</span>
@@ -286,8 +329,10 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       </div>
     </div>
   </section>
+  </div>
 
-  <section class="section" id="crypto">
+    <div class="workspace" id="workspace-binance">
+<section class="section" id="crypto">
     <div class="section-head">
       <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average</div></div>
       <span class="pill">SPOT STYLE</span>
@@ -310,42 +355,12 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       </div>
     </div>
   </section>
+  </div>
 
-  <section class="section" id="bot">
-    <div class="section-head">
-      <div><h2>Bot Control & Strategy</h2><div class="sub">Automated strategy controls</div></div>
-      <span class="pill">CONTROL CENTER</span>
-    </div>
-    <div class="grid two">
-      <div class="panel">
-        <div class="chart-top">
-          <div><b>Quantum AI Engine</b><div class="sub">Quantum AI engine controls</div></div>
-          <button class="toggle" id="botToggle" aria-label="Toggle Quantum AI engine" onclick="toggleBot()"></button>
-        </div>
-        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">ENGINE OFF</b></div>
-        <div class="controls">
-          <div class="field"><label>TRADE AMOUNT ($)</label><input id="botAmount" type="number" min="1" value="1000"></div>
-          <div class="field"><label>DURATION</label><select id="botDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
-          <div class="field"><label>LOSS LIMIT (%)</label><input id="lossLimit" type="number" min="1" max="100" value="10"></div>
-        </div>
-        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE SETTINGS</button>
-      </div>
-      <div class="panel">
-        <b>Strategy Monitor</b>
-        <div class="trade-list">
-          <div class="trade-row"><span>Strategy</span><b>Quantum AI</b></div>
-          <div class="trade-row"><span>Market</span><b>Multi-market</b></div>
-          <div class="trade-row"><span>Risk limit</span><b id="riskDisplay">10%</b></div>
-          <div class="trade-row"><span>Trade amount</span><b id="botAmountDisplay">$1,000</b></div>
-          <div class="trade-row"><span>Trade duration</span><b id="botDurationDisplay">10 minutes</b></div>
-          <div class="trade-row"><span>Broker connection</span><b class="negative">IN-APP ONLY</b></div>
-        </div>
-        <p class="sub" style="line-height:1.6">The engine analyzes public market data and manages positions in Quantum AI's built-in account ledger. It does not route orders to external brokers.</p>
-      </div>
-    </div>
-  </section>
 
-  <section class="section" id="history">
+
+    <div class="workspace" id="workspace-history">
+<section class="section" id="history">
     <div class="section-head">
       <div><h2>Trade History</h2><div class="sub">Order records and outcomes</div></div>
       <span class="pill">ACTIVITY LOG</span>
@@ -360,6 +375,7 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       </div>
     </div>
   </section>
+  </div>
   <div class="footer">QUANTUM AI · TRADE SMARTER · PROFIT BIGGER</div>
 </main>
 
@@ -374,28 +390,25 @@ function notify(message){
   window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
-// Single-page navigation: buttons only scroll to sections; all content stays visible.
-const navigationButtons = Array.from(document.querySelectorAll('#navigation button'));
-navigationButtons.forEach(button=>{
-  button.addEventListener('click',()=>{
-    const target=document.getElementById(button.dataset.section);
-    if(!target)return;
-    target.scrollIntoView({behavior:'smooth',block:'start'});
-    navigationButtons.forEach(item=>item.classList.toggle('active',item===button));
+// Isolated workspace navigation: only the selected page is rendered.
+const navigationButtons = Array.from(document.querySelectorAll('#navigation button[data-workspace]'));
+const workspaces = Array.from(document.querySelectorAll('main > .workspace'));
+function activateWorkspace(workspaceId){
+  const selected=document.getElementById(workspaceId);
+  if(!selected || !selected.classList.contains('workspace')) return;
+  workspaces.forEach(page=>page.classList.toggle('active',page===selected));
+  navigationButtons.forEach(button=>{
+    const active=button.dataset.workspace===workspaceId;
+    button.classList.toggle('active',active);
+    if(active) button.setAttribute('aria-current','page');
+    else button.removeAttribute('aria-current');
   });
-});
-const sectionObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries=>{
-  const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
-  if(!visible)return;
-  navigationButtons.forEach(button=>button.classList.toggle('active',button.dataset.section===visible.target.id));
-},{rootMargin:'-20% 0px -65% 0px',threshold:[0,.15,.35,.6]}) : null;
-if(sectionObserver){
-  ['overview','crypto','binary','forex','history'].forEach(id=>{
-    const section=document.getElementById(id);
-    if(section)sectionObserver.observe(section);
-  });
+  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  requestAnimationFrame(()=>drawAll());
 }
-
+navigationButtons.forEach(button=>{
+  button.addEventListener('click',()=>activateWorkspace(button.dataset.workspace));
+});
 // Candlestick chart renderer.
 function drawChart(canvasId, count=38, volume=false){
   const canvas=$(canvasId);
