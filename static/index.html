@@ -170,6 +170,14 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 @media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
 @media(max-width:520px){.ticker-track span{min-width:132px;font-size:11px;padding:12px 13px}.section-head h2{font-size:20px}.stat-label{font-size:10px}}
 
+
+.footer{line-height:1.9}
+.footer-brand{font-size:13px;font-weight:900;letter-spacing:2px;color:#dcecff;margin-bottom:6px}
+.footer-brand span{color:#24c7e8}
+.footer-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin:8px 0}
+.footer-links a{color:#79c8ff;text-decoration:none;font-weight:700}
+.footer-links a:hover{color:#fff;text-decoration:underline}
+.footer-note{max-width:720px;margin:8px auto;color:#7f91aa}
 </style>
 </head>
 <body>
@@ -376,7 +384,16 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
   </section>
   </div>
-  <div class="footer">QUANTUM AI · TRADE SMARTER · PROFIT BIGGER</div>
+  <div class="footer">
+  <div class="footer-brand">QUANTUM AI <span>·</span> PROFESSIONAL MARKET TOOLS</div>
+  <div class="footer-links">
+    <a href="/static/download.html">Download Android app</a>
+    <a href="mailto:supportveloxlabs@gmail.com?subject=QUANTUM%20AI%20Support">Contact support</a>
+    <a href="https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases" target="_blank" rel="noopener">Release notes</a>
+  </div>
+  <div class="footer-note">Trading involves risk. Signals are informational and do not guarantee results. Demo and simulated balances are not real funds.</div>
+  <div>© QUANTUM AI · supportveloxlabs@gmail.com</div>
+</div>
 </main>
 
 <div class="toast" id="toast"></div>
