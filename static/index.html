@@ -13,7 +13,7 @@
   --red:#ff526d;--gold:#ffc857;
 }
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:90px}
+html{scroll-behavior:auto;scroll-padding-top:90px}
 body{margin:0;background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
 button,input,select{font:inherit}
 button{cursor:pointer}
@@ -32,7 +32,7 @@ body{overflow-x:hidden}
 main{display:block;min-width:0}
 .workspace{display:none;min-width:0;animation:workspaceFade .18s ease-out}
 .workspace.active{display:block}
-@keyframes workspaceFade{from{opacity:.65;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes workspaceFade{from{opacity:.65}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.workspace{animation:none}}
 .section-head>div,.panel,.grid,.field{min-width:0}
 .section-head h2{line-height:1.25;overflow-wrap:anywhere}
@@ -403,7 +403,7 @@ function activateWorkspace(workspaceId){
     if(active) button.setAttribute('aria-current','page');
     else button.removeAttribute('aria-current');
   });
-  window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  window.scrollTo({top:0,behavior:'auto'});
   requestAnimationFrame(()=>drawAll());
 }
 navigationButtons.forEach(button=>{
