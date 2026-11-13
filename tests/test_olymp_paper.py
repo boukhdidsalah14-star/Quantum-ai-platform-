@@ -36,7 +36,7 @@ def test_idempotency_does_not_create_duplicate_paper_trade(paper_db):
 
 @pytest.mark.parametrize("stake,expiry,direction,price", [
     (0.05, 1, "CALL", 1.08),
-    (1, 2, "CALL", 1.08),
+    (1, 4, "CALL", 1.08),
     (1, 5, "BUY", 1.08),
     (1, 5, "CALL", 0),
 ])
