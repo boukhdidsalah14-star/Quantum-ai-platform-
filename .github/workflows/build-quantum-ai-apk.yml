@@ -2,6 +2,11 @@ name: Build QUANTUM AI Android APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-quantum-ai-apk.yml'
   push:
     branches: [feature/quantum-ai-android-subscriptions]
     paths:
@@ -41,6 +46,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish public beta release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: quantum-ai-android-beta-${{ github.run_number }}
