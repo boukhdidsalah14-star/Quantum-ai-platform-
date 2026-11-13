@@ -9,7 +9,7 @@ on:
       - '.github/workflows/build-quantum-ai-apk.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -31,10 +31,26 @@ jobs:
       - name: Build installable APK
         working-directory: android
         run: gradle --no-daemon assembleDebug
-      - name: Publish APK artifact
+      - name: Prepare customer beta APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk quantum-ai-android-beta.apk
+      - name: Publish build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: quantum-ai-android-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: quantum-ai-android-beta
+          path: quantum-ai-android-beta.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish public beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: quantum-ai-android-beta-${{ github.run_number }}
+          name: QUANTUM AI Android Beta ${{ github.run_number }}
+          prerelease: true
+          make_latest: false
+          files: quantum-ai-android-beta.apk
+          body: |
+            QUANTUM AI Android beta build.
+
+            This APK is debug-signed for testing and direct installation. It is not a production signing key or a Google Play release. Do not use this build for real-money trading. Broker execution availability depends on the specific verified integration and server configuration.
+
+            Download only if you trust this beta build.
