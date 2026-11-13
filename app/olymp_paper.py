@@ -13,7 +13,7 @@ from pathlib import Path
 
 MAX_OPEN_TRADES = 3
 DAILY_LOSS_LIMIT_PERCENT = 10.0
-ALLOWED_EXPIRIES = {1, 5, 15, 30, 60}
+ALLOWED_EXPIRIES = {1, 2, 3, 5, 10, 15, 30, 60}
 
 
 def _connect():
@@ -100,7 +100,7 @@ def open_trade(customer_id, symbol, direction, stake, expiry_minutes, entry_pric
     if not symbol or len(symbol) > 30: raise ValueError("Invalid asset symbol")
     if direction not in {"CALL", "PUT"}: raise ValueError("Direction must be CALL or PUT")
     if not math.isfinite(stake) or stake < 0.1: raise ValueError("Trade amount must be at least $0.10")
-    if expiry_minutes not in ALLOWED_EXPIRIES: raise ValueError("Expiry must be 1, 5, 15, 30, or 60 minutes")
+    if expiry_minutes not in ALLOWED_EXPIRIES: raise ValueError("Expiry must be 1, 2, 3, 5, 10, 15, 30, or 60 minutes")
     if not math.isfinite(entry_price) or entry_price <= 0: raise ValueError("Entry price must be positive")
     if not idempotency_key or len(idempotency_key) > 100: raise ValueError("A valid idempotency key is required")
     price_source = str(price_source).strip()
