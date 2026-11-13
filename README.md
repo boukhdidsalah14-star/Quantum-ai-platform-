@@ -1,5 +1,14 @@
 # QUANTUM AI
 
+## Android beta distribution
+
+- Customer information and download page: `/static/download.html` (after the feature branch is deployed).
+- Public GitHub release page: https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases
+- The Android GitHub Actions workflow builds an installable debug-signed beta APK and publishes it as a prerelease asset when the workflow runs.
+- The debug APK is for evaluation only. Before commercial distribution, create a private production signing key, store signing material only in protected GitHub Actions secrets, build a signed release APK/AAB, and test upgrades and Play Protect behavior. Never commit keystores or passwords.
+- Customer support: supportveloxlabs@gmail.com.
+
+
 A mobile-first trading workspace foundation with a custom candlestick dashboard, Telegram entry point, and an initial customer identity layer.
 
 ## Current capabilities

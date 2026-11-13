@@ -170,6 +170,14 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 @media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
 @media(max-width:520px){.ticker-track span{min-width:132px;font-size:11px;padding:12px 13px}.section-head h2{font-size:20px}.stat-label{font-size:10px}}
 
+
+.footer{line-height:1.9}
+.footer-brand{font-size:13px;font-weight:900;letter-spacing:2px;color:#dcecff;margin-bottom:6px}
+.footer-brand span{color:#24c7e8}
+.footer-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin:8px 0}
+.footer-links a{color:#79c8ff;text-decoration:none;font-weight:700}
+.footer-links a:hover{color:#fff;text-decoration:underline}
+.footer-note{max-width:720px;margin:8px auto;color:#7f91aa}
 </style>
 </head>
 <body>
@@ -196,7 +204,7 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 
 <main>
   <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
-  <div class="balance-hero"><div><small>Total Quantum AI Balance</small><strong>$183,232</strong></div><div class="balance-icon">🪙</div></div>
+  <div class="balance-hero"><div><small>QUANTUM AI · MULTI-MARKET WORKSPACE</small><strong>One terminal. Multiple markets.</strong><span class="sub">Your connected broker balances remain separate and are shown only when verified.</span></div><div class="balance-icon">◈</div></div>
     <div class="workspace active" id="workspace-dashboard">
 <section class="section" id="overview">
     <div class="section-head">
@@ -204,9 +212,9 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
       <span class="pill">MARKET SETUP</span>
     </div>
     <div class="grid stats">
-      <div class="panel"><div class="stat-label">OLYMP TRADE LAYOUT</div><div class="stat-value">$65,890</div><div class="sub">In-app account balance</div></div>
-      <div class="panel"><div class="stat-label">METATRADER LAYOUT</div><div class="stat-value">$82,562</div><div class="sub">In-app account balance</div></div>
-      <div class="panel"><div class="stat-label">BINANCE LAYOUT</div><div class="stat-value">$34,780</div><div class="sub">In-app account balance</div></div>
+      <div class="panel"><div class="stat-label">OLYMP-STYLE PAPER ACCOUNT</div><div class="stat-value">$63,578.00</div><div class="sub">SIMULATED BALANCE · NOT REAL FUNDS</div></div>
+      <div class="panel"><div class="stat-label">FOREX PAPER ACCOUNT</div><div class="stat-value">$13,790.00</div><div class="sub">SIMULATED BALANCE · NOT A BROKER BALANCE</div></div>
+      <div class="panel"><div class="stat-label">CRYPTO PAPER ACCOUNT</div><div class="stat-value">$78,578.00</div><div class="sub">SIMULATED BALANCE · NOT REAL FUNDS</div></div>
       <div class="panel"><div class="stat-label">ENGINE STATUS</div><div class="stat-value" id="overviewBot">ENGINE OFF</div><div class="sub">Engine control</div></div>
     </div>
 
@@ -267,8 +275,8 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
         <div class="chart-top"><div><b>EUR/USD</b><div class="sub">1.08425 · Market quote</div></div><span class="pill">10 MIN CHART</span></div>
         <div class="chart-wrap"><canvas id="binaryChart"></canvas></div>
         <div class="controls">
-          <div class="field"><label>ASSET</label><select id="binaryAsset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>BTC/USDT</option><option>ETH/USDT</option></select></div>
-          <div class="field"><label>DURATION</label><select id="binaryDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
+          <div class="field"><label>ASSET</label><select id="binaryAsset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>EUR/JPY</option></select></div>
+          <div class="field"><label>DURATION</label><select id="binaryDuration"><option>1 minute</option><option>2 minutes</option><option>3 minutes</option><option selected>5 minutes</option><option>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
           <div class="field"><label>TRADE AMOUNT ($)</label><input id="binaryAmount" type="number" min="1" value="1000"></div>
         </div>
         <div class="actions">
@@ -303,9 +311,9 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
     <div class="grid two">
       <div class="panel">
-        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MetaTrader-style account</div></div><span class="pill">ACCOUNT VIEW</span></div>
-        <div class="stat-value">$82,562.00</div>
-        <div class="sub">Quantum AI in-app account balance</div>
+        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MT4-inspired paper account · no MT4 orders are sent</div></div><span class="pill">ACCOUNT VIEW</span></div>
+        <div class="stat-value">$13,790.00</div>
+        <div class="sub">Simulated forex paper balance · not a connected MT4 account</div>
         <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
       </div>
       <div class="panel">
@@ -376,7 +384,16 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
   </section>
   </div>
-  <div class="footer">QUANTUM AI · TRADE SMARTER · PROFIT BIGGER</div>
+  <div class="footer">
+  <div class="footer-brand">QUANTUM AI <span>·</span> PROFESSIONAL MARKET TOOLS</div>
+  <div class="footer-links">
+    <a href="/static/download.html">Download Android app</a>
+    <a href="mailto:supportveloxlabs@gmail.com?subject=QUANTUM%20AI%20Support">Contact support</a>
+    <a href="https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases" target="_blank" rel="noopener">Release notes</a>
+  </div>
+  <div class="footer-note">Trading involves risk. Signals are informational and do not guarantee results. Demo and simulated balances are not real funds.</div>
+  <div>© QUANTUM AI · supportveloxlabs@gmail.com</div>
+</div>
 </main>
 
 <div class="toast" id="toast"></div>
