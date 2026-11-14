@@ -1,10 +1,10 @@
-"""Read-only public crypto market data adapter."""
+"""Read-only Binance USD-M futures public market data adapter."""
 from __future__ import annotations
 import time
 from typing import Any
 import httpx
 
-BASE_URL = "https://api.binance.com/api/v3"
+BASE_URL = "https://fapi.binance.com/fapi/v1"
 # Ten liquid non-stablecoin assets; quote currency USDT is only the market pair quote.
 ALLOWED_SYMBOLS = {
     "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT",
