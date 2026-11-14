@@ -28,7 +28,7 @@ jobs:
           import tempfile
           from pathlib import Path
           html = Path("static/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, flags=re.I | re.S)
+          scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script>", html, flags=re.I | re.S)
           for index, script in enumerate(scripts):
               if not script.strip():
                   continue
