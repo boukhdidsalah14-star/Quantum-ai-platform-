@@ -15,7 +15,7 @@
 <main>
  <section class="page active" id="page-home" data-page="home">
   <div class="hero-card">
-   <div class="hero-copy"><span class="eyebrow">IQ OPTION SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Dedicated IQ Option signals for eight Forex pairs. MT4 and crypto futures automation are separate modules.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ MULTI-PLATFORM</span><span>⌁ RISK CONTROLS</span></div></div>
+   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Ten Forex chart markets, eight selected binary-analysis pairs and a ten-asset crypto futures watchlist. Broker execution is handled separately.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ MULTI-PLATFORM</span><span>⌁ RISK CONTROLS</span></div></div>
    <div class="hero-orbit"><div class="orbit-ring"></div><div class="hero-logo">Q<span>↗</span></div><div class="orbit-dot"></div></div>
   </div>
   <div class="balance-grid">
@@ -29,22 +29,22 @@
    <div class="chart-legend"><span><i class="green-dot"></i> Bullish candle</span><span><i class="red-dot"></i> Bearish candle</span><span id="feed-label">Deriv public Forex feed</span></div>
   </section>
   <section class="quick-grid">
-   <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>IQ Option Signals</b><small>CALL / PUT for IQ Option</small></button>
+   <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>Binary Options Signals</b><small>CALL / PUT for IQ Option</small></button>
    <button class="quick-card" data-goto="automation"><span class="quick-icon blue">▥</span><b>Auto Trading</b><small>MT4 & crypto futures</small></button>
    <button class="quick-card" data-goto="account"><span class="quick-icon green">◇</span><b>Membership</b><small>Unlock trading access</small></button>
   </section>
  </section>
 
  <section class="page" id="page-signals" data-page="signals">
-  <div class="page-heading"><span class="eyebrow">QUANTUM INTELLIGENCE</span><h1>Signals <i>Centre</i></h1><p>IQ Option only: choose one of eight Forex pairs and request a fresh CALL / PUT analysis.</p></div>
+  <div class="page-heading"><span class="eyebrow">QUANTUM INTELLIGENCE</span><h1>Signals <i>Centre</i></h1><p>Binary options analysis: choose one of eight selected Forex pairs and request a fresh CALL / PUT / WAIT result.</p></div>
   <div class="signal-layout">
-   <div class="panel pair-panel"><div class="section-title"><h2>IQ Option · Forex pairs</h2><span class="live-badge">8 PAIRS</span></div><div id="pair-list" class="pair-list"></div></div>
+   <div class="panel pair-panel"><div class="section-title"><h2>Binary options · selected pairs</h2><span class="live-badge">8 PAIRS</span></div><div id="pair-list" class="pair-list"></div></div>
    <div class="panel signal-panel"><div class="section-title"><div><span class="eyebrow">SELECTED MARKET</span><h2 id="signal-pair-title">EUR / USD</h2></div><span id="signal-feed" class="live-badge">DERIV</span></div>
     <div class="signal-controls"><label>TIMEFRAME<select id="signal-timeframe"><option>1m</option><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option></select></label><label>EXPIRY<select id="signal-expiry"><option value="1">1 min</option><option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label></div>
     <button id="get-signal" class="signal-button"><span>ϟ</span> GENERATE SIGNAL</button>
     <div id="signal-result" class="signal-result idle"><div class="signal-arrow">↗</div><b>READY TO ANALYSE</b><small>Sign in and activate membership to generate signals.</small></div>
     <div id="signal-details" class="signal-details" hidden></div>
-    <p class="risk-note">IQ Option signals use independent completed-candle analysis; they do not read IQ Option account data or place broker orders. Confirm the quote and expiry in IQ Option. No outcome is guaranteed.</p>
+    <p class="risk-note">Binary analysis uses independent completed-candle data; it does not read a broker account or place orders. Confirm the quote and expiry in IQ Option. No outcome is guaranteed.</p>
    </div>
   </div>
   <div class="panel"><div class="section-title"><h2>Signal history</h2><span class="muted">This session</span></div><div id="signal-history" class="history-list"><p class="muted">No signals generated yet.</p></div></div>
@@ -69,7 +69,7 @@
    <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
   </div>
   <div class="provider-card">
-   <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>IQ Option</h2><p>Dedicated CALL / PUT signal analysis for your selected Forex pair. Signals appear in the IQ Option floating window. No IQ Option account connection or automatic broker orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
+   <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>IQ Option</h2><p>Dedicated CALL / PUT / WAIT analysis for the selected binary pair. Signals appear in the floating window. No binary broker account connection or automatic orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
    <button class="provider-action" data-provider="deriv">VIEW IQ OPTION SIGNAL STATUS <b>→</b></button>
   </div>
   <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Daily loss limit</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">No live futures or MT4 orders are sent from this screen yet. Exchange futures API is live-only (no sandbox), so it must remain disabled until a reviewed, customer-isolated execution adapter and demo/paper test path are complete.</p></div>
