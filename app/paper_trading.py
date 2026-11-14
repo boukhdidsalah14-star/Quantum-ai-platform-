@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import secrets
-import sqlite3
+from app.database import sqlite3
 import time
 from pathlib import Path
 import os
