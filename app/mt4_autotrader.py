@@ -156,9 +156,13 @@ def stop_auto_trader(customer_id: str) -> dict[str, Any]:
     with _connect() as db:
         db.execute("""
             UPDATE mt4_auto_trader_settings
-            SET active=0, last_message='Auto trader stopped. No new commands will be generated.',
+            SET active=0, last_message='Auto trader stopped. Pending auto entries were cancelled.',
                 updated_at=?
             WHERE customer_id=?
+        """, (now, customer_id))
+        db.execute("""
+            UPDATE mt4_bridge_commands SET status='cancelled', updated_at=?
+            WHERE customer_id=? AND status='pending' AND substr(command_id, 1, 6)='qai_a_'
         """, (now, customer_id))
     return get_settings(customer_id)
 
@@ -180,7 +184,7 @@ def _record_decision(customer_id: str, candle_time: int, signal: str,
 
 def _command_key(customer_id: str, symbol: str, timeframe: str, candle_time: int) -> str:
     material = f"{customer_id}|{symbol}|{timeframe}|{candle_time}".encode()
-    return "qai_auto_" + hashlib.sha256(material).hexdigest()[:24]
+    return "qai_a_" + hashlib.sha256(material).hexdigest()[:18]
 
 
 def process_active_auto_traders() -> None:
