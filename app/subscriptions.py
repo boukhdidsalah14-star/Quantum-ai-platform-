@@ -61,8 +61,11 @@ def init_db() -> None:
 
 
 def payment_configured() -> bool:
+    # Never accept customer funds unless the order/subscription ledger is durable.
+    durable_storage = os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
     return bool(
-        os.getenv("NOWPAYMENTS_API_KEY", "").strip()
+        durable_storage
+        and os.getenv("NOWPAYMENTS_API_KEY", "").strip()
         and os.getenv("NOWPAYMENTS_IPN_SECRET", "").strip()
         and os.getenv("QUANTUM_PUBLIC_URL", "").strip().startswith("https://")
     )
