@@ -4,7 +4,7 @@ The signal API now uses `app.advanced_signals.analyze_market` through the existi
 
 ## Inputs and safety
 
-- Supply at least 60 completed OHLC candles for the selected asset and timeframe.
+- Supply at least 30 completed OHLC candles for the selected asset and timeframe.
 - Candle values must be positive and internally consistent. Caller must ensure bars are closed and timestamps are ordered.
 - Use broker-native or otherwise independently verified quotes before making any decision. Public exchange data is not interchangeable with broker execution prices.
 - Analysis is research-only; the engine never places orders.
