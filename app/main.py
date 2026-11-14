@@ -797,7 +797,7 @@ async def markets():
 
 @app.get("/api/orderbook/{symbol}")
 async def binance_order_book(symbol: str, limit: int = Query(default=10, ge=5, le=20)):
-    """Read-only public Binance spot order book depth."""
+    """Read-only public Binance USD-M futures order book depth."""
     try:
         return {"source": "Binance USD-M futures public depth", **await get_order_book(symbol, limit)}
     except ValueError as exc:
