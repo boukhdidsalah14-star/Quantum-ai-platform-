@@ -11,6 +11,19 @@
 
 A mobile-first trading workspace foundation with a custom candlestick dashboard, Telegram entry point, and an initial customer identity layer.
 
+## QUANTUM AI mobile design and floating signal assistant
+
+The mobile terminal is organized into six primary workspaces: Home, Signals, Markets, Olymp Trade, MetaTrader 4, and Crypto. The visual system uses an obsidian / electric-blue palette, a rotating QAI mark, a moving public-market ticker, responsive controls, and a lightweight animated candlestick frame.
+
+- Signals and Markets pages use the public market-data API and custom OHLC canvas charts; they do not use random candles as market data.
+- Signal history is retained locally on the device for the most recent 12 hours.
+- The in-app draggable Q bubble opens a compact signal assistant.
+- The Android APK includes a separate native overlay service. After the user explicitly enables Android's “Display over other apps” permission, a draggable Q chat head can appear over other apps. Its mini-panel can request public Forex/Crypto analysis and open the main app. The service displays an ongoing Android notification while active.
+- The floating assistant is signal-only. It never places broker orders. The system-wide overlay is available only in the Android app, not in an ordinary mobile browser.
+- Platform-inspired balances remain simulated/paper values and are not withdrawable broker funds. The automated paper engines use browser-local state and must not be presented as live broker execution.
+
+The new Android overlay and web redesign are committed on `feature/advanced-market-analysis` and proposed in [draft PR #14](https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/pull/14). They are not live on the Render production URL until the PR is reviewed, merged, and deployed. The APK has not yet been rebuilt or tested on a physical Android device.
+
 ## Current capabilities
 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
