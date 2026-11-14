@@ -1,5 +1,14 @@
 # QUANTUM AI
 
+## Android beta distribution
+
+- Customer information and download page: `/static/download.html` (after the feature branch is deployed).
+- Public GitHub release page: https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases
+- The Android GitHub Actions workflow builds an installable debug-signed beta APK and publishes it as a prerelease asset when the workflow runs.
+- The debug APK is for evaluation only. Before commercial distribution, create a private production signing key, store signing material only in protected GitHub Actions secrets, build a signed release APK/AAB, and test upgrades and Play Protect behavior. Never commit keystores or passwords.
+- Customer support: supportveloxlabs@gmail.com.
+
+
 A mobile-first trading workspace foundation with a custom candlestick dashboard, Telegram entry point, and an initial customer identity layer.
 
 ## Current capabilities
@@ -49,6 +58,20 @@ Each customer must configure a paper account balance before opening an Olymp Tra
 - The crypto paper-trading feature is a simulation only. Deriv binary execution is restricted to a customer-verified VRTC demo account and remains locked by default. No real-account trading is implemented or enabled.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
+
+## Subscription payments (NOWPayments)
+
+
+The subscription checkout is configured for **$20 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`; the server creates a NOWPayments payment with `pay_currency=usdttrc20` and a unique internal order ID. The public callback is `POST /api/payments/nowpayments/ipn`.
+
+Only a signed NOWPayments IPN with a matching order ID and payment ID, `payment_status=finished`, `price_amount=20`, `price_currency=usd`, and `pay_currency=usdttrc20` activates access. Activation is idempotent; a repeated successful callback does not grant extra days. A renewal extends from the later of now or the existing expiry. `GET /api/subscription` reports the customer's status.
+
+Configure these private Render environment values before enabling checkout:
+- `NOWPAYMENTS_API_KEY` — API key from NOWPayments.
+- `NOWPAYMENTS_IPN_SECRET` — IPN secret from NOWPayments.
+- `QUANTUM_PUBLIC_URL` — canonical HTTPS public app URL (for example, `https://quantum-ai-platform-62cz.onrender.com`).
+
+The MEXC USDT TRC20 address is configured in the NOWPayments merchant dashboard, not embedded in application code. The checkout API does not initiate payouts or hold wallet private keys. Confirm the NOWPayments dashboard payout-wallet and IPN settings before accepting customer funds. Do not enable customer registration or advertise checkout as live until the API key and IPN secret are installed and a real low-value end-to-end payment has been verified.
 
 ## Customer authentication API
 

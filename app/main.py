@@ -34,6 +34,10 @@ from app.auth import (
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
     consume_login_attempt, clear_login_attempts,
 )
+from app.subscriptions import (
+    init_db as init_subscription_db, payment_configured, create_order as create_subscription_order,
+    attach_payment, verify_ipn_signature, apply_finished_payment, subscription_for_customer,
+)
 
 load_dotenv()
 
@@ -169,6 +173,7 @@ async def _deriv_demo_monitor_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
+    init_subscription_db()
     init_paper_db()
     init_olymp_paper_db()
     init_virtual_db()
@@ -255,6 +260,83 @@ async def telegram_webhook(
         logger.exception("Telegram webhook update processing failed")
         raise HTTPException(status_code=400, detail="Telegram update could not be processed")
     return {"ok": True}
+
+
+@app.get("/api/subscription")
+async def get_subscription(request: Request):
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {
+        **subscription_for_customer(customer["id"]),
+        "price_usd": 20,
+        "duration_days": 30,
+        "payment_currency": "usdttrc20",
+        "payment_configured": payment_configured(),
+    }
+
+
+@app.post("/api/subscription/checkout")
+async def create_subscription_checkout(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not payment_configured():
+        raise HTTPException(status_code=503, detail="NOWPayments is not fully configured on the server")
+    api_key = os.getenv("NOWPAYMENTS_API_KEY", "").strip()
+    public_url = os.getenv("QUANTUM_PUBLIC_URL", "").strip().rstrip("/")
+    order_id = create_subscription_order(customer["id"])
+    body = {
+        "price_amount": 20,
+        "price_currency": "usd",
+        "pay_currency": "usdttrc20",
+        "ipn_callback_url": public_url + "/api/payments/nowpayments/ipn",
+        "order_id": order_id,
+        "order_description": "QUANTUM AI 30-day subscription",
+        "is_fixed_rate": False,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.post(
+                "https://api.nowpayments.io/v1/payment",
+                headers={"x-api-key": api_key, "Content-Type": "application/json"},
+                json=body,
+            )
+            response.raise_for_status()
+            payment = response.json()
+        checkout = attach_payment(order_id, payment)
+        return checkout
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        logger.warning("NOWPayments checkout creation failed: %s", str(exc)[:180])
+        raise HTTPException(status_code=502, detail="NOWPayments could not create the checkout. No subscription was activated.")
+
+
+@app.post("/api/payments/nowpayments/ipn")
+async def nowpayments_ipn(
+    request: Request,
+    signature: str = Header(default="", alias="x-nowpayments-sig"),
+):
+    init_subscription_db()
+    secret = os.getenv("NOWPAYMENTS_IPN_SECRET", "").strip()
+    if not secret:
+        raise HTTPException(status_code=503, detail="Payment notifications are not configured")
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid payment notification")
+    if not isinstance(payload, dict) or not verify_ipn_signature(payload, signature, secret):
+        raise HTTPException(status_code=401, detail="Invalid payment notification signature")
+    try:
+        result = apply_finished_payment(payload)
+        return {"ok": True, **result}
+    except ValueError as exc:
+        logger.warning("NOWPayments notification rejected: %s", str(exc)[:180])
+        raise HTTPException(status_code=400, detail="Payment notification did not match a valid subscription order")
 
 
 @app.get("/api/brokers")

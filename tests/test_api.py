@@ -85,6 +85,7 @@ def test_customer_register_login_me_and_logout(monkeypatch, tmp_path):
 
 
 def test_customer_password_and_duplicate_validation(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "customers.sqlite3"))
     with TestClient(main.app) as test_client:
@@ -300,6 +301,7 @@ def test_auth_config_reports_registration_closed_by_default(monkeypatch):
 
 
 def test_auth_config_reports_registration_enabled(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     response = client.get("/api/auth/config")
     assert response.status_code == 200
@@ -472,3 +474,15 @@ def test_risk_policy_is_demo_only_and_not_active():
     assert body["real_trading_enabled"] is False
     assert body["risk_monitoring_active"] is False
     assert body["execution_enabled"] is False
+
+
+def test_production_registration_requires_durable_storage(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.delenv("QUANTUM_PERSISTENT_STORAGE", raising=False)
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "ephemeral.sqlite3"))
+    with TestClient(main.app) as test_client:
+        response = test_client.post("/api/auth/register", json={
+            "email": "ephemeral@example.com", "password": "a-strong-password"
+        })
+        assert response.status_code == 403

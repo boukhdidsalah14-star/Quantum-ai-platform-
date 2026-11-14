@@ -31,3 +31,9 @@ services:
         sync: false
       - key: DERIV_DEMO_TOKEN
         sync: false
+      - key: NOWPAYMENTS_API_KEY
+        sync: false
+      - key: NOWPAYMENTS_IPN_SECRET
+        sync: false
+      - key: QUANTUM_PUBLIC_URL
+        value: https://quantum-ai-platform-62cz.onrender.com
