@@ -356,7 +356,7 @@ def test_deriv_signal_endpoint_returns_indicator_only(monkeypatch):
     async def fake_markets(category):
         return [{"symbol": "frxEURUSD", "market": "forex"}]
     async def fake_candles(symbol, granularity, count):
-        return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 40
+        return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 60
     monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
     monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
     response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=15m")
