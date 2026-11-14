@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import uuid
+import time
 from pathlib import Path
 from app.database import sqlite3
 import httpx
@@ -44,7 +45,7 @@ def init_db() -> None:
           account_id TEXT NOT NULL UNIQUE,
           broker TEXT NOT NULL,
           server TEXT NOT NULL,
-          created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+          created_at INTEGER NOT NULL,
           PRIMARY KEY(customer_id, platform)
         )""")
 
@@ -134,8 +135,8 @@ async def connect_customer_account(customer_id: str, platform: str, broker: str,
         with _db() as db:
             db.execute(
                 "INSERT INTO metaapi_customer_accounts "
-                "(customer_id, platform, account_id, broker, server) VALUES (?, ?, ?, ?, ?)",
-                (customer_id, platform, account_id, broker, server),
+                "(customer_id, platform, account_id, broker, server, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (customer_id, platform, account_id, broker, server, int(time.time())),
             )
         return {
             "connected": False,
