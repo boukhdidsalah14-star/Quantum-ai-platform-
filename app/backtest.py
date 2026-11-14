@@ -18,7 +18,7 @@ def backtest_candles(
     wins = losses = ties = skipped = 0
     examples = []
     final_index = len(candles) - lookahead_candles
-    for index in range(29, final_index):
+    for index in range(59, final_index):
         history = candles[: index + 1]
         signal = analyze_candles(history, timeframe)
         direction = signal["direction"]
