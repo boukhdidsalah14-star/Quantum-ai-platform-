@@ -34,8 +34,8 @@ def test_account_metadata_is_customer_isolated(monkeypatch, tmp_path):
     with metaapi_cloud._db() as db:
         db.execute(
             "INSERT INTO metaapi_customer_accounts "
-            "(customer_id, platform, account_id, broker, server) VALUES (?, ?, ?, ?, ?)",
-            (customer["id"], "mt5", "metaapi-account-1", "JustMarkets", "JM-Demo"),
+            "(customer_id, platform, account_id, broker, server, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (customer["id"], "mt5", "metaapi-account-1", "JustMarkets", "JM-Demo", 1700000000),
         )
     rows = metaapi_cloud.metadata(customer["id"])
     assert len(rows) == 1
