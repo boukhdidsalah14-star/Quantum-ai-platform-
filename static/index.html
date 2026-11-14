@@ -203,6 +203,30 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 </nav>
 
 <main>
+  <section class="section panel" id="subscription-panel" style="margin-top:14px">
+    <div class="section-head"><div><h2>QUANTUM AI Membership</h2><div class="sub">$20 USDT · TRC20 · 30 days of access</div></div><span class="pill" id="subscription-state">ACCOUNT</span></div>
+    <div id="subscription-auth">
+      <form id="subscription-auth-form" class="controls" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:end">
+        <div class="field"><label>EMAIL</label><input id="subscription-email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <div class="field"><label>PASSWORD (12+ CHARACTERS)</label><input id="subscription-password" type="password" minlength="12" autocomplete="current-password" required placeholder="Your password"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="subscription-login" type="submit">SIGN IN</button><button class="secondary" id="subscription-register" type="button" hidden>CREATE ACCOUNT</button></div>
+      </form>
+    </div>
+    <div id="subscription-account" hidden>
+      <div class="trade-row"><span id="subscription-email-label">Signed in</span><button class="secondary" id="subscription-logout" type="button">SIGN OUT</button></div>
+      <p id="subscription-status" class="sub">Checking membership…</p>
+      <button class="primary" id="subscription-checkout" type="button">SUBSCRIBE · $20 USDT / 30 DAYS</button>
+      <div id="subscription-payment" hidden class="trade-card" style="margin-top:14px">
+        <b>PAY USING USDT TRC20</b>
+        <p class="sub">Send the exact amount below to the address. Access activates only after NOWPayments confirms the payment.</p>
+        <div class="trade-row"><span>Amount</span><strong id="subscription-pay-amount">—</strong></div>
+        <div class="trade-row"><span>Network</span><strong>TRON (TRC20)</strong></div>
+        <div class="trade-row" style="display:block"><span class="sub">Payment address</span><p id="subscription-pay-address" style="overflow-wrap:anywhere;font-weight:700"></p></div>
+        <button class="secondary" id="subscription-copy-address" type="button">COPY ADDRESS</button>
+      </div>
+    </div>
+    <p id="subscription-message" class="sub" role="status">Sign in to manage your membership. New account creation is available when enabled by the service.</p>
+  </section>
   <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
   <div class="balance-hero"><div><small>QUANTUM AI · MULTI-MARKET WORKSPACE</small><strong>One terminal. Multiple markets.</strong><span class="sub">Your connected broker balances remain separate and are shown only when verified.</span></div><div class="balance-icon">◈</div></div>
     <div class="workspace active" id="workspace-dashboard">
@@ -573,6 +597,72 @@ $('cryptoTime').addEventListener('change',e=>{
   if(reduceMotion)draw(1200);else requestAnimationFrame(draw);
 })();
 
+</script>
+<script>
+(()=> {
+  const el=id=>document.getElementById(id);
+  const message=(value,error=false)=>{const node=el("subscription-message");if(node){node.textContent=value;node.style.color=error?"#ff7187":"#9bb9d6"}};
+  let signedIn=false;
+  async function refresh(){
+    try{
+      const response=await fetch("/api/auth/me");
+      if(!response.ok)throw new Error("signed out");
+      const body=await response.json();signedIn=true;
+      el("subscription-auth").hidden=true;el("subscription-account").hidden=false;
+      el("subscription-email-label").textContent=body.customer.email;
+      const sub=await fetch("/api/subscription");
+      const data=await sub.json();
+      if(!sub.ok)throw new Error(data.detail||"Membership status unavailable");
+      el("subscription-state").textContent=data.active?"ACTIVE":"INACTIVE";
+      el("subscription-status").textContent=data.active?"Membership active · "+data.days_remaining+" day(s) remaining · expires "+new Date(data.expires_at*1000).toLocaleDateString():"No active membership. Subscribe for $20 USDT TRC20 / 30 days.";
+      el("subscription-checkout").disabled=!data.payment_configured;
+      el("subscription-checkout").textContent=data.payment_configured?"SUBSCRIBE · $20 USDT / 30 DAYS":"PAYMENTS SETUP PENDING";
+      if(!data.payment_configured)message("Payment gateway setup is not complete yet. No payment can be accepted right now.");
+      else message("Your membership is ready.");
+    }catch{
+      signedIn=false;el("subscription-auth").hidden=false;el("subscription-account").hidden=true;el("subscription-state").textContent="SIGN IN";
+      const config=await fetch("/api/auth/config").then(r=>r.json()).catch(()=>({registration_enabled:false}));
+      el("subscription-register").hidden=!config.registration_enabled;
+      message("Sign in to manage membership. "+(config.registration_enabled?"You can also create an account.":"New customer registration is currently closed."));
+    }
+  }
+  el("subscription-auth-form")?.addEventListener("submit",async event=>{
+    event.preventDefault();const button=el("subscription-login");button.disabled=true;
+    try{
+      const response=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:el("subscription-email").value,password:el("subscription-password").value})});
+      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Sign in failed");
+      el("subscription-password").value="";await refresh();
+    }catch(error){message(error.message||"Sign in failed",true)}
+    finally{button.disabled=false}
+  });
+  el("subscription-register")?.addEventListener("click",async()=>{
+    const button=el("subscription-register");button.disabled=true;
+    try{
+      const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:el("subscription-email").value,password:el("subscription-password").value})});
+      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Account creation failed");
+      el("subscription-password").value="";await refresh();
+    }catch(error){message(error.message||"Account creation failed",true)}
+    finally{button.disabled=false}
+  });
+  el("subscription-logout")?.addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST"});el("subscription-payment").hidden=true;await refresh()});
+  el("subscription-checkout")?.addEventListener("click",async()=>{
+    const button=el("subscription-checkout");button.disabled=true;button.textContent="CREATING PAYMENT…";
+    try{
+      const response=await fetch("/api/subscription/checkout",{method:"POST"});
+      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Could not create checkout");
+      el("subscription-pay-amount").textContent=body.pay_amount+" USDT";
+      el("subscription-pay-address").textContent=body.pay_address;
+      el("subscription-payment").hidden=false;
+      message("Payment created. Send the exact amount over TRC20. Your account activates automatically after confirmed completion.");
+    }catch(error){message(error.message||"Payment could not be created",true)}
+    finally{button.disabled=false;button.textContent="CREATE NEW PAYMENT · $20 USDT"}
+  });
+  el("subscription-copy-address")?.addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText(el("subscription-pay-address").textContent);message("Payment address copied.")}
+    catch{message("Copy unavailable. Select and copy the address manually.",true)}
+  });
+  refresh();
+})();
 </script>
 <script src="/static/auto-trading.js?v=20261109-1905" defer></script>
 </body>
