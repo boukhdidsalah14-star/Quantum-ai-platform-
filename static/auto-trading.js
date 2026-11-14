@@ -15,7 +15,7 @@ async function get(url){const r=await fetch(url,{cache:"no-store"});const b=awai
 function mount(p){
  const section=$(p);if(!section)return;
  const panel=document.createElement("div");panel.className="panel qai-auto-panel";panel.id="auto-"+p;
- panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · AUTOMATED PAPER TRADING</b><div class='sub'>Public market analysis · In-app account execution</div></div><span class='qai-engine-pill'>QUANTUM AI ENGINE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,2,3,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START AUTO TRADING</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>ACCOUNT BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>OPEN P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
+ panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · AUTOMATED PAPER TRADING</b><div class='sub'>Public market analysis · local paper simulation only</div></div><span class='qai-engine-pill'>QUANTUM AI ENGINE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,2,3,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START PAPER ENGINE</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP PAPER ENGINE</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>ACCOUNT BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>OPEN P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
  section.appendChild(panel);
  $("auto-"+p+"-amount").addEventListener("change",e=>{const n=Number(e.target.value);if(Number.isFinite(n)&&n>0){state.amount[p]=Math.min(n,START[p]);e.target.value=state.amount[p];save();}});
  $("auto-"+p+"-expiry").addEventListener("change",e=>{state.expiry[p]=Number(e.target.value);save();});
@@ -84,7 +84,7 @@ function start(p){
  state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Paper trading started");
  tick(p);
 }
-function stop(p){state.running[p]=false;save();status(p,"ENGINE OFF · Any open position remains active until it is settled.");render(p);log(p,"Engine stopped by user");}
+function stop(p){state.running[p]=false;save();status(p,"PAPER ENGINE OFF · Any simulated position remains active until it is settled.");render(p);log(p,"Engine stopped by user");}
 async function tick(p){
  if(!state.running[p]||busy[p])return;busy[p]=true;
  try{
@@ -114,7 +114,7 @@ async function tick(p){
     status(p,"TRADE OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · simulated paper entry");
     log(p,"TRADE OPEN "+side+" "+state.positions[p].symbol+" · "+money(amount)+" at "+price);
    }
-  }else status(p,"MARKET DATA CONNECTED · ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
+  }else status(p,"MARKET DATA CONNECTED · PAPER ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
   render(p);save();
  }catch(e){status(p,"MARKET DATA ERROR · "+e.message);}
  finally{busy[p]=false;if(state.running[p])setTimeout(()=>tick(p),12000);}
