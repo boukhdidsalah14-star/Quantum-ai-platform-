@@ -55,7 +55,7 @@ def backtest_candles(
         "ties": ties,
         "waits": skipped,
         "directional_accuracy_percent": round((wins / decided) * 100, 2) if decided else None,
-        "signal_coverage_percent": round(((decided + ties) / max(1, final_index - 29)) * 100, 2),
+        "signal_coverage_percent": round(((decided + ties) / max(1, final_index - 59)) * 100, 2),
         "examples": examples,
         "execution_enabled": False,
         "disclaimer": "Historical directional test only. No broker trades, stake, payout, spread, slippage, or future performance is represented.",
