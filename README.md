@@ -199,3 +199,10 @@ The requested Forex chart universe contains EUR/USD, GBP/USD, USD/JPY, AUD/USD, 
 The crypto futures watchlist contains BTC, ETH, BNB, XRP, SOL, TRX, DOGE, ADA, BCH and LINK. Binance USD-M Futures public candles, tickers and order-book data are used for this analysis; USDT is only the quote/settlement currency, not a selectable asset. The MEXC public market-data adapter remains spot-only and is not represented as a futures feed.
 
 All analysis endpoints are read-only. Broker order execution remains separately gated and must be verified through broker demo testing before any live use.
+
+
+## JustMarkets MT4 bridge foundation
+
+The JustMarkets MT4 Expert Advisor source is in `static/mt4/QuantumAI_JustMarkets_MT4.mq4`; installation notes are in `mt4/README.md`. The authenticated bridge binds one customer token to an exact MT4 demo login and server, syncs broker-reported positions/quotes, and exposes an app chart overlay for entry, SL, TP and floating P/L.
+
+The bridge is demo-only. It refuses live accounts. Demo order commands remain disabled unless durable storage and the explicit `QUANTUM_MT4_DEMO_EXECUTION_ENABLED=true` server switch are configured. The EA also requires `EnableDemoOrderExecution=true`. The current preview has not yet been connected to a real JustMarkets MT4 desktop terminal, and the MQL4 source still needs compilation in MetaEditor and broker-demo verification. The MT4 Android app cannot run Expert Advisors.
