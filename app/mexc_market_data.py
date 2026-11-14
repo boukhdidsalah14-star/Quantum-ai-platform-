@@ -7,7 +7,11 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://api.mexc.com/api/v3"
-ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"}
+# Public data universe. Live execution remains separately restricted and disabled.
+ALLOWED_SYMBOLS = {
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT",
+    "TRXUSDT", "DOGEUSDT", "ADAUSDT", "BCHUSDT", "LINKUSDT",
+}
 ALLOWED_INTERVALS = {"1h", "4h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 8.0
@@ -31,12 +35,9 @@ async def _get_json(path: str, params: dict[str, str] | None = None) -> Any:
 async def get_market_overview() -> list[dict[str, Any]]:
     rows = await _get_json("ticker/24hr")
     return [{
-        "symbol": row["symbol"],
-        "price": row["lastPrice"],
+        "symbol": row["symbol"], "price": row["lastPrice"],
         "change_percent": str(float(row.get("priceChangePercent", 0))),
-        "high": row["highPrice"],
-        "low": row["lowPrice"],
-        "volume": row["volume"],
+        "high": row["highPrice"], "low": row["lowPrice"], "volume": row["volume"],
     } for row in rows if row.get("symbol") in ALLOWED_SYMBOLS]
 
 
@@ -51,10 +52,6 @@ async def get_candles(symbol: str, interval: str, limit: int = 72) -> list[dict[
         "symbol": symbol, "interval": interval, "limit": str(bounded_limit)
     })
     return [{
-        "time": int(row[0]),
-        "open": float(row[1]),
-        "high": float(row[2]),
-        "low": float(row[3]),
-        "close": float(row[4]),
-        "volume": float(row[5]),
+        "time": int(row[0]), "open": float(row[1]), "high": float(row[2]),
+        "low": float(row[3]), "close": float(row[4]), "volume": float(row[5]),
     } for row in rows]
