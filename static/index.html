@@ -1,671 +1,91 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QUANTUM AI — Trading Terminal</title>
-<style>
-:root {
-  --bg:#070b14;--panel:#101827;--panel2:#141f31;
-  --line:#233149;--text:#edf4ff;--muted:#8292aa;
-  --blue:#3288ff;--cyan:#20d5e7;--green:#18d995;
-  --red:#ff526d;--gold:#ffc857;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:auto;scroll-padding-top:90px}
-body{margin:0;background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);color:var(--text);font-family:Arial,Helvetica,sans-serif}
-button,input,select{font:inherit}
-button{cursor:pointer}
-.topbar{position:sticky;top:0;z-index:20;background:#080e19ed;backdrop-filter:blur(15px);border-bottom:1px solid var(--line);padding:13px 4%;display:flex;align-items:center;justify-content:space-between;gap:15px}
-.brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:2px}
-.logo{width:39px;height:39px;border-radius:12px;background:linear-gradient(135deg,#247bff,#18d9dc);display:grid;place-items:center;color:white;font-size:22px;box-shadow:0 0 25px #278bff66;animation:float 3s ease-in-out infinite}
-@keyframes float{50%{transform:translateY(-4px) rotate(8deg)}}
-.brand small{display:block;color:var(--cyan);font-size:9px;letter-spacing:3px;margin-top:3px}
-.total{text-align:right}.total small{color:var(--muted);display:block;font-size:10px;letter-spacing:1px}.total strong{font-size:22px}
-.nav{position:sticky;top:65px;z-index:15;background:#0b1220ee;border-bottom:1px solid var(--line);display:flex;gap:8px;padding:10px 4%;overflow-x:auto}
-.nav button{white-space:nowrap;border:1px solid var(--line);border-radius:9px;background:#121d2e;color:#aabbd2;padding:10px 15px;font-size:12px;font-weight:700}
-.nav button:hover,.nav button.active{background:#1765c9;color:white;border-color:#3288ff}
-main{max-width:1450px;margin:auto;padding:22px 4% 60px}
-body{overflow-x:hidden}
-/* One continuous dashboard: every section stays visible in normal page flow. */
-main{display:block;min-width:0}
-.workspace{display:none;min-width:0;animation:workspaceFade .18s ease-out}
-.workspace.active{display:block}
-@keyframes workspaceFade{from{opacity:.65}to{opacity:1}}
-@media(prefers-reduced-motion:reduce){.workspace{animation:none}}
-.section-head>div,.panel,.grid,.field{min-width:0}
-.section-head h2{line-height:1.25;overflow-wrap:anywhere}
-.sub{line-height:1.45;overflow-wrap:anywhere}
-.table{min-width:520px}
-@media(max-width:520px){
-  .topbar{gap:8px;flex-wrap:nowrap}
-  .brand{gap:8px;min-width:0;letter-spacing:1px}
-  .brand>div:last-child{font-size:11px}
-  .brand small{font-size:8px;letter-spacing:1.5px}
-  .logo{width:40px;height:40px;flex-basis:40px}
-  .total{min-width:0;max-width:46%}
-  .total small{font-size:8px;line-height:1.3}
-  .total strong{font-size:14px;white-space:nowrap}
-  .nav{gap:6px}
-  .nav button{flex:0 0 auto;font-size:11px}
-  .section-head{align-items:flex-start;flex-wrap:wrap}
-  .section-head h2{font-size:17px}
-  .panel{border-radius:12px}
-  .controls{gap:8px}
-  .field{flex:1 1 135px}
-}
-.notice{border:1px solid #735b24;background:#2c2412;color:#f5d88d;border-radius:10px;padding:11px 14px;font-size:11px;margin-bottom:20px;line-height:1.5}
-.section{margin:30px 0;scroll-margin-top:125px}
-.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}
-h2{font-size:19px;margin:0;letter-spacing:.3px}
-.sub{color:var(--muted);font-size:11px;margin-top:5px}
-.grid{display:grid;gap:14px}
-.stats{grid-template-columns:repeat(4,minmax(0,1fr))}
-.panel{background:linear-gradient(145deg,#121e30,#0e1726);border:1px solid var(--line);border-radius:15px;padding:17px;min-width:0;box-shadow:0 10px 35px #0002}
-.stat-label{font-size:10px;color:var(--muted);letter-spacing:1px}
-.stat-value{font-size:24px;font-weight:800;margin:9px 0 5px}
-.positive{color:var(--green)}.negative{color:var(--red)}.muted{color:var(--muted)}
-.two{grid-template-columns:1.5fr 1fr}
-.three{grid-template-columns:repeat(3,minmax(0,1fr))}
-.market-strip{display:flex;gap:10px;overflow-x:auto;padding:3px 0 12px}
-.market{min-width:145px;background:#101c2d;border:1px solid var(--line);padding:12px;border-radius:11px}
-.market b{display:block;font-size:13px}.market span{font-size:11px;color:var(--muted)}
-.market strong{display:block;margin-top:8px;font-size:17px}
-.chart-wrap{height:270px;position:relative;margin-top:12px}
-canvas{width:100%;height:100%;display:block}
-.chart-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.pill{padding:6px 9px;border-radius:20px;font-size:10px;background:#17263b;color:#a9c5e9;border:1px solid #2c4262}
-.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
-.field{flex:1;min-width:115px}
-.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:7px}
-.field input,.field select{width:100%;background:#091321;color:white;border:1px solid var(--line);border-radius:9px;padding:12px;outline:none}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}
-.action{border:0;border-radius:10px;padding:15px;color:white;font-weight:900;font-size:14px}
-.call{background:linear-gradient(135deg,#08a977,#19d99a)}
-.put{background:linear-gradient(135deg,#c52e51,#ff526d)}
-.primary{background:var(--blue);border:0;color:white;padding:11px 15px;border-radius:9px;font-weight:700}
-.secondary{background:#1a2a40;border:1px solid var(--line);color:#dceaff;padding:10px 14px;border-radius:9px}
-.table{width:100%;border-collapse:collapse;font-size:12px}
-.table th{text-align:left;color:var(--muted);font-weight:500;padding:12px 9px;border-bottom:1px solid var(--line)}
-.table td{padding:13px 9px;border-bottom:1px solid #1b293b}
-.table tr:last-child td{border:0}
-.table tr{cursor:pointer}.table tbody tr:hover{background:#17253a}
-.toggle{width:49px;height:27px;background:#354258;border-radius:20px;border:0;position:relative}
-.toggle:after{content:"";position:absolute;width:19px;height:19px;left:4px;top:4px;background:white;border-radius:50%;transition:.2s}
-.toggle.on{background:#0ba978}.toggle.on:after{left:26px}
-.bot-status{display:flex;align-items:center;gap:9px}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px currentColor}
-.dot.on{background:var(--green)}
-.trade-card{border:1px solid #225b55;background:linear-gradient(135deg,#102b30,#101b2b);border-radius:13px;padding:16px}
-.trade-card strong{font-size:21px}
-.trade-list{display:grid;gap:9px;margin-top:13px}
-.trade-row{display:flex;justify-content:space-between;border-bottom:1px solid #26384a;padding:9px 0;font-size:12px}
-.footer{text-align:center;color:#60728b;font-size:10px;padding:25px 0;border-top:1px solid var(--line)}
-.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);background:#17263b;border:1px solid #355477;color:white;padding:12px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:50;font-size:12px}
-.toast.show{opacity:1;transform:translate(-50%,0)}
-@media(max-width:850px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.three{grid-template-columns:1fr 1fr}.topbar{padding:11px 4%}.total strong{font-size:18px}}
-@media(max-width:520px){main{padding:15px 3% 40px}.nav{top:62px;padding:8px 3%}.nav button{padding:10px 12px}.stats{gap:9px}.panel{padding:13px}.stat-value{font-size:20px}.three{grid-template-columns:1fr}.chart-wrap{height:225px}.brand{font-size:12px}.total strong{font-size:16px}.section{margin:23px 0}}
-
-/* QUANTUM AI animated market atmosphere */
-#marketBackdrop{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.34}
-.topbar,.nav,main{position:relative;z-index:1}
-body{background:radial-gradient(ellipse at top,#14243b 0,#070b14 48%);isolation:isolate}
-.panel{background:linear-gradient(145deg,rgba(18,30,48,.88),rgba(14,23,38,.88));backdrop-filter:blur(5px)}
-.market{background:rgba(16,28,45,.84)}
-.logo{width:48px;height:48px;flex:0 0 48px;perspective:500px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.25);border-radius:13px;background:linear-gradient(110deg,#08a96c 0 49.5%,#e13b55 50.5% 100%);box-shadow:0 0 22px rgba(24,217,149,.28),0 0 25px rgba(255,82,109,.2);animation:qaiSpin 6s ease-in-out infinite;transform-style:preserve-3d}
-.logo:before{content:"";position:absolute;inset:3px;border:1px solid #ffffff55;border-radius:9px;transform:translateZ(7px)}
-.logo-face{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:.78;font-size:13px;font-weight:1000;letter-spacing:-1px;color:#fff;text-shadow:0 2px 3px #00131b,0 0 7px #ffffffaa;transform:translateZ(12px)}
-.logo-face b{display:block;font-weight:1000}
-@keyframes qaiSpin{0%{transform:rotateY(-18deg) rotateX(8deg)}25%{transform:rotateY(90deg) rotateX(-5deg)}50%{transform:rotateY(180deg) rotateX(8deg)}75%{transform:rotateY(270deg) rotateX(-5deg)}100%{transform:rotateY(342deg) rotateX(8deg)}}
-@media(prefers-reduced-motion:reduce){.logo{animation:none}html{scroll-behavior:auto}}
-
-
-:root{--bg:#020817;--panel:#04152a;--panel2:#071d36;--line:#0876c9;--text:#f1f8ff;--muted:#9bb9d6;--blue:#087cff;--cyan:#00d9ff;--green:#00ef83;--red:#ff315f;--gold:#ffd34e}
-body{background:radial-gradient(ellipse at 50% 0%,#062b50 0,#020817 55%);color:#f3f9ff}
-.topbar{background:linear-gradient(110deg,#020b1bfa,#061b36f5);border-bottom:1px solid #078dff;box-shadow:0 0 22px #007bff55}
-.brand{letter-spacing:1.5px;text-shadow:0 0 12px #00bfff}.brand small{font-size:9px;color:#00dcff;letter-spacing:1px}
-.logo{width:54px;height:54px;flex-basis:54px;border-radius:50%;background:radial-gradient(circle,#102d54 40%,#00c8ff 65%,#06214c 72%);border:2px solid #65dfff;box-shadow:0 0 22px #00aaff}
-.total small{color:#8bdcff}.total strong{color:#00f18c;text-shadow:0 0 14px #00e88b}
-.nav{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:40;justify-content:space-around;background:#020b1df2;border-top:1px solid #087cff;padding:8px 3% calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 28px #006dff44}
-.nav button{flex:1;text-align:center;border:1px solid #075ba8;border-radius:13px;background:linear-gradient(145deg,#071b35,#020b1c);color:#bde7ff;padding:10px 4px;font-size:11px}
-.nav button.active{background:linear-gradient(145deg,#063d83,#061a35);border-color:#00cfff;color:white;box-shadow:0 0 16px #008cff77}
-main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
-.notice{display:none!important}
-.section{margin:23px 0;scroll-margin-top:85px}
-.panel{border:1px solid #087de0;border-radius:20px;background:linear-gradient(145deg,rgba(3,22,46,.97),rgba(2,10,26,.97));box-shadow:0 0 0 1px #00bfff22,0 0 24px #006eff3b,inset 0 0 22px #006cff12}
-.section-head h2{font-size:clamp(18px,4vw,24px);color:#f4fbff}.sub{color:#9bb9d6}
-.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-label{color:#8ecfff}.stat-value{color:#f6fbff}
-.market{background:linear-gradient(145deg,#061b35,#020b1c);border:1px solid #0876c9;border-radius:15px}
-.market strong{color:#00e98a}.pill{background:#061d39;color:#9ee6ff;border:1px solid #0878d2}
-.chart-wrap{height:clamp(210px,48vw,310px);border:1px solid #07599b;border-radius:14px;overflow:hidden;background:#020b19}
-.field label{color:#b5d8f4}.field input,.field select{background:#020d20;border:1px solid #0874bf;border-radius:13px;padding:14px;color:white;font-size:16px;min-height:52px}
-.actions{gap:10px}.action{border-radius:13px;min-height:52px}.call{background:linear-gradient(135deg,#00a968,#00ed83)}.put{background:linear-gradient(135deg,#b81d48,#ff315f)}
-.primary{background:linear-gradient(135deg,#00a96a,#00ed83);color:#001b16;border:1px solid #6affbd;border-radius:13px;padding:15px;font-size:16px;box-shadow:0 0 18px #00ef8370}
-.trade-card{border:1px solid #00c99a;background:linear-gradient(145deg,#05252d,#06172b);border-radius:18px}
-.trade-row{border-color:#173b56;padding:12px 0}.toggle{width:58px;height:32px}.toggle.on{background:#00bc79;box-shadow:0 0 15px #00e68b88}
-@media(max-width:520px){.topbar{padding:10px 3%;gap:7px}.brand{font-size:15px;gap:9px}.brand small{font-size:8px}.logo{width:48px;height:48px;flex-basis:48px}.total strong{font-size:17px}.total small{font-size:8px}.nav button{font-size:10px;padding:10px 3px}.section{margin:20px 0}.panel{padding:14px;border-radius:19px}.stats{gap:9px}.stat-value{font-size:21px}.two{grid-template-columns:1fr}.chart-wrap{height:225px}.market-strip{gap:8px}.market{min-width:135px;padding:11px}.actions{grid-template-columns:1fr 1fr}.action{font-size:12px;padding:12px 6px}}
-.ticker{display:flex;overflow:hidden;white-space:nowrap;margin:12px 0 14px;border:1px solid #0878d2;border-radius:18px;background:linear-gradient(90deg,#04162b,#061d37);box-shadow:0 0 16px #007bff33}
-.ticker span{flex:1;text-align:center;padding:12px 5px;font-size:11px;font-weight:800;border-right:1px solid #28516e}.ticker span:last-child{border:0}.ticker b{color:#00ee8b}
-.balance-hero{display:flex;align-items:center;justify-content:space-between;margin:0 0 18px;padding:16px 19px;border:1px solid #00df91;border-radius:22px;background:linear-gradient(110deg,#062e2c,#06152d 62%,#06244b);box-shadow:0 0 20px #00e88b55}
-.balance-hero small{display:block;color:#d8efff;font-size:13px;font-weight:700}.balance-hero strong{display:block;color:#00f18b;font-size:clamp(27px,7vw,39px);margin-top:4px}.balance-icon{font-size:38px}
-@media(max-width:520px){.ticker span{font-size:9px;padding:11px 3px}.balance-hero{padding:14px 16px}.balance-icon{font-size:32px}}
-
-
-/* Final mobile terminal polish */
-.notice{display:none!important;border:0!important;background:transparent!important;color:inherit!important;padding:0!important;margin:0!important}
-.ticker{display:block;overflow:hidden;white-space:nowrap;position:relative}
-.ticker-track{display:flex;width:max-content;min-width:200%;animation:quantumTicker 28s linear infinite}
-.ticker-track span{flex:0 0 auto;min-width:150px;padding:12px 17px;text-align:center;border-right:1px solid #28516e;font-size:12px;font-weight:800}
-.ticker-track b{color:#00ef9a;text-shadow:0 0 9px #00ef9a66}
-@keyframes quantumTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.panel{box-shadow:0 10px 34px #0007,0 0 18px #087cff22,inset 0 0 18px #087cff0b}
-.section-head h2{font-size:clamp(20px,4.5vw,25px);letter-spacing:.2px}
-.stat-label{font-size:11px;letter-spacing:1.1px}
-.stat-value{font-size:clamp(22px,5vw,29px)}
-.topbar{box-shadow:0 5px 25px #006dff33}
-.logo{filter:drop-shadow(0 0 9px #00bfff66)}
-.balance-hero{position:relative;overflow:hidden}
-.balance-hero:after{content:"";position:absolute;width:170px;height:170px;right:-65px;top:-95px;border:1px solid #00e99a55;border-radius:50%;box-shadow:0 0 0 15px #00e99a0d,0 0 0 32px #00e99a08;pointer-events:none}
-@media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
-@media(max-width:520px){.ticker-track span{min-width:132px;font-size:11px;padding:12px 13px}.section-head h2{font-size:20px}.stat-label{font-size:10px}}
-
-
-.footer{line-height:1.9}
-.footer-brand{font-size:13px;font-weight:900;letter-spacing:2px;color:#dcecff;margin-bottom:6px}
-.footer-brand span{color:#24c7e8}
-.footer-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin:8px 0}
-.footer-links a{color:#79c8ff;text-decoration:none;font-weight:700}
-.footer-links a:hover{color:#fff;text-decoration:underline}
-.footer-note{max-width:720px;margin:8px auto;color:#7f91aa}
-</style>
-  <link rel="stylesheet" href="/static/floating-signal.css?v=1.0.2">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#020b1b"><title>QUANTUM AI — Trading Terminal</title>
+<link rel="stylesheet" href="/static/styles.css?v=20261114-redesign">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-<canvas id="marketBackdrop" aria-hidden="true"></canvas>
-
 <header class="topbar">
-  <div class="brand">
-    <div class="logo" aria-label="QAI three-dimensional logo"><span class="logo-face"><b>Q</b><b>A</b><b>I</b></span></div>
-    <div>QUANTUM AI<small>TRADE SMARTER · PROFIT BIGGER</small></div>
-  </div>
-  <div class="total">
-    <small>QUANTUM AI</small>
-    <strong>$183,232.00</strong>
-  </div>
+ <a class="brand" href="#" aria-label="Quantum AI home"><span class="brand-mark">Q<span>↗</span></span><span><b>QUANTUM <em>AI</em></b><small>TRADE SMARTER · GROW BIGGER</small></span></a>
+ <div class="top-actions"><span id="account-chip" class="account-chip">GUEST</span><button id="top-signin" class="outline-btn">SIGN IN</button><button id="top-account" class="icon-btn" aria-label="Account">◉</button></div>
 </header>
-
-<nav class="nav" id="navigation" aria-label="Workspace navigation">
-  <button class="active" type="button" data-workspace="workspace-dashboard" aria-current="page">⌂<br>Dashboard</button>
-  <button type="button" data-workspace="workspace-binance">₿<br>Binance</button>
-  <button type="button" data-workspace="workspace-olymp">◈<br>Olymp Trade</button>
-  <button type="button" data-workspace="workspace-metatrader">▥<br>MetaTrader 4</button>
-  <button type="button" data-workspace="workspace-history">↻<br>Trade History</button>
-</nav>
-
+<div class="ticker-shell"><div id="ticker" class="ticker"><span>CONNECTING TO LIVE MARKETS…</span></div></div>
 <main>
-  <section class="section panel" id="subscription-panel" style="margin-top:14px">
-    <div class="section-head"><div><h2>QUANTUM AI Membership</h2><div class="sub">$20 USDT · TRC20 · 30 days of access</div></div><span class="pill" id="subscription-state">ACCOUNT</span></div>
-    <div id="subscription-auth">
-      <form id="subscription-auth-form" class="controls" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:end">
-        <div class="field"><label>EMAIL</label><input id="subscription-email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
-        <div class="field"><label>PASSWORD (12+ CHARACTERS)</label><input id="subscription-password" type="password" minlength="12" autocomplete="current-password" required placeholder="Your password"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="subscription-login" type="submit">SIGN IN</button><button class="secondary" id="subscription-register" type="button" hidden>CREATE ACCOUNT</button></div>
-      </form>
-    </div>
-    <div id="subscription-account" hidden>
-      <div class="trade-row"><span id="subscription-email-label">Signed in</span><button class="secondary" id="subscription-logout" type="button">SIGN OUT</button></div>
-      <p id="subscription-status" class="sub">Checking membership…</p>
-      <button class="primary" id="subscription-checkout" type="button">SUBSCRIBE · $20 USDT / 30 DAYS</button>
-      <div id="subscription-payment" hidden class="trade-card" style="margin-top:14px">
-        <b>PAY USING USDT TRC20</b>
-        <p class="sub">Send the exact amount below to the address. Access activates only after NOWPayments confirms the payment.</p>
-        <div class="trade-row"><span>Amount</span><strong id="subscription-pay-amount">—</strong></div>
-        <div class="trade-row"><span>Network</span><strong>TRON (TRC20)</strong></div>
-        <div class="trade-row" style="display:block"><span class="sub">Payment address</span><p id="subscription-pay-address" style="overflow-wrap:anywhere;font-weight:700"></p></div>
-        <button class="secondary" id="subscription-copy-address" type="button">COPY ADDRESS</button>
-      </div>
-    </div>
-    <p id="subscription-message" class="sub" role="status">Sign in to manage your membership. New account creation is available when enabled by the service.</p>
-  </section>
-  <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
-  <div class="balance-hero"><div><small>QUANTUM AI · MULTI-MARKET WORKSPACE</small><strong>One terminal. Multiple markets.</strong><span class="sub">Your connected broker balances remain separate and are shown only when verified.</span></div><div class="balance-icon">◈</div></div>
-    <div class="workspace active" id="workspace-dashboard">
-<section class="section" id="overview">
-    <div class="section-head">
-      <div><h2>Terminal Overview</h2><div class="sub">Your unified market command center</div></div>
-      <span class="pill">MARKET SETUP</span>
-    </div>
-    <div class="grid stats">
-      <div class="panel"><div class="stat-label">OLYMP-STYLE PAPER ACCOUNT</div><div class="stat-value">$63,578.00</div><div class="sub">SIMULATED BALANCE · NOT REAL FUNDS</div></div>
-      <div class="panel"><div class="stat-label">FOREX PAPER ACCOUNT</div><div class="stat-value">$13,790.00</div><div class="sub">SIMULATED BALANCE · NOT A BROKER BALANCE</div></div>
-      <div class="panel"><div class="stat-label">CRYPTO PAPER ACCOUNT</div><div class="stat-value">$78,578.00</div><div class="sub">SIMULATED BALANCE · NOT REAL FUNDS</div></div>
-      <div class="panel"><div class="stat-label">ENGINE STATUS</div><div class="stat-value" id="overviewBot">ENGINE OFF</div><div class="sub">Engine control</div></div>
-    </div>
-
-    <div class="section" style="margin-top:20px">
-      <div class="section-head"><div><h2>Market Watch</h2><div class="sub">Public market data</div></div></div>
-      <div class="market-strip">
-        <div class="market"><b>EUR/USD</b><span>FOREX</span><strong>1.08425</strong><span class="positive">+0.24%</span></div>
-        <div class="market"><b>GBP/USD</b><span>FOREX</span><strong>1.27180</strong><span class="positive">+0.18%</span></div>
-        <div class="market"><b>USD/JPY</b><span>FOREX</span><strong>149.820</strong><span class="negative">-0.12%</span></div>
-        <div class="market"><b>BTC/USDT</b><span>CRYPTO</span><strong>67,420</strong><span class="positive">+1.32%</span></div>
-        <div class="market"><b>ETH/USDT</b><span>CRYPTO</span><strong>3,520</strong><span class="negative">-0.42%</span></div>
-      </div>
-    </div>
-  </section>
-  <section class="section" id="bot">
-    <div class="section-head">
-      <div><h2>Bot Control & Strategy</h2><div class="sub">Automated strategy controls</div></div>
-      <span class="pill">CONTROL CENTER</span>
-    </div>
-    <div class="grid two">
-      <div class="panel">
-        <div class="chart-top">
-          <div><b>Quantum AI Engine</b><div class="sub">Quantum AI engine controls</div></div>
-          <button class="toggle" id="botToggle" aria-label="Toggle Quantum AI engine" onclick="toggleBot()"></button>
-        </div>
-        <div class="bot-status" style="margin:18px 0"><span class="dot" id="botDot"></span><b id="botStatus">ENGINE OFF</b></div>
-        <div class="controls">
-          <div class="field"><label>TRADE AMOUNT ($)</label><input id="botAmount" type="number" min="1" value="1000"></div>
-          <div class="field"><label>DURATION</label><select id="botDuration"><option>1 minute</option><option>5 minutes</option><option selected>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
-          <div class="field"><label>LOSS LIMIT (%)</label><input id="lossLimit" type="number" min="1" max="100" value="10"></div>
-        </div>
-        <button class="primary" style="width:100%;margin-top:15px" onclick="saveSettings()">SAVE SETTINGS</button>
-      </div>
-      <div class="panel">
-        <b>Strategy Monitor</b>
-        <div class="trade-list">
-          <div class="trade-row"><span>Strategy</span><b>Quantum AI</b></div>
-          <div class="trade-row"><span>Market</span><b>Multi-market</b></div>
-          <div class="trade-row"><span>Risk limit</span><b id="riskDisplay">10%</b></div>
-          <div class="trade-row"><span>Trade amount</span><b id="botAmountDisplay">$1,000</b></div>
-          <div class="trade-row"><span>Trade duration</span><b id="botDurationDisplay">10 minutes</b></div>
-          <div class="trade-row"><span>Broker connection</span><b class="negative">IN-APP ONLY</b></div>
-        </div>
-        <p class="sub" style="line-height:1.6">The engine analyzes public market data and manages positions in Quantum AI's built-in account ledger. It does not route orders to external brokers.</p>
-      </div>
-    </div>
-  </section>
+ <section class="page active" id="page-home" data-page="home">
+  <div class="hero-card">
+   <div class="hero-copy"><span class="eyebrow">AI-POWERED MULTI-MARKET TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>One command centre for Forex, binary options, crypto futures and automated strategies.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ MULTI-PLATFORM</span><span>⌁ RISK CONTROLS</span></div></div>
+   <div class="hero-orbit"><div class="orbit-ring"></div><div class="hero-logo">Q<span>↗</span></div><div class="orbit-dot"></div></div>
   </div>
-
-    <div class="workspace" id="workspace-olymp">
-<section class="section" id="binary">
-    <div class="section-head">
-      <div><h2>Binary Options · Olymp Trade Layout</h2><div class="sub">Binary trading terminal</div></div>
-      <span class="pill">82% PAYOUT SETUP</span>
-    </div>
-    <div class="grid two">
-      <div class="panel">
-        <div class="chart-top"><div><b>EUR/USD</b><div class="sub">1.08425 · Market quote</div></div><span class="pill">10 MIN CHART</span></div>
-        <div class="chart-wrap"><canvas id="binaryChart"></canvas></div>
-        <div class="controls">
-          <div class="field"><label>ASSET</label><select id="binaryAsset"><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>EUR/JPY</option></select></div>
-          <div class="field"><label>DURATION</label><select id="binaryDuration"><option>1 minute</option><option>2 minutes</option><option>3 minutes</option><option selected>5 minutes</option><option>10 minutes</option><option>15 minutes</option><option>30 minutes</option><option>60 minutes</option></select></div>
-          <div class="field"><label>TRADE AMOUNT ($)</label><input id="binaryAmount" type="number" min="1" value="1000"></div>
-        </div>
-        <div class="actions">
-          <button class="action call" onclick="prepareTrade('CALL')">▲ UP / CALL</button>
-          <button class="action put" onclick="prepareTrade('PUT')">▼ DOWN / PUT</button>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="section-head"><div><b>Trade Setup</b><div class="sub">Order details</div></div><span class="pill">SETUP</span></div>
-        <div class="trade-card">
-          <div class="bot-status"><span class="dot on"></span><span class="positive">ACTIVE SETUP</span></div>
-          <div style="margin:15px 0"><strong id="activeAsset">EUR/USD</strong><div class="sub">Binary Options</div></div>
-          <div class="trade-list">
-            <div class="trade-row"><span>Amount</span><b id="activeAmount">$1,000</b></div>
-            <div class="trade-row"><span>Duration</span><b id="activeDuration">10 minutes</b></div>
-            <div class="trade-row"><span>Direction</span><b id="activeDirection">CALL</b></div>
-            <div class="trade-row"><span>Countdown</span><b id="countdown">08:45</b></div>
-            <div class="trade-row"><span>Execution</span><b class="negative">IN-APP ONLY</b></div>
-          </div>
-        </div>
-        <p class="sub" style="line-height:1.6">Choose UP or DOWN to prepare a trade setup inside Quantum AI.</p>
-      </div>
-    </div>
+  <div class="balance-grid">
+   <article class="metric-card"><small>MARKET STATUS</small><strong class="live-text">● LIVE FEEDS</strong><span>Public market data</span></article>
+   <article class="metric-card"><small>MEMBERSHIP</small><strong id="home-membership">GUEST ACCESS</strong><span id="home-membership-note">Sign in to manage access</span></article>
+  </div>
+  <section class="panel chart-panel">
+   <div class="section-title"><div><span class="eyebrow">MARKET OVERVIEW</span><h2 id="chart-title">EUR / USD</h2></div><span class="live-badge">● LIVE</span></div>
+   <div class="chart-toolbar"><select id="home-pair" aria-label="Select Forex pair"></select><select id="home-timeframe" aria-label="Chart timeframe"><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select><span id="current-price">—</span></div>
+   <div class="chart-box"><canvas id="price-chart"></canvas></div>
+   <div class="chart-legend"><span><i class="green-dot"></i> Bullish candle</span><span><i class="red-dot"></i> Bearish candle</span><span id="feed-label">Deriv public Forex feed</span></div>
   </section>
-  </div>
-
-    <div class="workspace" id="workspace-metatrader">
-<section class="section" id="forex">
-    <div class="section-head">
-      <div><h2>Forex · MetaTrader 4 Layout</h2><div class="sub">Bid / Ask / Spread market watch</div></div>
-      <span class="pill">MT4 STYLE</span>
-    </div>
-    <div class="grid two">
-      <div class="panel">
-        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MT4-inspired paper account · no MT4 orders are sent</div></div><span class="pill">ACCOUNT VIEW</span></div>
-        <div class="stat-value">$13,790.00</div>
-        <div class="sub">Simulated forex paper balance · not a connected MT4 account</div>
-        <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
-      </div>
-      <div class="panel">
-        <b>Market Watch</b><div class="sub">Select a pair to highlight it</div>
-        <div style="overflow-x:auto;margin-top:12px">
-          <table class="table">
-            <thead><tr><th>SYMBOL</th><th>BID</th><th>ASK</th><th>SPREAD</th></tr></thead>
-            <tbody id="forexRows">
-              <tr onclick="selectPair(this,'EUR/USD')"><td>EURUSD</td><td>1.08425</td><td>1.08438</td><td>1.3</td></tr>
-              <tr onclick="selectPair(this,'GBP/USD')"><td>GBPUSD</td><td>1.27180</td><td>1.27196</td><td>1.6</td></tr>
-              <tr onclick="selectPair(this,'USD/JPY')"><td>USDJPY</td><td>149.820</td><td>149.836</td><td>1.6</td></tr>
-              <tr onclick="selectPair(this,'AUD/USD')"><td>AUDUSD</td><td>0.65210</td><td>0.65225</td><td>1.5</td></tr>
-              <tr onclick="selectPair(this,'USD/CAD')"><td>USDCAD</td><td>1.36120</td><td>1.36138</td><td>1.8</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="trade-card" style="margin-top:15px">
-          <div class="sub">SELECTED INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
-          <div class="sub">Market data is supplied by public price feeds.</div>
-        </div>
-      </div>
-    </div>
+  <section class="quick-grid">
+   <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>AI Signals</b><small>Analyse 8 Forex pairs</small></button>
+   <button class="quick-card" data-goto="automation"><span class="quick-icon blue">▥</span><b>Auto Trading</b><small>MT4 & crypto futures</small></button>
+   <button class="quick-card" data-goto="account"><span class="quick-icon green">◇</span><b>Membership</b><small>Unlock trading access</small></button>
   </section>
-  </div>
+ </section>
 
-    <div class="workspace" id="workspace-binance">
-<section class="section" id="crypto">
-    <div class="section-head">
-      <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average</div></div>
-      <span class="pill">SPOT STYLE</span>
-    </div>
-    <div class="panel">
-      <div class="chart-top">
-        <div><b style="font-size:18px">BTC / USDT</b><div class="sub">67,420.00 USDT · Market quote</div></div>
-        <div class="positive">+1.32%</div>
-      </div>
-      <div class="controls">
-        <div class="field"><label>PAIR</label><select id="cryptoPair"><option>BTC/USDT</option><option>ETH/USDT</option><option>BNB/USDT</option><option>SOL/USDT</option></select></div>
-        <div class="field"><label>TIMEFRAME</label><select id="cryptoTime"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
-      </div>
-      <div class="chart-wrap" style="height:330px"><canvas id="cryptoChart"></canvas></div>
-      <div class="market-strip">
-        <div class="market"><b>24H HIGH</b><strong>68,120</strong></div>
-        <div class="market"><b>24H LOW</b><strong>66,180</strong></div>
-        <div class="market"><b>24H VOLUME</b><strong>1.28B</strong></div>
-        <div class="market"><b>MA(20)</b><strong>67,110</strong></div>
-      </div>
-    </div>
+ <section class="page" id="page-signals" data-page="signals">
+  <div class="page-heading"><span class="eyebrow">QUANTUM INTELLIGENCE</span><h1>Signals <i>Centre</i></h1><p>Choose a pair and timeframe, then request a fresh indicator analysis.</p></div>
+  <div class="signal-layout">
+   <div class="panel pair-panel"><div class="section-title"><h2>Forex watchlist</h2><span class="live-badge">8 PAIRS</span></div><div id="pair-list" class="pair-list"></div></div>
+   <div class="panel signal-panel"><div class="section-title"><div><span class="eyebrow">SELECTED MARKET</span><h2 id="signal-pair-title">EUR / USD</h2></div><span id="signal-feed" class="live-badge">DERIV</span></div>
+    <div class="signal-controls"><label>TIMEFRAME<select id="signal-timeframe"><option>1m</option><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option></select></label><label>EXPIRY<select id="signal-expiry"><option value="1">1 min</option><option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label></div>
+    <button id="get-signal" class="signal-button"><span>ϟ</span> GENERATE SIGNAL</button>
+    <div id="signal-result" class="signal-result idle"><div class="signal-arrow">↗</div><b>READY TO ANALYSE</b><small>Sign in and activate membership to generate signals.</small></div>
+    <div id="signal-details" class="signal-details" hidden></div>
+    <p class="risk-note">Signals are indicator-based research, not guaranteed outcomes. Verify the quote and expiry on your broker before acting.</p>
+   </div>
+  </div>
+  <div class="panel"><div class="section-title"><h2>Signal history</h2><span class="muted">This session</span></div><div id="signal-history" class="history-list"><p class="muted">No signals generated yet.</p></div></div>
+ </section>
+
+ <section class="page" id="page-automation" data-page="automation">
+  <div class="page-heading"><span class="eyebrow">AUTOMATION HUB</span><h1>Auto <i>Trading</i></h1><p>Connect your own accounts. Execution stays locked until each provider connection and safety check is verified.</p></div>
+  <div class="provider-card">
+   <div class="provider-icon mt4-icon">MT4</div><div class="provider-copy"><span class="eyebrow">FOREX · EXPERT ADVISOR</span><h2>MetaTrader 4</h2><p>Automated strategy execution through an MT4 Expert Advisor installed in your broker terminal.</p><div class="provider-tags"><span>Broker account</span><span>EA bridge required</span><span>Risk limits</span></div></div><span class="provider-state pending">CONNECTOR SETUP</span>
+   <button class="provider-action" data-provider="mt4">VIEW MT4 SETUP <b>→</b></button>
+  </div>
+  <div class="provider-card">
+   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · PERPETUAL FUTURES</span><h2>MEXC Futures</h2><p>Selected for the futures integration because its official API documents contract orders and position management. Futures API access requires eligible KYC and API permissions.</p><div class="provider-tags"><span>USDT contracts</span><span>API keys</span><span>Kill switch</span></div></div><span class="provider-state locked">LOCKED</span>
+   <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
+  </div>
+  <div class="provider-card">
+   <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS</span><h2>Deriv</h2><p>Public market analysis is available. Your own verified demo account can be connected for demo execution after server safety gates are configured.</p><div class="provider-tags"><span>CALL / PUT</span><span>Demo-first</span><span>Trade ledger</span></div></div><span class="provider-state pending">DEMO GATE</span>
+   <button class="provider-action" data-provider="deriv">VIEW DERIV STATUS <b>→</b></button>
+  </div>
+  <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Daily loss limit</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">No live futures or MT4 orders are sent from this screen yet. Exchange futures API is live-only (no sandbox), so it must remain disabled until a reviewed, customer-isolated execution adapter and demo/paper test path are complete.</p></div>
+ </section>
+
+ <section class="page" id="page-account" data-page="account">
+  <div class="page-heading"><span class="eyebrow">YOUR QUANTUM ACCOUNT</span><h1>Account <i>& Access</i></h1><p>Explore the terminal before subscribing. Trading actions remain locked until your $20 membership is active.</p></div>
+  <section class="panel auth-panel">
+   <div class="section-title"><div><span class="eyebrow">MEMBER LOGIN</span><h2 id="auth-heading">Sign in or create account</h2></div><span id="auth-state" class="live-badge">GUEST</span></div>
+   <div id="auth-form-wrap"><form id="auth-form"><label>Email address<input id="auth-email" type="email" autocomplete="email" required placeholder="you@example.com"></label><label>Password<input id="auth-password" type="password" minlength="12" autocomplete="current-password" required placeholder="At least 12 characters"></label><div class="auth-buttons"><button class="solid-btn" type="submit" id="signin-button">SIGN IN</button><button class="outline-btn" type="button" id="signup-button" hidden>CREATE ACCOUNT</button></div></form></div>
+   <div id="signed-in-panel" hidden><div class="member-row"><span id="member-email">—</span><button id="signout-button" class="outline-btn">SIGN OUT</button></div><div class="membership-card"><small>MEMBERSHIP STATUS</small><strong id="membership-status">NOT ACTIVE</strong><span id="membership-expiry">Activate your membership to unlock trading.</span></div><button id="checkout-button" class="solid-btn wide-btn" disabled>SUBSCRIBE · $20 USDT TRC20</button><div id="payment-box" class="payment-box" hidden><b>PAYMENT REQUEST</b><div class="payment-line"><span>Amount</span><strong id="pay-amount">—</strong></div><div class="payment-line"><span>Network</span><strong>USDT · TRON (TRC20)</strong></div><p>Payment address</p><code id="pay-address"></code><button id="copy-address" class="outline-btn">COPY ADDRESS</button><small>Access activates automatically only after the signed payment notification confirms completion.</small></div></div>
+   <p id="auth-message" class="form-message">Sign in to manage your membership. You can browse public market information as a guest.</p>
   </section>
-  </div>
-
-
-
-    <div class="workspace" id="workspace-history">
-<section class="section" id="history">
-    <div class="section-head">
-      <div><h2>Trade History</h2><div class="sub">Order records and outcomes</div></div>
-      <span class="pill">ACTIVITY LOG</span>
-    </div>
-    <div class="panel">
-      <div class="chart-top"><div><b>Recent Trades</b><div class="sub">Closed positions managed by the Quantum AI in-app engine appear here.</div></div><span class="pill">TRADE RECORDS</span></div>
-      <div style="overflow-x:auto;margin-top:12px">
-        <table class="table">
-          <thead><tr><th>TIME</th><th>MARKET</th><th>TYPE</th><th>AMOUNT</th><th>RESULT</th><th>STATUS</th></tr></thead>
-          <tbody id="historyRows"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--muted)">No completed trades have been recorded yet.</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-  </div>
-  <div class="footer">
-  <div class="footer-brand">QUANTUM AI <span>·</span> PROFESSIONAL MARKET TOOLS</div>
-  <div class="footer-links">
-    <a href="/static/download.html">Download Android app</a>
-    <a href="mailto:supportveloxlabs@gmail.com?subject=QUANTUM%20AI%20Support">Contact support</a>
-    <a href="https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases" target="_blank" rel="noopener">Release notes</a>
-  </div>
-  <div class="footer-note">Trading involves risk. Signals are informational and do not guarantee results. Demo and simulated balances are not real funds.</div>
-  <div>© QUANTUM AI · supportveloxlabs@gmail.com</div>
-</div>
+  <section class="panel support-panel"><div class="section-title"><h2>Support</h2><span class="live-badge">HELP DESK</span></div><p>Need help with your account, payment or connection?</p><a href="mailto:supportveloxlabs@gmail.com">supportveloxlabs@gmail.com</a><div class="support-links"><a href="https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/releases" target="_blank" rel="noopener">Android releases ↗</a><a href="https://github.com/boukhdidsalah14-star/Quantum-ai-platform-" target="_blank" rel="noopener">Project status ↗</a></div></section>
+ </section>
 </main>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const $ = id => document.getElementById(id);
-
-function notify(message){
-  const t=$('toast');t.textContent=message;t.classList.add('show');
-  clearTimeout(window.toastTimer);
-  window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
-}
-
-// Isolated workspace navigation: only the selected page is rendered.
-const navigationButtons = Array.from(document.querySelectorAll('#navigation button[data-workspace]'));
-const workspaces = Array.from(document.querySelectorAll('main > .workspace'));
-function activateWorkspace(workspaceId){
-  const selected=document.getElementById(workspaceId);
-  if(!selected || !selected.classList.contains('workspace')) return;
-  workspaces.forEach(page=>page.classList.toggle('active',page===selected));
-  navigationButtons.forEach(button=>{
-    const active=button.dataset.workspace===workspaceId;
-    button.classList.toggle('active',active);
-    if(active) button.setAttribute('aria-current','page');
-    else button.removeAttribute('aria-current');
-  });
-  window.scrollTo({top:0,behavior:'auto'});
-  requestAnimationFrame(()=>drawAll());
-}
-navigationButtons.forEach(button=>{
-  button.addEventListener('click',()=>activateWorkspace(button.dataset.workspace));
-});
-// Candlestick chart renderer.
-function drawChart(canvasId, count=38, volume=false){
-  const canvas=$(canvasId);
-  if(!canvas)return;
-  const rect=canvas.getBoundingClientRect();
-  const ratio=window.devicePixelRatio||1;
-  canvas.width=Math.max(1,rect.width*ratio);
-  canvas.height=Math.max(1,rect.height*ratio);
-  const ctx=canvas.getContext('2d');
-  ctx.setTransform(ratio,0,0,ratio,0,0);
-  const w=rect.width,h=rect.height;
-  ctx.clearRect(0,0,w,h);
-  const pad=18, chartH=volume?h*.72:h-15;
-  ctx.strokeStyle='#233149';ctx.lineWidth=1;
-  for(let i=0;i<5;i++){
-    const y=pad+(chartH-pad)*i/4;
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
-  }
-  let values=[],v=.52;
-  for(let i=0;i<count;i++){
-    v+=((Math.random()-.47)*.105);
-    v=Math.max(.13,Math.min(.88,v));
-    values.push(v);
-  }
-  const step=(w-2*pad)/count;
-  values.forEach((value,i)=>{
-    const x=pad+i*step+step*.5;
-    const spread=.025+Math.random()*.07;
-    const open=value+(Math.random()-.5)*.06;
-    const close=value+(Math.random()-.5)*.07;
-    const high=Math.max(open,close)+spread*.45;
-    const low=Math.min(open,close)-spread*.45;
-    const y=n=>pad+(1-n)*(chartH-pad);
-    const up=close>=open;
-    ctx.strokeStyle=up?'#18d995':'#ff526d';
-    ctx.fillStyle=ctx.strokeStyle;
-    ctx.beginPath();ctx.moveTo(x,y(high));ctx.lineTo(x,y(low));ctx.stroke();
-    const top=Math.min(y(open),y(close));
-    const height=Math.max(2,Math.abs(y(open)-y(close)));
-    ctx.fillRect(x-step*.29,top,step*.58,height);
-    if(volume){
-      ctx.globalAlpha=.4;
-      ctx.fillRect(x-step*.29,chartH+8,step*.58,(h-chartH-13)*(.15+Math.random()*.75));
-      ctx.globalAlpha=1;
-    }
-  });
-  if(volume){
-    ctx.strokeStyle='#3288ff';ctx.lineWidth=2;ctx.beginPath();
-    values.forEach((value,i)=>{
-      const x=pad+i*step+step*.5,y=pad+(1-value)* (chartH-pad);
-      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-    });
-    ctx.stroke();
-  }
-}
-function drawAll(){
-  drawChart('binaryChart',35);
-  drawChart('forexChart',35);
-  drawChart('cryptoChart',48,true);
-}
-window.addEventListener('load',drawAll);
-window.addEventListener('resize',drawAll);
-
-// Binary trade setup.
-function prepareTrade(direction){
-  const amount=Number($('binaryAmount').value);
-  if(!Number.isFinite(amount)||amount<=0){notify('Enter a valid trade amount.');return;}
-  $('activeAsset').textContent=$('binaryAsset').value;
-  $('activeAmount').textContent='$'+amount.toLocaleString();
-  $('activeDuration').textContent=$('binaryDuration').value;
-  $('activeDirection').textContent=direction;
-  $('activeDirection').className=direction==='CALL'?'positive':'negative';
-  $('countdown').textContent='10:00';
-  notify(direction+' trade setup prepared in Quantum AI.');
-}
-
-// Forex row selection.
-function selectPair(row,pair){
-  document.querySelectorAll('#forexRows tr').forEach(r=>r.style.background='');
-  row.style.background='#1b3553';
-  $('selectedPair').textContent=pair;
-  notify(pair+' selected.');
-}
-
-// Bot engine switch.
-function toggleBot(){
-  const toggle=$('botToggle');
-  const isOn=!toggle.classList.contains('on');
-  toggle.classList.toggle('on',isOn);
-  $('botStatus').textContent=isOn?'ENGINE ON':'ENGINE OFF';
-  $('overviewBot').textContent=isOn?'ENGINE ON':'ENGINE OFF';
-  $('botDot').classList.toggle('on',isOn);
-  notify(isOn?'Quantum AI engine switched ON.':'Quantum AI engine switched OFF.');
-}
-function saveSettings(){
-  const amount=Number($('botAmount').value);
-  const risk=Number($('lossLimit').value);
-  if(!Number.isFinite(amount)||amount<=0){notify('Enter a valid amount.');return;}
-  if(!Number.isFinite(risk)||risk<1||risk>100){notify('Loss limit must be between 1 and 100%.');return;}
-  $('botAmountDisplay').textContent='$'+amount.toLocaleString();
-  $('botDurationDisplay').textContent=$('botDuration').value;
-  $('riskDisplay').textContent=risk+'%';
-  notify('Settings saved.');
-}
-$('cryptoPair').addEventListener('change',e=>{
-  notify(e.target.value+' selected.');
-  drawChart('cryptoChart',48,true);
-});
-$('cryptoTime').addEventListener('change',e=>{
-  notify(e.target.value+' timeframe selected.');
-  drawChart('cryptoChart',48,true);
-});
-
-(function(){
-  const canvas=document.getElementById('marketBackdrop');
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  const reduceMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let width=0,height=0,dpr=1,last=0;
-  const lanes=Array.from({length:6},(_,i)=>({phase:i*1.17,speed:.00055+i*.000075,candles:Array.from({length:42},(_,j)=>({seed:j*.63+i*2.1,drift:Math.random()*Math.PI*2}))}));
-  function resize(){dpr=Math.min(window.devicePixelRatio||1,2);width=window.innerWidth;height=window.innerHeight;canvas.width=Math.floor(width*dpr);canvas.height=Math.floor(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0)}
-  function draw(time){
-    if(!reduceMotion&&time-last<32){requestAnimationFrame(draw);return}
-    last=time;ctx.clearRect(0,0,width,height);
-    const laneH=height/6;
-    lanes.forEach((lane,index)=>{
-      const center=laneH*(index+.5);
-      ctx.strokeStyle='rgba(115,150,190,.075)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,center);ctx.lineTo(width,center);ctx.stroke();
-      const step=width/lane.candles.length;
-      lane.candles.forEach((c,j)=>{
-        const wave=Math.sin(time*lane.speed+c.seed+c.drift+lane.phase);
-        const wave2=Math.sin(time*lane.speed*.57+c.seed*.7+lane.phase);
-        const mid=center+wave*laneH*.29+wave2*laneH*.08;
-        const bodyH=7+Math.abs(Math.sin(time*.001+c.seed*2))*13;
-        const x=j*step+step*.5;
-        const rising=Math.sin(time*.0008+c.seed*1.35+lane.phase)>0;
-        const color=rising?'rgba(24,217,149,.82)':'rgba(255,82,109,.82)';
-        ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,mid-bodyH*1.35);ctx.lineTo(x,mid+bodyH*1.35);ctx.stroke();
-        ctx.globalAlpha=.82;ctx.fillRect(x-Math.max(2,step*.19),mid-bodyH*.5,Math.max(4,step*.38),bodyH);ctx.globalAlpha=1;
-      });
-    });
-    if(!reduceMotion)requestAnimationFrame(draw);
-  }
-  resize();window.addEventListener('resize',resize,{passive:true});
-  if(reduceMotion)draw(1200);else requestAnimationFrame(draw);
-})();
-
-</script>
-<script>
-(()=> {
-  const el=id=>document.getElementById(id);
-  const message=(value,error=false)=>{const node=el("subscription-message");if(node){node.textContent=value;node.style.color=error?"#ff7187":"#9bb9d6"}};
-  let signedIn=false;
-  async function refresh(){
-    try{
-      const response=await fetch("/api/auth/me");
-      if(!response.ok)throw new Error("signed out");
-      const body=await response.json();signedIn=true;
-      el("subscription-auth").hidden=true;el("subscription-account").hidden=false;
-      el("subscription-email-label").textContent=body.customer.email;
-      const sub=await fetch("/api/subscription");
-      const data=await sub.json();
-      if(!sub.ok)throw new Error(data.detail||"Membership status unavailable");
-      el("subscription-state").textContent=data.active?"ACTIVE":"INACTIVE";
-      el("subscription-status").textContent=data.active?"Membership active · "+data.days_remaining+" day(s) remaining · expires "+new Date(data.expires_at*1000).toLocaleDateString():"No active membership. Subscribe for $20 USDT TRC20 / 30 days.";
-      el("subscription-checkout").disabled=!data.payment_configured;
-      el("subscription-checkout").textContent=data.payment_configured?"SUBSCRIBE · $20 USDT / 30 DAYS":"PAYMENTS SETUP PENDING";
-      if(!data.payment_configured)message("Payment gateway setup is not complete yet. No payment can be accepted right now.");
-      else message("Your membership is ready.");
-    }catch{
-      signedIn=false;el("subscription-auth").hidden=false;el("subscription-account").hidden=true;el("subscription-state").textContent="SIGN IN";
-      const config=await fetch("/api/auth/config").then(r=>r.json()).catch(()=>({registration_enabled:false}));
-      el("subscription-register").hidden=!config.registration_enabled;
-      message("Sign in to manage membership. "+(config.registration_enabled?"You can also create an account.":"New customer registration is currently closed."));
-    }
-  }
-  el("subscription-auth-form")?.addEventListener("submit",async event=>{
-    event.preventDefault();const button=el("subscription-login");button.disabled=true;
-    try{
-      const response=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:el("subscription-email").value,password:el("subscription-password").value})});
-      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Sign in failed");
-      el("subscription-password").value="";await refresh();
-    }catch(error){message(error.message||"Sign in failed",true)}
-    finally{button.disabled=false}
-  });
-  el("subscription-register")?.addEventListener("click",async()=>{
-    const button=el("subscription-register");button.disabled=true;
-    try{
-      const response=await fetch("/api/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:el("subscription-email").value,password:el("subscription-password").value})});
-      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Account creation failed");
-      el("subscription-password").value="";await refresh();
-    }catch(error){message(error.message||"Account creation failed",true)}
-    finally{button.disabled=false}
-  });
-  el("subscription-logout")?.addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST"});el("subscription-payment").hidden=true;await refresh()});
-  el("subscription-checkout")?.addEventListener("click",async()=>{
-    const button=el("subscription-checkout");button.disabled=true;button.textContent="CREATING PAYMENT…";
-    try{
-      const response=await fetch("/api/subscription/checkout",{method:"POST"});
-      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Could not create checkout");
-      el("subscription-pay-amount").textContent=body.pay_amount+" USDT";
-      el("subscription-pay-address").textContent=body.pay_address;
-      el("subscription-payment").hidden=false;
-      message("Payment created. Send the exact amount over TRC20. Your account activates automatically after confirmed completion.");
-    }catch(error){message(error.message||"Payment could not be created",true)}
-    finally{button.disabled=false;button.textContent="CREATE NEW PAYMENT · $20 USDT"}
-  });
-  el("subscription-copy-address")?.addEventListener("click",async()=>{
-    try{await navigator.clipboard.writeText(el("subscription-pay-address").textContent);message("Payment address copied.")}
-    catch{message("Copy unavailable. Select and copy the address manually.",true)}
-  });
-  refresh();
-})();
-</script>
-<script src="/static/auto-trading.js?v=20261109-1905" defer></script>
-<script src="/static/floating-signal.js?v=1.0.2" defer></script>
-</body>
-</html>
+<div class="floating-launch"><button id="floating-open" aria-label="Open floating signal window">ϟ</button></div>
+<div id="floating-window" class="floating-window" hidden>
+ <div id="floating-head" class="floating-head"><b>QUANTUM SIGNAL</b><button id="floating-close" aria-label="Close">×</button></div>
+ <div class="floating-body"><select id="floating-pair" aria-label="Floating pair"></select><button id="floating-signal" class="signal-button">GET SIGNAL</button><div id="floating-result" class="floating-result">Choose a pair to analyse.</div><small>In-app floating panel. System-wide overlay over other apps requires a separate Android overlay permission/service.</small></div>
+</div>
+<div id="provider-modal" class="modal" hidden><div class="modal-card"><button id="modal-close" class="modal-close">×</button><span class="eyebrow">INTEGRATION DETAILS</span><h2 id="modal-title">Provider</h2><p id="modal-copy"></p><button class="solid-btn wide-btn" id="modal-ok">GOT IT</button></div></div>
+<div id="toast" class="toast" role="status"></div>
+<div class="ad-footer"><div class="ad-inner"><span>ADVERTISEMENT</span><b>QUANTUM AI · TRADE SMARTER</b><small>Sponsored placements will appear here when an ad network is configured.</small></div></div>
+<nav class="bottom-nav" aria-label="Main pages"><button class="active" data-nav="home"><span>⌂</span>HOME</button><button data-nav="signals"><span>ϟ</span>SIGNALS</button><button data-nav="automation"><span>▥</span>AUTO</button><button data-nav="account"><span>◉</span>ACCOUNT</button></nav>
+<script src="/static/app.js?v=20261114-redesign"></script>
+</body></html>
