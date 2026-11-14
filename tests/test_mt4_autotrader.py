@@ -104,3 +104,23 @@ def test_auto_trader_can_be_stopped_by_customer(monkeypatch, tmp_path):
     stopped = stop_auto_trader(customer["id"])
     assert stopped["active"] is False
     assert "stopped" in stopped["last_message"].lower()
+
+
+def test_stop_cancels_pending_auto_commands_but_preserves_manual_commands(monkeypatch, tmp_path):
+    customer = setup_auto(monkeypatch, tmp_path)
+    start_auto_trader(customer["id"], "XAUUSD", "15m", 0.01)
+    from app.mt4_bridge import _connect, _now
+    with _connect() as db:
+        for command_id in ("qai_a_pending1", "qai_manual1"):
+            db.execute("""
+                INSERT INTO mt4_bridge_commands
+                    (command_id, customer_id, symbol, side, lots, stop_loss,
+                     take_profit, status, created_at, updated_at)
+                VALUES (?, ?, 'XAUUSD', 'BUY', 0.01, 1998, 2004, 'pending', ?, ?)
+            """, (command_id, customer["id"], _now(), _now()))
+    stop_auto_trader(customer["id"])
+    with _connect() as db:
+        auto = db.execute("SELECT status FROM mt4_bridge_commands WHERE command_id='qai_a_pending1'").fetchone()
+        manual = db.execute("SELECT status FROM mt4_bridge_commands WHERE command_id='qai_manual1'").fetchone()
+    assert auto["status"] == "cancelled"
+    assert manual["status"] == "pending"
