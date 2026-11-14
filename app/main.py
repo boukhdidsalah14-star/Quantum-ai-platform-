@@ -456,7 +456,7 @@ async def mt4_bridge_commands(
             item["command_id"], item["symbol"], item["side"],
             str(item["lots"]), str(item["stop_loss"]), str(item["take_profit"]),
         ]) for item in commands]
-        return Response(content="\\n".join(lines), media_type="text/plain")
+        return Response(content="\n".join(lines), media_type="text/plain")
     except BridgeAuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc))
 
