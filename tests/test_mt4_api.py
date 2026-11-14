@@ -84,3 +84,32 @@ def test_mt4_command_polling_is_empty_until_server_switch_is_enabled(monkeypatch
         })
         assert response.status_code == 200
         assert response.text == ""
+
+
+def test_mt4_candle_endpoint_returns_broker_candles_for_signed_in_customer(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "mt4-candles.sqlite3"))
+    with TestClient(main.app) as client:
+        register_member(client)
+        registered = client.post("/api/mt4/bridge/register", json={
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2"
+        })
+        token = registered.json()["bridge_token"]
+        rows = [{
+            "time": 1700000000 + i * 900, "open": 2000 + i * 0.1,
+            "high": 2000.2 + i * 0.1, "low": 1999.9 + i * 0.1,
+            "close": 2000.1 + i * 0.1, "volume": 100 + i,
+        } for i in range(60)]
+        sync = client.post("/api/mt4/bridge/candles", headers={
+            "Authorization": "Bearer " + token
+        }, json={
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2",
+            "company": "JustMarkets Ltd", "symbol": "XAUUSD",
+            "timeframe": "15m", "candles": rows,
+        })
+        assert sync.status_code == 200
+        chart = client.get("/api/mt4/candles/XAUUSD?timeframe=15m")
+        assert chart.status_code == 200
+        assert chart.json()["source"] == "JustMarkets MT4 broker candles"
+        assert len(chart.json()["candles"]) == 60

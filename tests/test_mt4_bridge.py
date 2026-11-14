@@ -11,6 +11,8 @@ from app.mt4_bridge import (
     register_bridge,
     sync_snapshot,
     order_status,
+    get_mt4_candles,
+    sync_candles,
 )
 
 
@@ -107,3 +109,43 @@ def test_mt4_demo_order_enforces_symbol_size_and_stop_direction(monkeypatch, tmp
         enqueue_demo_order(customer["id"], "XAUUSD", "BUY", 0.20, 1990, 2020)
     with pytest.raises(ValueError, match="BUY"):
         enqueue_demo_order(customer["id"], "XAUUSD", "BUY", 0.01, 2010, 2020)
+
+
+def test_mt4_broker_candles_are_authenticated_and_retrievable(monkeypatch, tmp_path):
+    customer, token = setup_bridge(monkeypatch, tmp_path)
+    rows = []
+    for i in range(60):
+        close = 2000 + i * 0.1
+        rows.append({
+            "time": 1700000000 + i * 900,
+            "open": close - 0.05, "high": close + 0.10,
+            "low": close - 0.10, "close": close, "volume": 100 + i,
+        })
+    result = sync_candles(token, {
+        "account_login": "12345678", "account_server": "JustMarkets-Demo2",
+        "company": "JustMarkets Ltd", "symbol": "XAUUSD",
+        "timeframe": "15m", "candles": rows,
+    })
+    saved = get_mt4_candles(customer["id"], "XAUUSD", "15m")
+    assert result["candles_received"] == 60
+    assert saved["source"] == "JustMarkets MT4 broker candles"
+    assert saved["candles"][0]["time"] == rows[0]["time"]
+
+
+def test_mt4_broker_candles_reject_unapproved_symbols_and_bad_ohlc(monkeypatch, tmp_path):
+    _, token = setup_bridge(monkeypatch, tmp_path)
+    rows = [{"time": 1700000000 + i * 900, "open": 1.1, "high": 1.2,
+             "low": 1.0, "close": 1.15, "volume": 10} for i in range(60)]
+    with pytest.raises(ValueError, match="symbol"):
+        sync_candles(token, {
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2",
+            "company": "JustMarkets Ltd", "symbol": "BTCUSDT",
+            "timeframe": "15m", "candles": rows,
+        })
+    rows[-1]["high"] = 0.5
+    with pytest.raises(ValueError, match="high"):
+        sync_candles(token, {
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2",
+            "company": "JustMarkets Ltd", "symbol": "EURUSD",
+            "timeframe": "15m", "candles": rows,
+        })

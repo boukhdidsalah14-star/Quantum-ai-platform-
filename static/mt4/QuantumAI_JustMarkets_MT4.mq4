@@ -13,9 +13,14 @@ input string BridgeToken = "";
 input int ExpectedAccountLogin = 0;
 input string ExpectedServer = "";
 input int SyncIntervalSeconds = 5;
+input ENUM_TIMEFRAMES ChartTimeframe = PERIOD_M15;
+input int CandleSyncIntervalSeconds = 30;
+input int CandleCount = 100;
 input bool EnableDemoOrderExecution = false;
 input int MagicNumber = 914110;
 input int SlippagePoints = 30;
+
+datetime lastCandleSync = 0;
 
 string Symbols[10] = {
    "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
@@ -159,6 +164,69 @@ string BuildSyncPayload()
    payload += "\"quotes\":{" + quotes + "}";
    payload += "}";
    return payload;
+}
+
+string TimeframeString()
+{
+   if(ChartTimeframe == PERIOD_M1) return "1m";
+   if(ChartTimeframe == PERIOD_M5) return "5m";
+   if(ChartTimeframe == PERIOD_M15) return "15m";
+   if(ChartTimeframe == PERIOD_M30) return "30m";
+   if(ChartTimeframe == PERIOD_H1) return "1h";
+   if(ChartTimeframe == PERIOD_H4) return "4h";
+   if(ChartTimeframe == PERIOD_D1) return "1d";
+   return "";
+}
+
+bool SyncSymbolCandles(string symbol)
+{
+   string timeframe = TimeframeString();
+   if(timeframe == "") return false;
+   int wanted = MathMax(50, MathMin(CandleCount, 200));
+   int bars = iBars(symbol, ChartTimeframe);
+   if(bars < 50) return false;
+   int count = MathMin(wanted, bars);
+   string candles = "";
+   int added = 0;
+   for(int shift=count-1; shift>=0; shift--)
+   {
+      datetime candleTime = iTime(symbol, ChartTimeframe, shift);
+      double openPrice = iOpen(symbol, ChartTimeframe, shift);
+      double highPrice = iHigh(symbol, ChartTimeframe, shift);
+      double lowPrice = iLow(symbol, ChartTimeframe, shift);
+      double closePrice = iClose(symbol, ChartTimeframe, shift);
+      long volume = iVolume(symbol, ChartTimeframe, shift);
+      if(candleTime <= 0 || openPrice <= 0 || highPrice <= 0 || lowPrice <= 0 || closePrice <= 0)
+         continue;
+      if(added > 0) candles += ",";
+      int digits = (int)MarketInfo(symbol, MODE_DIGITS);
+      candles += "{";
+      candles += "\"time\":" + IntegerToString((int)candleTime) + ",";
+      candles += "\"open\":" + DoubleToString(openPrice, digits) + ",";
+      candles += "\"high\":" + DoubleToString(highPrice, digits) + ",";
+      candles += "\"low\":" + DoubleToString(lowPrice, digits) + ",";
+      candles += "\"close\":" + DoubleToString(closePrice, digits) + ",";
+      candles += "\"volume\":" + IntegerToString((int)volume);
+      candles += "}";
+      added++;
+   }
+   if(added < 50) return false;
+   string body = "{";
+   body += "\"account_login\":\"" + IntegerToString(AccountNumber()) + "\",";
+   body += "\"account_server\":\"" + JsonEscape(AccountServer()) + "\",";
+   body += "\"company\":\"" + JsonEscape(AccountCompany()) + "\",";
+   body += "\"symbol\":\"" + symbol + "\",";
+   body += "\"timeframe\":\"" + timeframe + "\",";
+   body += "\"candles\":[" + candles + "]";
+   body += "}";
+   string response = "";
+   return HttpRequest("POST", "/api/mt4/bridge/candles", body, response);
+}
+
+void SyncAllMarketCandles()
+{
+   for(int i=0; i<ArraySize(Symbols); i++)
+      SyncSymbolCandles(Symbols[i]);
 }
 
 bool SyncAccount()
@@ -311,6 +379,8 @@ int OnInit()
    EventSetTimer(MathMax(2, SyncIntervalSeconds));
    Print("QUANTUM AI JustMarkets MT4 bridge connected in read-only demo sync mode.");
    SyncAccount();
+   SyncAllMarketCandles();
+   lastCandleSync = TimeCurrent();
    return INIT_SUCCEEDED;
 }
 
@@ -323,6 +393,11 @@ void OnTimer()
 {
    if(!AccountIsExpected()) return;
    SyncAccount();
+   if(TimeCurrent() - lastCandleSync >= MathMax(10, CandleSyncIntervalSeconds))
+   {
+      SyncAllMarketCandles();
+      lastCandleSync = TimeCurrent();
+   }
    PollCommands();
 }
 
