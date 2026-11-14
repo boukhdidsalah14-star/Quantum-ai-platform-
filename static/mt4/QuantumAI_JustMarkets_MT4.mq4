@@ -13,6 +13,7 @@ input string BridgeToken = "";
 input int ExpectedAccountLogin = 0;
 input string ExpectedServer = "";
 input int SyncIntervalSeconds = 5;
+input ENUM_TIMEFRAMES ChartTimeframe = PERIOD_M15;
 input int CandleSyncIntervalSeconds = 30;
 input int CandleCount = 100;
 input bool EnableDemoOrderExecution = false;
@@ -165,24 +166,24 @@ string BuildSyncPayload()
    return payload;
 }
 
-string TimeframeString(ENUM_TIMEFRAMES tf)
+string TimeframeString()
 {
-   if(tf == PERIOD_M1) return "1m";
-   if(tf == PERIOD_M5) return "5m";
-   if(tf == PERIOD_M15) return "15m";
-   if(tf == PERIOD_M30) return "30m";
-   if(tf == PERIOD_H1) return "1h";
-   if(tf == PERIOD_H4) return "4h";
-   if(tf == PERIOD_D1) return "1d";
+   if(ChartTimeframe == PERIOD_M1) return "1m";
+   if(ChartTimeframe == PERIOD_M5) return "5m";
+   if(ChartTimeframe == PERIOD_M15) return "15m";
+   if(ChartTimeframe == PERIOD_M30) return "30m";
+   if(ChartTimeframe == PERIOD_H1) return "1h";
+   if(ChartTimeframe == PERIOD_H4) return "4h";
+   if(ChartTimeframe == PERIOD_D1) return "1d";
    return "";
 }
 
-bool SyncSymbolCandles(string symbol, ENUM_TIMEFRAMES tf)
+bool SyncSymbolCandles(string symbol)
 {
-   string timeframe = TimeframeString(tf);
+   string timeframe = TimeframeString();
    if(timeframe == "") return false;
    int wanted = MathMax(50, MathMin(CandleCount, 200));
-   int bars = iBars(symbol, tf);
+   int bars = iBars(symbol, ChartTimeframe);
    if(bars < 51) return false;
    // Include only completed candles; shift 0 is still forming and must not drive a signal.
    int count = MathMin(wanted + 1, bars);
@@ -190,12 +191,12 @@ bool SyncSymbolCandles(string symbol, ENUM_TIMEFRAMES tf)
    int added = 0;
    for(int shift=count-1; shift>=1; shift--)
    {
-      datetime candleTime = iTime(symbol, tf, shift);
-      double openPrice = iOpen(symbol, tf, shift);
-      double highPrice = iHigh(symbol, tf, shift);
-      double lowPrice = iLow(symbol, tf, shift);
-      double closePrice = iClose(symbol, tf, shift);
-      long volume = iVolume(symbol, tf, shift);
+      datetime candleTime = iTime(symbol, ChartTimeframe, shift);
+      double openPrice = iOpen(symbol, ChartTimeframe, shift);
+      double highPrice = iHigh(symbol, ChartTimeframe, shift);
+      double lowPrice = iLow(symbol, ChartTimeframe, shift);
+      double closePrice = iClose(symbol, ChartTimeframe, shift);
+      long volume = iVolume(symbol, ChartTimeframe, shift);
       if(candleTime <= 0 || openPrice <= 0 || highPrice <= 0 || lowPrice <= 0 || closePrice <= 0)
          continue;
       if(added > 0) candles += ",";
@@ -225,10 +226,8 @@ bool SyncSymbolCandles(string symbol, ENUM_TIMEFRAMES tf)
 
 void SyncAllMarketCandles()
 {
-   ENUM_TIMEFRAMES timeframes[5] = {PERIOD_M5, PERIOD_M15, PERIOD_M30, PERIOD_H1, PERIOD_H4};
    for(int i=0; i<ArraySize(Symbols); i++)
-      for(int j=0; j<ArraySize(timeframes); j++)
-         SyncSymbolCandles(Symbols[i], timeframes[j]);
+      SyncSymbolCandles(Symbols[i]);
 }
 
 bool SyncAccount()
