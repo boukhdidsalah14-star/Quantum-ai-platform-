@@ -20,7 +20,25 @@ def broker_capabilities() -> dict:
         persistent_storage_ready
         and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
     )
+    mt4_demo_execution_enabled = (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and os.getenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "").strip().lower() == "true"
+    )
     brokers = [
+        {
+            "id": "justmarkets_mt4",
+            "name": "JustMarkets MT4",
+            "category": "forex",
+            "status": "ea_bridge_foundation_not_verified",
+            "connection_verified": False,
+            "supported_scope": ["customer_bound_demo_ea_token", "account_heartbeat",
+                                "open_position_sync", "broker_quote_sync", "demo_order_queue"],
+            "execution_enabled": False,
+            "demo_execution_code_available": True,
+            "demo_execution_enabled": mt4_demo_execution_enabled,
+            "real_execution_enabled": False,
+            "note": "The MT4 Expert Advisor and customer-isolated bridge foundation are present. The EA must be compiled and connected to the registered JustMarkets demo terminal before verification. Demo order execution stays locked until durable storage and an explicit server-side demo switch are enabled. Real-account execution is disabled.",
+        },
         {
             "id": "deriv",
             "name": "Deriv",
