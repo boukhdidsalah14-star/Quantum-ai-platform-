@@ -15,7 +15,7 @@ from app.market_data import ALLOWED_SYMBOLS, get_order_book
 from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
-from app.mexc_live_execution import get_account_info as get_mexc_account_info, MexcExecutionError
+from app.mexc_futures_execution import get_futures_account_info as get_mexc_account_info, MexcFuturesError
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
@@ -799,10 +799,10 @@ async def mexc_connection(request: Request):
 
 @app.post("/api/connections/mexc/verify")
 async def verify_and_save_mexc_connection(payload: MexcCredentials, request: Request):
-    """Verify MEXC account access using a signed read-only request.
+    """Verify MEXC USD-M futures account access using a signed read-only request.
 
-    MEXC Spot has no sandbox. This endpoint never places or cancels orders.
-    Customers should use an API key with read-only permission and IP restrictions.
+    This endpoint never places or cancels orders. Customers should use an API key
+    with futures account/trade-reading permission and IP restrictions.
     """
     _check_same_origin(request)
     init_auth_db()
@@ -819,7 +819,7 @@ async def verify_and_save_mexc_connection(payload: MexcCredentials, request: Req
         return {**verified, "credential_saved": saved.get("connected", False),
                 "persistence_required": False,
                 "note": "Account verified and credentials encrypted. No order was placed."}
-    except MexcExecutionError as exc:
+    except MexcFuturesError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
