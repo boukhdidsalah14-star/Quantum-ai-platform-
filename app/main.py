@@ -89,6 +89,7 @@ class CryptoPaperAutoRequest(BaseModel):
     timeframe: str = Field(default="1h", min_length=2, max_length=3)
     account_balance: float = Field(gt=0, le=1000000)
     risk_percent: float = Field(default=0.5, gt=0, le=1)
+    leverage: int = Field(default=1, ge=1, le=20)
 
 
 class MT4BridgeRegistration(BaseModel):
@@ -1120,6 +1121,7 @@ async def auto_crypto_paper_entry(
             analysis,
             account_balance=payload.account_balance,
             risk_percent=payload.risk_percent,
+            leverage=payload.leverage,
         )
         if plan is None:
             return {
@@ -1133,7 +1135,7 @@ async def auto_crypto_paper_entry(
         trade = open_paper_trade(
             customer["id"], symbol, plan["side"], plan["quantity"],
             plan["entry_price"], plan["stop_loss"], plan["take_profit"],
-            idempotency_key,
+            idempotency_key, leverage=payload.leverage,
         )
         return {
             "created": True,
