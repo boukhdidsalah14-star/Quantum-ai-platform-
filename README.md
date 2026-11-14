@@ -206,3 +206,12 @@ All analysis endpoints are read-only. Broker order execution remains separately 
 The JustMarkets MT4 Expert Advisor source is in `static/mt4/QuantumAI_JustMarkets_MT4.mq4`; installation notes are in `mt4/README.md`. The authenticated bridge binds one customer token to an exact MT4 demo login and server, syncs broker-reported positions/quotes and OHLC candles for all ten Forex symbols, and exposes an app chart overlay for entry, SL, TP and floating P/L.
 
 The bridge is demo-only. It refuses live accounts. Demo order commands remain disabled unless durable storage and the explicit `QUANTUM_MT4_DEMO_EXECUTION_ENABLED=true` server switch are configured. The EA also requires `EnableDemoOrderExecution=true`. The current preview has not yet been connected to a real JustMarkets MT4 desktop terminal, and the MQL4 source still needs compilation in MetaEditor and broker-demo verification. The MT4 Android app cannot run Expert Advisors.
+
+
+## JustMarkets MT4 demo auto-trader
+
+The preview now includes a customer-specific demo auto-trader control and server monitor. After a customer has an active membership and a connected JustMarkets MT4 demo terminal, they can choose one of the ten supported Forex symbols, a timeframe, a 0.01–0.10 lot size, ATR-based stop/target distances, and a 1–10% equity-drawdown stop.
+
+The strategy reads completed MT4 broker candles, applies the conservative multi-indicator signal engine, and queues at most one idempotent command per completed candle. It waits on weak/unclear signals, avoids opening a second position on the same symbol, and pauses when the configured equity-drawdown limit is reached. The EA also refuses non-demo accounts and has its own EnableDemoOrderExecution input, which defaults to false.
+
+The persistent Neon database is connected and the bridge/auto-trader tables are initialized. The server-side MT4 demo execution switch remains OFF pending end-to-end verification with a compiled EA on a real JustMarkets demo terminal. No live-account execution is implemented. The MQL4 source still requires MetaEditor compilation and broker-demo verification before the demo auto-trader can be called complete.
