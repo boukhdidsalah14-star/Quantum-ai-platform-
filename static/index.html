@@ -56,6 +56,14 @@
    <div class="provider-icon mt4-icon">MT4</div><div class="provider-copy"><span class="eyebrow">FOREX · EXPERT ADVISOR</span><h2>MetaTrader 4</h2><p>Automated strategy execution through an MT4 Expert Advisor installed in your broker terminal.</p><div class="provider-tags"><span>Broker account</span><span>EA bridge required</span><span>Risk limits</span></div></div><span class="provider-state pending">CONNECTOR SETUP</span>
    <button class="provider-action" data-provider="mt4">VIEW MT4 SETUP <b>→</b></button>
   </div>
+  <section class="panel mt4-live-chart" id="mt4-live-chart">
+   <div class="section-title"><div><span class="eyebrow">MT4 POSITION MONITOR</span><h2>Live Trade Chart</h2></div><span id="mt4-chart-state" class="live-badge">MARKET DATA CHECK</span></div>
+   <div class="chart-toolbar"><label for="mt4-chart-symbol">ASSET</label><select id="mt4-chart-symbol"><option value="XAUUSD">XAUUSD · GOLD</option></select><label for="mt4-chart-timeframe">TIMEFRAME</label><select id="mt4-chart-timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="3600">1h</option><option value="14400">4h</option></select><span id="mt4-chart-price">—</span></div>
+   <div class="chart-box mt4-chart-box"><canvas id="mt4-trade-chart" aria-label="XAUUSD candlestick chart"></canvas></div>
+   <div class="chart-legend"><span><i class="green-dot"></i> Bullish</span><span><i class="red-dot"></i> Bearish</span><span>Gold line: MT4 entry (when connected)</span></div>
+   <div class="mt4-position-strip"><div><small>MT4 CONNECTION</small><strong id="mt4-connection-state">NOT CONNECTED</strong></div><div><small>OPEN MT4 POSITION</small><strong id="mt4-open-position">NONE REPORTED</strong></div><div><small>FLOATING P/L</small><strong id="mt4-open-pnl">—</strong></div></div>
+   <p class="risk-note" id="mt4-chart-note">Market chart preview only. No MT4 account is connected, so no broker position, entry, stop-loss, take-profit or floating P/L is being reported. Connect an MT4 Expert Advisor bridge before enabling execution.</p>
+  </section>
   <div class="provider-card">
    <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · PERPETUAL FUTURES</span><h2>MEXC Futures</h2><p>Selected for the futures integration because its official API documents contract orders and position management. Futures API access requires eligible KYC and API permissions.</p><div class="provider-tags"><span>USDT contracts</span><span>API keys</span><span>Kill switch</span></div></div><span class="provider-state locked">LOCKED</span>
    <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
@@ -88,4 +96,5 @@
 <div class="ad-footer"><div class="ad-inner"><span>ADVERTISEMENT</span><b>QUANTUM AI · TRADE SMARTER</b><small>Sponsored placements will appear here when an ad network is configured.</small></div></div>
 <nav class="bottom-nav" aria-label="Main pages"><button class="active" data-nav="home"><span>⌂</span>HOME</button><button data-nav="signals"><span>ϟ</span>SIGNALS</button><button data-nav="automation"><span>▥</span>AUTO</button><button data-nav="account"><span>◉</span>ACCOUNT</button></nav>
 <script src="/static/app.js?v=20261114-redesign"></script>
+<script src="/static/mt4-chart.js?v=20261114-xau-chart"></script>
 </body></html>
