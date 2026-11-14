@@ -12,7 +12,7 @@ import android.content.Intent;
 import android.net.Uri;
 
 public class MainActivity extends Activity {
-    private static final String HOME = "https://quantum-ai-platform-62cz.onrender.com/";
+    private static final String HOME = "https://quantum-ai-iqoption-preview.onrender.com/";
     private WebView webView;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +35,7 @@ public class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
-                if (host.equals("quantum-ai-platform-62cz.onrender.com")) return false;
+                if (host.equals("quantum-ai-iqoption-preview.onrender.com")) return false;
                 try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
                 return true;
             }
