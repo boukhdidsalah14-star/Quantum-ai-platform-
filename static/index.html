@@ -546,7 +546,7 @@ navigationButtons.forEach(button=>{
 // Candlestick chart renderer.
 function drawChart(canvasId, count=38, volume=false){
   const canvas=$(canvasId);
-  if(!canvas)return;
+  if(!canvas||canvas.dataset.real==="1")return;
   const rect=canvas.getBoundingClientRect();
   const ratio=window.devicePixelRatio||1;
   canvas.width=Math.max(1,rect.width*ratio);
@@ -649,11 +649,11 @@ function saveSettings(){
 }
 $('cryptoPair').addEventListener('change',e=>{
   notify(e.target.value+' selected.');
-  drawChart('cryptoChart',48,true);
+  window.dispatchEvent(new CustomEvent('qai:refresh-platform-chart',{detail:{platform:'crypto'}}));
 });
 $('cryptoTime').addEventListener('change',e=>{
   notify(e.target.value+' timeframe selected.');
-  drawChart('cryptoChart',48,true);
+  window.dispatchEvent(new CustomEvent('qai:refresh-platform-chart',{detail:{platform:'crypto'}}));
 });
 
 (function(){
