@@ -6,7 +6,7 @@ import json
 import os
 import re
 import secrets
-import sqlite3
+from app.database import sqlite3
 import time
 from pathlib import Path
 from typing import Any
