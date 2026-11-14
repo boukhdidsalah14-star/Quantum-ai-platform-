@@ -56,9 +56,30 @@
    <div class="provider-icon mt4-icon">MT4</div><div class="provider-copy"><span class="eyebrow">FOREX · EXPERT ADVISOR</span><h2>MetaTrader 4</h2><p>Automated strategy execution through an MT4 Expert Advisor installed in your broker terminal.</p><div class="provider-tags"><span>Broker account</span><span>EA bridge required</span><span>Risk limits</span></div></div><span class="provider-state pending">CONNECTOR SETUP</span>
    <button class="provider-action" data-provider="mt4">VIEW MT4 SETUP <b>→</b></button>
   </div>
+  <section class="panel mt4-bridge-panel" id="mt4-bridge-panel">
+   <div class="section-title"><div><span class="eyebrow">JUSTMARKETS · MT4 DEMO BRIDGE</span><h2>Connect your MT4 terminal</h2></div><span id="mt4-bridge-status" class="live-badge">NOT CONNECTED</span></div>
+   <form id="mt4-bridge-form" class="auth-form">
+    <label>MT4 account login<input id="mt4-account-login" inputmode="numeric" autocomplete="off" minlength="5" maxlength="12" placeholder="Your demo account number" required></label>
+    <label>Exact MT4 server<input id="mt4-account-server" autocomplete="off" maxlength="120" placeholder="Example: JustMarkets-Demo2" required></label>
+    <button class="solid-btn wide-btn" type="submit">GENERATE SECURE EA TOKEN</button>
+   </form>
+   <div id="mt4-bridge-token-box" class="payment-box" hidden><b>ONE-TIME EA TOKEN</b><code id="mt4-bridge-token"></code><button id="mt4-copy-token" class="outline-btn" type="button">COPY TOKEN</button><p><a href="/static/mt4/QuantumAI_JustMarkets_MT4.mq4" download>Download QUANTUM AI MT4 Expert Advisor (.mq4)</a></p><small>Copy the token into the EA inputs before attaching it to your JustMarkets MT4 demo terminal. The token is stored as a hash and cannot be displayed again.</small></div>
+   <div id="mt4-bridge-details" class="mt4-position-strip"><div><small>ACCOUNT</small><strong id="mt4-bridge-account">—</strong></div><div><small>BALANCE</small><strong id="mt4-bridge-balance">—</strong></div><div><small>EQUITY</small><strong id="mt4-bridge-equity">—</strong></div></div>
+   <p id="mt4-bridge-message" class="risk-note">Demo connection only. The EA will report real MT4 positions and quotes. Real-account execution is disabled.</p>
+   <div class="section-title"><h3>Demo order test</h3><span class="live-badge">LOCKED BY DEFAULT</span></div>
+   <form id="mt4-demo-order-form" class="signal-controls">
+    <label>ASSET<select id="mt4-order-symbol"><option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option><option>USDCHF</option><option>NZDUSD</option><option>EURJPY</option><option>GBPJPY</option></select></label>
+    <label>SIDE<select id="mt4-order-side"><option>BUY</option><option>SELL</option></select></label>
+    <label>LOTS<input id="mt4-order-lots" type="number" min="0.01" max="0.10" step="0.01" value="0.01" required></label>
+    <label>STOP LOSS<input id="mt4-order-sl" type="number" min="0.00000001" step="0.00001" required></label>
+    <label>TAKE PROFIT<input id="mt4-order-tp" type="number" min="0.00000001" step="0.00001" required></label>
+    <button id="mt4-demo-order-submit" class="outline-btn" type="submit">QUEUE DEMO ORDER</button>
+   </form>
+   <div id="mt4-order-history" class="history-list"><p class="muted">No MT4 commands yet.</p></div>
+  </section>
   <section class="panel mt4-live-chart" id="mt4-live-chart">
    <div class="section-title"><div><span class="eyebrow">MT4 POSITION MONITOR</span><h2>Live Trade Chart</h2></div><span id="mt4-chart-state" class="live-badge">MARKET DATA CHECK</span></div>
-   <div class="chart-toolbar"><label for="mt4-chart-symbol">ASSET</label><select id="mt4-chart-symbol"><option value="XAUUSD">XAUUSD · GOLD</option></select><label for="mt4-chart-timeframe">TIMEFRAME</label><select id="mt4-chart-timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="3600">1h</option><option value="14400">4h</option></select><span id="mt4-chart-price">—</span></div>
+   <div class="chart-toolbar"><label for="mt4-chart-symbol">ASSET</label><select id="mt4-chart-symbol"><option value="XAUUSD">XAUUSD · GOLD</option><option value="EURUSD">EURUSD</option><option value="GBPUSD">GBPUSD</option><option value="USDJPY">USDJPY</option><option value="AUDUSD">AUDUSD</option><option value="USDCAD">USDCAD</option><option value="USDCHF">USDCHF</option><option value="NZDUSD">NZDUSD</option><option value="EURJPY">EURJPY</option><option value="GBPJPY">GBPJPY</option></select><label for="mt4-chart-timeframe">TIMEFRAME</label><select id="mt4-chart-timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="3600">1h</option><option value="14400">4h</option></select><span id="mt4-chart-price">—</span></div>
    <div class="chart-box mt4-chart-box"><canvas id="mt4-trade-chart" aria-label="XAUUSD candlestick chart"></canvas></div>
    <div class="chart-legend"><span><i class="green-dot"></i> Bullish</span><span><i class="red-dot"></i> Bearish</span><span>Gold line: MT4 entry (when connected)</span></div>
    <div class="mt4-position-strip"><div><small>MT4 CONNECTION</small><strong id="mt4-connection-state">NOT CONNECTED</strong></div><div><small>OPEN MT4 POSITION</small><strong id="mt4-open-position">NONE REPORTED</strong></div><div><small>FLOATING P/L</small><strong id="mt4-open-pnl">—</strong></div></div>
