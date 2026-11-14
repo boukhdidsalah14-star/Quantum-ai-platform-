@@ -55,6 +55,36 @@ async function loadCryptoMarkets(){
   $("crypto-market-list").innerHTML="<p class='muted'>Crypto futures feed temporarily unavailable.</p>";
  }
 }
+let cryptoCandles=[];
+function drawCryptoChart(){
+ const canvas=$("crypto-price-chart"),box=canvas.parentElement;
+ const width=box.clientWidth,height=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);
+ canvas.width=width*dpr;canvas.height=height*dpr;
+ const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
+ ctx.strokeStyle="#0b3153";ctx.lineWidth=1;
+ for(let i=1;i<5;i++){const y=height*i/5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}
+ if(!cryptoCandles.length){ctx.fillStyle="#7998b7";ctx.font="12px Inter";ctx.fillText("Waiting for futures candles…",16,height/2);return;}
+ const low=Math.min(...cryptoCandles.map(c=>Number(c.low))),high=Math.max(...cryptoCandles.map(c=>Number(c.high))),span=high-low||1;
+ const step=width/cryptoCandles.length,body=Math.max(2,step*.52);
+ cryptoCandles.forEach((c,i)=>{
+  const x=i*step+step/2,open=height-(Number(c.open)-low)/span*height*.86-height*.07,close=height-(Number(c.close)-low)/span*height*.86-height*.07;
+  const top=height-(Number(c.high)-low)/span*height*.86-height*.07,bottom=height-(Number(c.low)-low)/span*height*.86-height*.07;
+  const rising=Number(c.close)>=Number(c.open);ctx.strokeStyle=rising?"#00e99a":"#ff456b";ctx.fillStyle=ctx.strokeStyle;
+  ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);ctx.stroke();
+  ctx.fillRect(x-body/2,Math.min(open,close),body,Math.max(2,Math.abs(close-open)));
+ });
+}
+async function loadCryptoChart(){
+ try{
+  const symbol=$("crypto-symbol").value,interval=$("crypto-timeframe").value;
+  const response=await fetch("/api/candles/"+encodeURIComponent(symbol)+"?interval="+encodeURIComponent(interval)+"&limit=100");
+  if(!response.ok)throw Error("Futures candles unavailable");
+  const data=await response.json();cryptoCandles=data.candles||[];drawCryptoChart();
+ }catch(error){cryptoCandles=[];drawCryptoChart();}
+}
+$("crypto-symbol").addEventListener("change",loadCryptoChart);
+$("crypto-timeframe").addEventListener("change",loadCryptoChart);
+window.addEventListener("resize",drawCryptoChart);
 async function runCryptoAnalysis(){
  if(!signed||!member){nav("account");toast("Sign in and activate membership to generate analysis");return;}
  const symbol=$("crypto-symbol").value;
@@ -103,7 +133,7 @@ const providerInfo={
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
