@@ -87,3 +87,13 @@ def test_wrong_network_is_rejected(tmp_path, monkeypatch):
     import pytest
     with pytest.raises(ValueError):
         subscriptions.apply_finished_payment(payload)
+
+
+def test_payment_checkout_requires_durable_storage(monkeypatch):
+    monkeypatch.setenv("NOWPAYMENTS_API_KEY", "test-api-key")
+    monkeypatch.setenv("NOWPAYMENTS_IPN_SECRET", "test-ipn-secret")
+    monkeypatch.setenv("QUANTUM_PUBLIC_URL", "https://quantum.example")
+    monkeypatch.delenv("QUANTUM_PERSISTENT_STORAGE", raising=False)
+    assert subscriptions.payment_configured() is False
+    monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
+    assert subscriptions.payment_configured() is True
