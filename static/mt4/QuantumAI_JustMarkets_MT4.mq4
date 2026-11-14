@@ -191,6 +191,12 @@ int FindExistingCommand(string commandComment)
       if(OrderMagicNumber() == MagicNumber && OrderComment() == commandComment)
          return OrderTicket();
    }
+   for(int j=0; j<OrdersHistoryTotal(); j++)
+   {
+      if(!OrderSelect(j, SELECT_BY_POS, MODE_HISTORY)) continue;
+      if(OrderMagicNumber() == MagicNumber && OrderComment() == commandComment)
+         return OrderTicket();
+   }
    return -1;
 }
 
