@@ -39,7 +39,7 @@ class _PostgresConnection:
         statement = sql.strip()
         upper = statement.upper()
         if upper.startswith("PRAGMA "):
-            return self._conn.execute("SELECT 1")
+            return None
         if upper == "BEGIN IMMEDIATE":
             self._conn.execute("BEGIN")
             self._conn.execute("SELECT pg_advisory_xact_lock(7420192601)")
