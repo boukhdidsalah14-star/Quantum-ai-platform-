@@ -133,7 +133,7 @@ const providerInfo={
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
@@ -141,4 +141,77 @@ let touchX=null,touchY=null;
 $("main").addEventListener("touchstart",e=>{if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
 $("main").addEventListener("touchend",e=>{if(touchX===null)return;let dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;touchX=touchY=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.25){let active=swipePages.findIndex(p=>$("page-"+p).classList.contains("active"));let next=Math.max(0,Math.min(swipePages.length-1,active+(dx<0?1:-1)));if(next!==active)nav(swipePages[next])}},{passive:true});
 
+
+async function refreshMt4Bridge(){
+ const badge=$("mt4-bridge-status");
+ if(!signed){badge.textContent="SIGN IN";$("mt4-bridge-account").textContent="—";$("mt4-bridge-balance").textContent="—";$("mt4-bridge-equity").textContent="—";return;}
+ try{
+  const response=await fetch("/api/mt4/bridge/status",{cache:"no-store"});
+  if(!response.ok)throw Error("Bridge status unavailable");
+  const data=await response.json();
+  badge.textContent=data.connected?"CONNECTED":data.registered?"EA OFFLINE":"NOT REGISTERED";
+  $("mt4-bridge-account").textContent=data.account_login||"—";
+  $("mt4-bridge-balance").textContent=data.balance==null?"—":money(data.balance)+" "+(data.currency||"");
+  $("mt4-bridge-equity").textContent=data.equity==null?"—":money(data.equity)+" "+(data.currency||"");
+  $("mt4-connection-state").textContent=data.connected?"JUSTMARKETS DEMO · CONNECTED":"NOT CONNECTED";
+  $("mt4-open-position").textContent=data.connected?(data.positions.length+" OPEN"): "NONE REPORTED";
+  const pnl=data.connected?data.positions.reduce((sum,p)=>sum+Number(p.profit||0)+Number(p.swap||0)+Number(p.commission||0),0):null;
+  $("mt4-open-pnl").textContent=pnl==null?"—":money(pnl)+" "+(data.currency||"");
+  if(data.connected){
+   $("mt4-bridge-message").textContent="JustMarkets MT4 demo terminal is connected. Position and quote snapshots are being refreshed.";
+  }else if(data.registered){
+   $("mt4-bridge-message").textContent="Bridge token registered for "+data.account_server+". Open the JustMarkets MT4 terminal and attach the EA to reconnect.";
+  }else{
+   $("mt4-bridge-message").textContent="Register your JustMarkets MT4 demo account above. No broker password is requested or stored.";
+  }
+ }catch(error){badge.textContent="STATUS UNAVAILABLE";}
+}
+async function loadMt4Orders(){
+ if(!signed)return;
+ try{
+  const response=await fetch("/api/mt4/orders",{cache:"no-store"});
+  if(!response.ok)return;
+  const data=await response.json();
+  const orders=data.orders||[];
+  $("mt4-order-history").innerHTML=orders.length?orders.map(o=>'<div class="history-row"><b>'+safe(o.symbol)+' '+safe(o.side)+'</b><span>'+safe(o.lots)+' lots · '+safe(o.status.toUpperCase())+'</span><small>SL '+safe(o.stop_loss)+' · TP '+safe(o.take_profit)+(o.broker_ticket?' · Ticket '+safe(o.broker_ticket):'')+'</small></div>').join(""):"<p class='muted'>No MT4 commands yet.</p>";
+ }catch(error){}
+}
+$("mt4-bridge-form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ if(!signed){nav("account");toast("Sign in first to register your MT4 bridge");return;}
+ const button=e.submitter||$("mt4-bridge-form").querySelector("button[type=submit]");
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/mt4/bridge/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_login:$("mt4-account-login").value.trim(),account_server:$("mt4-account-server").value.trim()})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not register the MT4 bridge");
+  $("mt4-bridge-token").textContent=data.bridge_token;
+  $("mt4-bridge-token-box").hidden=false;
+  $("mt4-bridge-message").textContent="Bridge token created. Copy it once, download the EA, and configure the EA inputs in your JustMarkets MT4 demo terminal.";
+  toast("MT4 demo bridge token created");
+  refreshMt4Bridge();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+});
+$("mt4-copy-token").addEventListener("click",async()=>{
+ const value=$("mt4-bridge-token").textContent;
+ try{await navigator.clipboard.writeText(value);toast("Bridge token copied");}
+ catch(error){const field=document.createElement("textarea");field.value=value;document.body.appendChild(field);field.select();document.execCommand("copy");field.remove();toast("Bridge token copied");}
+});
+$("mt4-demo-order-form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ if(!signed){nav("account");toast("Sign in first");return;}
+ if(!member){nav("account");toast("Active membership required for demo order requests");return;}
+ const button=$("mt4-demo-order-submit");button.disabled=true;
+ try{
+  const payload={symbol:$("mt4-order-symbol").value,side:$("mt4-order-side").value,lots:Number($("mt4-order-lots").value),stop_loss:Number($("mt4-order-sl").value),take_profit:Number($("mt4-order-tp").value)};
+  const response=await fetch("/api/mt4/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Demo order was not queued");
+  toast("Demo order queued. Waiting for the connected MT4 EA.");
+  loadMt4Orders();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+});
+setInterval(()=>{refreshMt4Bridge();loadMt4Orders()},10000);
 })();
