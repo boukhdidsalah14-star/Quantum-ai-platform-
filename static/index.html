@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#020b1b"><title>QUANTUM AI — Trading Terminal</title>
-<link rel="stylesheet" href="/static/styles.css?v=20261114-step3-leverage">
+<link rel="stylesheet" href="/static/styles.css?v=20261114-metatrader-cloud-v1">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -52,6 +52,19 @@
 
  <section class="page" id="page-automation" data-page="automation">
   <div class="page-heading"><span class="eyebrow">AUTOMATION HUB</span><h1>Auto <i>Trading</i></h1><p>Connect your own accounts. Execution stays locked until each provider connection and safety check is verified.</p></div>
+  <section class="panel" id="metatrader-cloud-panel">
+   <div class="section-title"><div><span class="eyebrow">CLOUD BROKER CONNECTION</span><h2>Connect MetaTrader</h2></div><span id="mt-cloud-state" class="live-badge">NOT CONNECTED</span></div>
+   <p class="risk-note">Choose MT4 or MT5. QUANTUM AI creates a secure cloud connection. You enter your trading login and password on MetaApi's secure hosted page, not inside QUANTUM AI. No Windows computer or EA installation is required on your phone.</p>
+   <form id="mt-cloud-form" class="auth-form">
+    <label>PLATFORM<select id="mt-cloud-platform"><option value="mt4">MetaTrader 4 (MT4)</option><option value="mt5">MetaTrader 5 (MT5)</option></select></label>
+    <label>BROKER<input id="mt-cloud-broker" value="JustMarkets" maxlength="80" required></label>
+    <label>EXACT TRADING SERVER<input id="mt-cloud-server" maxlength="120" placeholder="Example: JustMarkets-Demo2" required></label>
+    <button id="mt-cloud-connect" class="solid-btn wide-btn" type="submit">CREATE SECURE CLOUD CONNECTION</button>
+   </form>
+   <div id="mt-cloud-result" class="payment-box" hidden></div>
+   <div class="chart-toolbar"><button id="mt-cloud-refresh" class="outline-btn" type="button">REFRESH CONNECTION STATUS</button><button id="mt-cloud-disconnect" class="outline-btn" type="button">DISCONNECT SELECTED PLATFORM</button></div>
+   <p id="mt-cloud-note" class="risk-note">Cloud provider setup is pending server configuration. Automated trading remains disabled until the account connection and demo execution are tested.</p>
+  </section>
   <div class="provider-card">
    <div class="provider-icon mt4-icon">MT4</div><div class="provider-copy"><span class="eyebrow">FOREX · EXPERT ADVISOR</span><h2>MetaTrader 4</h2><p>Automated strategy execution through an MT4 Expert Advisor installed in your broker terminal.</p><div class="provider-tags"><span>Broker account</span><span>EA bridge required</span><span>Risk limits</span></div></div><span class="provider-state pending">CONNECTOR SETUP</span>
    <button class="provider-action" data-provider="mt4">VIEW MT4 SETUP <b>→</b></button>
