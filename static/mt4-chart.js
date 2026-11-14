@@ -40,12 +40,27 @@ async function refresh(){
  if(busy)return;busy=true;
  try{
   setState("FETCHING MARKET");
-  const m=await get("/api/deriv/markets?category=forex");
-  const match=(m.markets||[]).find(v=>label(v.symbol).toUpperCase()===symbol);
-  if(!match){marketSymbol=null;lastCandles=[];draw([]);setState("XAUUSD NOT IN FEED");if(note)note.textContent="The current public Forex feed did not return XAUUSD. A broker-connected MT4 feed is required for verified Gold candles and positions. No substitute symbol will be shown as Gold.";if(priceEl)priceEl.textContent="—";return;}
-  marketSymbol=match.symbol;
-  const d=await get("/api/deriv/candles/"+encodeURIComponent(marketSymbol)+"?granularity="+granularity+"&count=100");
-  lastCandles=(d.candles||[]).map(c=>({open:Number(c.open??c.o),high:Number(c.high??c.h),low:Number(c.low??c.l),close:Number(c.close??c.c)})).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite));
+  const timeframe=({60:"1m",300:"5m",900:"15m",1800:"30m",3600:"1h",14400:"4h",86400:"1d"})[granularity]||"15m";
+  let candleSource="PUBLIC DERIV FEED";
+  let candleRows=null;
+  try{
+   const broker=await get("/api/mt4/candles/"+encodeURIComponent(symbol)+"?timeframe="+timeframe);
+   candleRows=broker.candles||[];
+   candleSource="JUSTMARKETS MT4 BROKER CANDLES";
+  }catch(error){
+   const m=await get("/api/deriv/markets?category=forex");
+   const match=(m.markets||[]).find(v=>label(v.symbol).toUpperCase()===symbol);
+   if(!match){
+    marketSymbol=null;lastCandles=[];draw([]);setState("SYMBOL NOT IN PUBLIC FEED");
+    if(note)note.textContent="No fresh JustMarkets MT4 candles or matching public Forex candles are available for "+symbol+". No substitute symbol will be shown.";
+    if(priceEl)priceEl.textContent="—";
+    return;
+   }
+   marketSymbol=match.symbol;
+   const d=await get("/api/deriv/candles/"+encodeURIComponent(marketSymbol)+"?granularity="+granularity+"&count=100");
+   candleRows=d.candles||[];
+  }
+  lastCandles=candleRows.map(c=>({time:Number(c.time||0),open:Number(c.open??c.o),high:Number(c.high??c.h),low:Number(c.low??c.l),close:Number(c.close??c.c)})).filter(c=>[c.open,c.high,c.low,c.close].every(Number.isFinite));
   try{
    const bridge=await get("/api/mt4/positions");
    mt4Positions=bridge.connected?(bridge.positions||[]):[];
@@ -53,10 +68,13 @@ async function refresh(){
   draw(lastCandles);
   const latest=lastCandles.at(-1)?.close;
   if(priceEl)priceEl.textContent=Number.isFinite(latest)?latest.toFixed(3):"—";
-  setState(mt4Positions.some(p=>p.symbol===symbol)?"MT4 POSITION OVERLAY":"PUBLIC MARKET DATA");
-  if(note)note.textContent=mt4Positions.some(p=>p.symbol===symbol)
-   ?"Entry, stop-loss, take-profit and floating P/L lines are sourced from the connected JustMarkets MT4 demo account. Candle background remains the public Deriv feed."
-   :"Public Forex candles are shown. MT4 entry, stop-loss, take-profit and P/L overlays appear when the connected Expert Advisor reports a matching open position.";
+  const matchingPosition=mt4Positions.some(p=>p.symbol===symbol);
+  setState(candleSource==="JUSTMARKETS MT4 BROKER CANDLES"?"JUSTMARKETS MT4 DATA":matchingPosition?"MT4 POSITION OVERLAY · PUBLIC CANDLES":"PUBLIC MARKET DATA");
+  if(note){
+   if(candleSource==="JUSTMARKETS MT4 BROKER CANDLES")note.textContent="Candles, quotes and open-position levels are sourced from the connected JustMarkets MT4 demo terminal. Entry, stop-loss, take-profit and floating P/L are shown for matching positions.";
+   else if(matchingPosition)note.textContent="Entry, stop-loss, take-profit and floating P/L are sourced from the connected JustMarkets MT4 account. Candle background is the public Deriv feed until broker candles arrive.";
+   else note.textContent="Public Deriv Forex candles are shown. When the JustMarkets MT4 Expert Advisor connects, its broker candles and real position overlays will replace this background for matching symbols.";
+  }
  }catch(e){setState("FEED UNAVAILABLE");draw([]);if(note)note.textContent=e.message+" No trade has been placed.";}
  finally{busy=false;}
 }
