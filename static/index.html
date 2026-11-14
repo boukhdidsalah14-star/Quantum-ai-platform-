@@ -186,20 +186,21 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 <header class="topbar">
   <div class="brand">
     <div class="logo" aria-label="QAI three-dimensional logo"><span class="logo-face"><b>Q</b><b>A</b><b>I</b></span></div>
-    <div>QUANTUM AI<small>TRADE SMARTER · PROFIT BIGGER</small></div>
+    <div>QUANTUM AI<small>AI MARKET INTELLIGENCE</small></div>
   </div>
   <div class="total">
-    <small>QUANTUM AI</small>
-    <strong>$183,232.00</strong>
+    <small>MARKET INTELLIGENCE</small>
+    <strong>LIVE TERMINAL</strong>
   </div>
 </header>
 
 <nav class="nav" id="navigation" aria-label="Workspace navigation">
-  <button class="active" type="button" data-workspace="workspace-dashboard" aria-current="page">⌂<br>Dashboard</button>
-  <button type="button" data-workspace="workspace-binance">₿<br>Binance</button>
-  <button type="button" data-workspace="workspace-olymp">◈<br>Olymp Trade</button>
-  <button type="button" data-workspace="workspace-metatrader">▥<br>MetaTrader 4</button>
-  <button type="button" data-workspace="workspace-history">↻<br>Trade History</button>
+  <button class="active" type="button" data-workspace="workspace-dashboard" aria-current="page">⌂<br>Home</button>
+  <button type="button" data-workspace="workspace-signals">◉<br>Signals</button>
+  <button type="button" data-workspace="workspace-markets">⌁<br>Markets</button>
+  <button type="button" data-workspace="workspace-olymp">◈<br>Olymp</button>
+  <button type="button" data-workspace="workspace-metatrader">▥<br>MT4</button>
+  <button type="button" data-workspace="workspace-binance">₿<br>Crypto</button>
 </nav>
 
 <main>
@@ -229,6 +230,28 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
   </section>
   <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
   <div class="balance-hero"><div><small>QUANTUM AI · MULTI-MARKET WORKSPACE</small><strong>One terminal. Multiple markets.</strong><span class="sub">Your connected broker balances remain separate and are shown only when verified.</span></div><div class="balance-icon">◈</div></div>
+    <div class="workspace" id="workspace-signals">
+      <section class="section panel qai-page-panel" id="signals-page">
+        <div class="section-head"><div><h2>Quantum AI Signal Center</h2><div class="sub">Multi-factor market analysis · completed candles · no guaranteed outcomes</div></div><span class="pill">LIVE ANALYSIS</span></div>
+        <div class="qai-form-grid">
+          <label>MARKET TYPE<select id="signal-market-type"><option value="forex">Forex</option><option value="crypto">Crypto</option></select></label>
+          <label>ASSET<select id="signal-symbol"><option value="frxEURUSD">EUR/USD</option></select></label>
+          <label>TIMEFRAME<select id="signal-timeframe"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option><option>4h</option><option>1d</option></select></label>
+        </div>
+        <div class="qai-chart-shell"><div class="qai-chart-head"><b id="signal-chart-title">EUR/USD · 15m</b><span id="signal-feed-state">CONNECTING TO PUBLIC FEED</span></div><canvas id="signal-chart"></canvas></div>
+        <button class="primary qai-full-button" id="signal-analyze-button" type="button">ANALYZE MARKET</button>
+        <div class="qai-signal-card" id="signal-result-card" aria-live="polite"><span class="qai-overline">LATEST ANALYSIS</span><strong id="signal-direction">WAITING</strong><p id="signal-summary">Choose an asset and run an analysis to receive a signal.</p><div class="qai-signal-metrics"><span>Trend<b id="signal-trend">—</b></span><span>RSI<b id="signal-rsi">—</b></span><span>Strength<b id="signal-strength">—</b></span></div><ul id="signal-reasons"></ul></div>
+      </section>
+    </div>
+    <div class="workspace" id="workspace-markets">
+      <section class="section panel qai-page-panel" id="markets-page">
+        <div class="section-head"><div><h2>Live Market Watch</h2><div class="sub">Public market feeds · switch assets to update the custom chart</div></div><span class="pill" id="markets-feed-state">PUBLIC DATA</span></div>
+        <div class="qai-form-grid"><label>MARKET TYPE<select id="markets-market-type"><option value="forex">Forex</option><option value="crypto" selected>Crypto</option></select></label><label>TIMEFRAME<select id="markets-timeframe"><option>5m</option><option selected>1h</option><option>4h</option><option>1d</option></select></label></div>
+        <div class="qai-watchlist" id="markets-watchlist"><div class="qai-empty">Loading public market prices…</div></div>
+        <div class="qai-chart-shell"><div class="qai-chart-head"><b id="markets-chart-title">BTCUSDT · 1h</b><span id="markets-last-price">—</span></div><canvas id="markets-chart"></canvas></div>
+        <p class="sub">Market data can be delayed or unavailable. A displayed quote is not a broker execution price.</p>
+      </section>
+    </div>
     <div class="workspace active" id="workspace-dashboard">
 <section class="section" id="overview">
     <div class="section-head">
@@ -431,6 +454,10 @@ function notify(message){
   window.toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+// Keep trade history inside Home so the app has exactly six primary workspaces.
+const historyWorkspace=document.getElementById("workspace-history");
+const dashboardWorkspace=document.getElementById("workspace-dashboard");
+if(historyWorkspace&&dashboardWorkspace){historyWorkspace.classList.remove("workspace");historyWorkspace.classList.add("section");dashboardWorkspace.appendChild(historyWorkspace);}
 // Isolated workspace navigation: only the selected page is rendered.
 const navigationButtons = Array.from(document.querySelectorAll('#navigation button[data-workspace]'));
 const workspaces = Array.from(document.querySelectorAll('main > .workspace'));
@@ -662,6 +689,175 @@ $('cryptoTime').addEventListener('change',e=>{
     catch{message("Copy unavailable. Select and copy the address manually.",true)}
   });
   refresh();
+})();
+</script>
+<style>
+/* QUANTUM AI 2026 visual system: obsidian + electric blue */
+:root{--qai-blue:#42a5ff;--qai-cyan:#25d8ff;--qai-bg:#030914;--qai-panel:#08182c;--qai-line:#1b416b}
+body{background:radial-gradient(ellipse at 50% 0,#0b2c53 0,#030914 58%,#020610 100%);color:#eef7ff}
+.topbar{background:#030b18ed;border-bottom:1px solid #176ab2;box-shadow:0 6px 24px #006dff24}
+.logo{background:radial-gradient(circle at 35% 25%,#5ccaff,#0a4c91 48%,#020c20 75%);border:2px solid #74d8ff;box-shadow:0 0 24px #168bff88;transform-style:preserve-3d}
+.logo-face{font-size:12px;text-shadow:0 0 12px #fff}
+.nav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;background:#020a17f5;border-top:1px solid #0d4f88}
+.nav button{min-width:0;padding:9px 2px;border-radius:12px;border-color:#174879;background:linear-gradient(145deg,#0a1c34,#030a16);font-size:10px;color:#b9dfff}
+.nav button.active{background:linear-gradient(145deg,#0c4c8e,#07172c);border-color:#45b8ff;box-shadow:0 0 16px #168bff55}
+main{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.panel,.qai-page-panel{background:linear-gradient(145deg,#0a1c34f5,#040c19f7);border-color:#1a4a78;box-shadow:0 12px 32px #0006,0 0 18px #087cff13}
+.section-head h2{font-size:clamp(21px,4.5vw,29px)}
+.sub{font-size:13px;color:#9bb6d4}
+.logo{animation:qaiSpin 7s ease-in-out infinite}
+@keyframes qaiSpin{0%{transform:rotateY(-18deg) rotateX(8deg)}50%{transform:rotateY(180deg) rotateX(-8deg)}100%{transform:rotateY(342deg) rotateX(8deg)}}
+#marketBackdrop{opacity:.24}
+body:before{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;border:1px solid #278cff55;border-radius:17px;box-shadow:inset 0 0 22px #168bff18}
+body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;border-radius:17px;background:repeating-linear-gradient(180deg,transparent 0 23px,#42a5ff15 24px 25px,transparent 26px 47px);mask-image:linear-gradient(90deg,#000,transparent 12% 88%,#000);animation:qaiFrameDrift 8s linear infinite}
+@keyframes qaiFrameDrift{to{background-position:0 94px}}
+.qai-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.qai-form-grid label{display:flex;flex-direction:column;gap:7px;color:#9dc6eb;font-size:10px;letter-spacing:1px}
+.qai-form-grid select{width:100%;min-width:0;min-height:48px;padding:11px;border:1px solid #24517e;border-radius:11px;background:#030e1e;color:#eff8ff;font-size:14px}
+.qai-chart-shell{margin:14px 0;padding:12px;border:1px solid #1c4a76;border-radius:15px;background:#020a16}
+.qai-chart-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#d9efff;font-size:11px;margin-bottom:8px}
+.qai-chart-head span{color:#6cbaff;font-size:9px}
+#signal-chart,#markets-chart{width:100%;height:220px;display:block}
+.qai-full-button{width:100%;min-height:52px;background:linear-gradient(100deg,#0876e7,#12bce0);border:1px solid #65d6ff;color:#fff;font-size:15px;box-shadow:0 0 18px #087cff55}
+.qai-signal-card{margin-top:14px;padding:17px;border:1px solid #1e5b8c;border-radius:15px;background:linear-gradient(145deg,#081b31,#030a16)}
+.qai-overline{display:block;color:#82b7e9;font-size:9px;letter-spacing:1.8px}
+.qai-signal-card>strong{display:block;font-size:38px;letter-spacing:2px;margin:8px 0}
+.qai-call{color:#28e6a1}.qai-put{color:#ff718b}.qai-wait{color:#8fc8ff}
+.qai-signal-card p{color:#b1c9e2;font-size:12px;line-height:1.6}
+.qai-signal-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.qai-signal-metrics span{padding:10px;border-radius:9px;background:#07162a;color:#82a9cf;font-size:9px}
+.qai-signal-metrics b{display:block;color:#e5f4ff;font-size:13px;margin-top:5px}
+#signal-reasons{padding-left:18px;color:#9eb9d6;font-size:11px;line-height:1.7}
+.qai-watchlist{display:grid;gap:7px;margin:14px 0;max-height:310px;overflow:auto}
+.qai-market-row{display:grid;grid-template-columns:1fr 1fr auto;align-items:center;gap:8px;text-align:left;padding:12px;border:1px solid #183b60;border-radius:10px;background:#061326;color:#e8f5ff}
+.qai-market-row small{color:#7ea5ce;font-size:9px}.qai-market-row b{color:#62c5ff;font-size:12px}
+.qai-empty{padding:18px;color:#91a9c5;text-align:center}
+.qai-chat-head{position:fixed;right:17px;bottom:calc(105px + env(safe-area-inset-bottom));z-index:60;width:56px;height:56px;border:2px solid #8ce5ff;border-radius:50%;background:radial-gradient(circle at 35% 25%,#48c6ff,#0752a1 58%,#020a18);box-shadow:0 0 24px #168bff99,0 8px 20px #0008;color:white;font-size:25px;font-weight:1000;touch-action:none}
+.qai-chat-head i{position:absolute;width:10px;height:10px;right:0;bottom:2px;border-radius:50%;background:#24e6a4;border:2px solid #041326}
+.qai-signal-popover{position:fixed;right:14px;bottom:calc(170px + env(safe-area-inset-bottom));z-index:59;width:min(340px,calc(100vw - 28px));padding:15px;border:1px solid #318bcb;border-radius:17px;background:linear-gradient(145deg,#0c2441,#030b18);box-shadow:0 20px 60px #000c}
+.qai-signal-popover[hidden]{display:none}
+.qai-pop-head{display:flex;justify-content:space-between;align-items:center}
+.qai-pop-head b,.qai-pop-head small{display:block}.qai-pop-head small{font-size:8px;letter-spacing:1.2px;color:#76c8ff;margin-top:4px}
+.qai-pop-head button{border:0;background:transparent;color:#dff4ff;font-size:26px}
+.qai-signal-popover p{font-size:12px;color:#b0c6df;line-height:1.5}
+.qai-pop-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.qai-pop-actions button{min-height:42px;border:1px solid #2675ad;border-radius:10px;background:#0b3156;color:white;font-weight:800;font-size:10px}
+.qai-pop-note{display:block;margin-top:10px;color:#829ab6;font-size:9px;line-height:1.5}
+@media(max-width:600px){.qai-form-grid{grid-template-columns:1fr 1fr}.qai-form-grid label:last-child{grid-column:1/-1}.nav button{font-size:9px;padding:8px 1px}.qai-page-panel{padding:13px}.qai-chart-shell{padding:9px}#signal-chart,#markets-chart{height:190px}}
+@media(prefers-reduced-motion:reduce){.logo,body:after{animation:none!important}}
+</style><button id="qai-chat-head" class="qai-chat-head" type="button" aria-label="Open Quantum AI floating signal assistant"><span>Q</span><i></i></button>
+<div id="qai-signal-popover" class="qai-signal-popover" hidden>
+  <div class="qai-pop-head"><div><b>QUANTUM AI</b><small>FLOATING SIGNAL ASSISTANT</small></div><button id="qai-pop-close" type="button" aria-label="Close">×</button></div>
+  <p>Request a fresh signal from the current market analysis.</p>
+  <div class="qai-pop-actions"><button id="qai-pop-analyze" type="button">GET SIGNAL</button><button type="button" onclick="document.querySelector('[data-workspace=\'workspace-signals\']')?.click()">OPEN SIGNAL CENTER</button></div>
+  <small class="qai-pop-note">This in-app window stays inside QUANTUM AI. Displaying over other Android apps requires a separate Android overlay permission and service.</small>
+</div>
+<script>
+(()=> {
+  "use strict";
+  const byId=id=>document.getElementById(id);
+  const safeText=(node,value)=>{if(node)node.textContent=String(value??"");};
+  const signalType=byId("signal-market-type"),signalSymbol=byId("signal-symbol"),signalTf=byId("signal-timeframe");
+  const marketType=byId("markets-market-type"),marketTf=byId("markets-timeframe");
+  let signalMarkets=[],cryptoMarkets=[],activeMarket="BTCUSDT",marketRows=[],signalCandles=[],marketCandles=[];
+  const granularity={"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400};
+  function drawOhlc(canvasId,rows){
+    const canvas=byId(canvasId);if(!canvas||!rows.length)return;
+    const box=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,box.width),h=Math.max(150,box.height||210);
+    canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);
+    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    const high=Math.max(...rows.map(x=>x.h)),low=Math.min(...rows.map(x=>x.l)),range=high-low||1,pad={l:8,r:12,t:12,b:12};
+    ctx.strokeStyle="#17375b";ctx.lineWidth=1;
+    for(let i=0;i<5;i++){const y=pad.t+(h-pad.t-pad.b)*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();}
+    const y=v=>pad.t+(high-v)/range*(h-pad.t-pad.b),step=(w-pad.l-pad.r)/rows.length,bw=Math.max(2,step*.58);
+    rows.forEach((c,i)=>{const x=pad.l+i*step+step/2,col=c.c>=c.o?"#48b8ff":"#ff647c";ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(c.h));ctx.lineTo(x,y(c.l));ctx.stroke();ctx.fillRect(x-bw/2,Math.min(y(c.o),y(c.c)),bw,Math.max(1,Math.abs(y(c.o)-y(c.c))));});
+    const last=rows[rows.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#39d9ff";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);
+  }
+  function option(label,value){const o=document.createElement("option");o.value=value;o.textContent=label;return o;}
+  async function getJson(url){const r=await fetch(url,{cache:"no-store"});const b=await r.json();if(!r.ok)throw new Error(b.detail||"Market feed unavailable");return b;}
+  async function loadSignalMarkets(){
+    try{
+      const [fx,crypto]=await Promise.all([getJson("/api/deriv/markets?category=forex"),getJson("/api/markets")]);
+      signalMarkets=fx.markets||[];cryptoMarkets=crypto.markets||[];
+      refreshSignalSymbols();loadMarketRows();
+    }catch(e){safeText(byId("signal-feed-state"),"FEED UNAVAILABLE");safeText(byId("markets-feed-state"),"FEED UNAVAILABLE");}
+  }
+  function refreshSignalSymbols(){
+    if(!signalSymbol)return;const isCrypto=signalType.value==="crypto",items=isCrypto?cryptoMarkets:signalMarkets;
+    signalSymbol.replaceChildren();
+    items.forEach(x=>signalSymbol.appendChild(option(x.name||x.symbol,x.symbol)));
+    if(!items.length)signalSymbol.appendChild(option("No markets available",""));
+    if(!isCrypto){signalTf.value=["5m","15m","30m","1h"].includes(signalTf.value)?signalTf.value:"15m";}
+    else{signalTf.value=["1h","4h","1d"].includes(signalTf.value)?signalTf.value:"1h";}
+    loadSignalChart();
+  }
+  async function loadSignalChart(){
+    if(!signalSymbol||!signalSymbol.value)return;
+    const symbol=signalSymbol.value,isCrypto=signalType.value==="crypto",tf=signalTf.value;
+    try{
+      const url=isCrypto?"/api/candles/"+encodeURIComponent(symbol)+"?interval="+encodeURIComponent(tf)+"&limit=72":"/api/deriv/candles/"+encodeURIComponent(symbol)+"?granularity="+(granularity[tf]||900)+"&count=72";
+      const data=await getJson(url);signalCandles=(data.candles||[]).map(c=>({o:Number(c.open),h:Number(c.high),l:Number(c.low),c:Number(c.close)})).filter(c=>[c.o,c.h,c.l,c.c].every(Number.isFinite));
+      drawOhlc("signal-chart",signalCandles);safeText(byId("signal-chart-title"),symbol+" · "+tf);safeText(byId("signal-feed-state"),"PUBLIC "+(isCrypto?"CRYPTO":"DERIV")+" FEED");
+    }catch(e){safeText(byId("signal-feed-state"),e.message);}
+  }
+  async function analyzeSignal(){
+    const button=byId("signal-analyze-button"),symbol=signalSymbol.value,isCrypto=signalType.value==="crypto",tf=signalTf.value;
+    if(!symbol)return;button.disabled=true;button.textContent="ANALYZING COMPLETED CANDLES…";
+    try{
+      await loadSignalChart();
+      const url=isCrypto?"/api/signals/crypto/"+encodeURIComponent(symbol)+"?source=binance&timeframe="+encodeURIComponent(tf):"/api/signals/deriv/"+encodeURIComponent(symbol)+"?category=forex&timeframe="+encodeURIComponent(tf);
+      const body=await getJson(url),direction=body.direction||"WAIT";
+      safeText(byId("signal-direction"),direction);byId("signal-direction").className=direction==="CALL"?"qai-call":direction==="PUT"?"qai-put":"qai-wait";
+      safeText(byId("signal-summary"),body.summary||"Analysis is based on completed market candles. No order was placed.");
+      safeText(byId("signal-trend"),body.trend||"—");safeText(byId("signal-rsi"),body.rsi_14??"—");safeText(byId("signal-strength"),body.signal_strength??"—");
+      const list=byId("signal-reasons");list.replaceChildren();(body.reasons||[]).slice(0,6).forEach(reason=>{const li=document.createElement("li");li.textContent=reason;list.appendChild(li);});
+    }catch(e){safeText(byId("signal-direction"),"WAIT");safeText(byId("signal-summary"),e.message||"Analysis unavailable.");}
+    finally{button.disabled=false;button.textContent="ANALYZE MARKET";}
+  }
+  async function loadMarketRows(){
+    if(!marketType)return;
+    try{
+      const isCrypto=marketType.value==="crypto",items=isCrypto?cryptoMarkets:signalMarkets;
+      marketRows=items;const list=byId("markets-watchlist");list.replaceChildren();
+      items.slice(0,30).forEach(item=>{
+        const row=document.createElement("button");row.type="button";row.className="qai-market-row";
+        const name=document.createElement("span");name.textContent=item.name||item.symbol;
+        const symbol=document.createElement("small");symbol.textContent=item.symbol;
+        const price=document.createElement("b");price.textContent=item.price===null||item.price===undefined?"—":Number(item.price).toLocaleString("en-US",{maximumFractionDigits:8});
+        row.append(name,symbol,price);row.addEventListener("click",()=>{activeMarket=item.symbol;loadMarketChart();});list.appendChild(row);
+      });
+      safeText(byId("markets-feed-state"),"PUBLIC "+(isCrypto?"CRYPTO":"FOREX")+" FEED");
+      if(items.length&&!items.some(x=>x.symbol===activeMarket))activeMarket=items[0].symbol;
+      await loadMarketChart();
+    }catch(e){safeText(byId("markets-feed-state"),"FEED UNAVAILABLE");}
+  }
+  async function loadMarketChart(){
+    const isCrypto=marketType.value==="crypto",tf=marketTf.value,symbol=activeMarket;
+    try{
+      const url=isCrypto?"/api/candles/"+encodeURIComponent(symbol)+"?interval="+encodeURIComponent(tf==="5m"?"1h":tf)+"&limit=72":"/api/deriv/candles/"+encodeURIComponent(symbol)+"?granularity="+(granularity[tf]||3600)+"&count=72";
+      const data=await getJson(url);marketCandles=(data.candles||[]).map(c=>({o:Number(c.open),h:Number(c.high),l:Number(c.low),c:Number(c.close)})).filter(c=>[c.o,c.h,c.l,c.c].every(Number.isFinite));
+      drawOhlc("markets-chart",marketCandles);safeText(byId("markets-chart-title"),symbol+" · "+tf);
+      const last=marketCandles[marketCandles.length-1];safeText(byId("markets-last-price"),last?Number(last.c).toLocaleString("en-US",{maximumFractionDigits:8}):"—");
+    }catch(e){safeText(byId("markets-last-price"),"DATA UNAVAILABLE");}
+  }
+  signalType?.addEventListener("change",refreshSignalSymbols);signalSymbol?.addEventListener("change",loadSignalChart);signalTf?.addEventListener("change",loadSignalChart);
+  byId("signal-analyze-button")?.addEventListener("click",analyzeSignal);
+  marketType?.addEventListener("change",loadMarketRows);marketTf?.addEventListener("change",loadMarketChart);
+  window.addEventListener("resize",()=>{drawOhlc("signal-chart",signalCandles);drawOhlc("markets-chart",marketCandles);});
+  loadSignalMarkets();
+  setInterval(()=>{if(document.getElementById("workspace-markets")?.classList.contains("active"))loadMarketRows();},30000);
+})();
+</script>
+<script>
+(()=> {
+  const bubble=document.getElementById("qai-chat-head"),panel=document.getElementById("qai-signal-popover");
+  if(!bubble||!panel)return;
+  let dragging=false,startX=0,startY=0,originX=0,originY=0,moved=false;
+  bubble.addEventListener("pointerdown",event=>{dragging=true;moved=false;startX=event.clientX;startY=event.clientY;const r=bubble.getBoundingClientRect();originX=r.left;originY=r.top;bubble.setPointerCapture(event.pointerId);});
+  bubble.addEventListener("pointermove",event=>{if(!dragging)return;const dx=event.clientX-startX,dy=event.clientY-startY;if(Math.abs(dx)+Math.abs(dy)>5)moved=true;if(moved){bubble.style.left=Math.max(8,Math.min(innerWidth-62,originX+dx))+"px";bubble.style.top=Math.max(70,Math.min(innerHeight-90,originY+dy))+"px";bubble.style.right="auto";bubble.style.bottom="auto";}});
+  bubble.addEventListener("pointerup",()=>{dragging=false;if(!moved)panel.hidden=!panel.hidden;});
+  document.getElementById("qai-pop-close")?.addEventListener("click",()=>panel.hidden=true);
+  document.getElementById("qai-pop-analyze")?.addEventListener("click",()=>document.getElementById("signal-analyze-button")?.click());
 })();
 </script>
 <script src="/static/auto-trading.js?v=20261109-1905" defer></script>
