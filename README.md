@@ -22,7 +22,7 @@ The mobile terminal is organized into six primary workspaces: Home, Signals, Mar
 - The floating assistant is signal-only. It never places broker orders. The system-wide overlay is available only in the Android app, not in an ordinary mobile browser.
 - Platform-inspired balances remain simulated/paper values and are not withdrawable broker funds. The automated paper engines use browser-local state and must not be presented as live broker execution.
 
-The new Android overlay and web redesign are committed on `feature/advanced-market-analysis` and proposed in [draft PR #14](https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/pull/14). They are not live on the Render production URL until the PR is reviewed, merged, and deployed. The APK has not yet been rebuilt or tested on a physical Android device.
+The new Android overlay and web redesign are committed on `feature/advanced-market-analysis` and proposed in [draft PR #14](https://github.com/boukhdidsalah14-star/Quantum-ai-platform-/pull/14). The CI Android debug APK build passed and its artifact is available for 14 days, but it is signed with the Android debug certificate and is not a production customer release. It has not yet been installed or tested on a physical Android device. The redesign is not live on the Render production URL until the PR is reviewed, merged, and deployed. Real-money broker execution and live ad-network placements are not activated by this UI work.
 
 ## Current capabilities
 
