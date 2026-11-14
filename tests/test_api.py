@@ -434,7 +434,9 @@ def test_deriv_backtest_rejects_invalid_lookahead():
 
 def test_crypto_signal_endpoint_is_read_only(monkeypatch):
     async def fake_candles(symbol, interval, limit):
-        assert (symbol, interval, limit) == ("BTCUSDT", "1h", 100)
+        assert (symbol, interval, limit) in {
+            ("BTCUSDT", "1h", 100), ("BTCUSDT", "4h", 100)
+        }
         return [{"open": 100 + i * 0.02, "high": 100 + i * 0.02 + 0.15,
                  "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
                 for i in range(60)]

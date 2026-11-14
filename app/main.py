@@ -818,9 +818,19 @@ async def crypto_signal(
     try:
         candle_data = (await get_candles(symbol, timeframe, 100) if source == "binance"
                        else await get_mexc_candles(symbol, timeframe, 100))
-        result = analyze_candles(candle_data, timeframe)
+        higher_map = {"1h": "4h", "4h": "1d"}.get(timeframe)
+        higher_data = {}
+        if higher_map:
+            try:
+                higher_data[higher_map] = (await get_candles(symbol, higher_map, 100) if source == "binance"
+                                           else await get_mexc_candles(symbol, higher_map, 100))
+            except (ValueError, httpx.HTTPError):
+                higher_data = {}
+        result = analyze_candles(candle_data, timeframe, higher_timeframes=higher_data,
+                                 asset=symbol.upper())
         result.update({"symbol": symbol.upper(), "category": "crypto",
                        "source": source.upper() + " public candles",
+                       "higher_timeframe_data": "confirmed" if higher_data else "unavailable_or_not_applicable",
                        "execution_enabled": False})
         return result
     except ValueError as exc:
@@ -928,8 +938,18 @@ async def deriv_signal(
         if not any(item["symbol"] == symbol for item in markets_data):
             raise HTTPException(status_code=400, detail="Symbol is not in the selected Deriv market category")
         candle_data = await get_deriv_candles(symbol, intervals[timeframe], 100)
-        result = analyze_candles(candle_data, timeframe)
+        higher_tf = {"1m": "5m", "5m": "15m", "15m": "1h", "30m": "4h",
+                     "1h": "4h", "4h": "1d"}.get(timeframe)
+        higher_data = {}
+        if higher_tf:
+            try:
+                higher_data[higher_tf] = await get_deriv_candles(symbol, intervals[higher_tf], 100)
+            except (ValueError, DerivMarketDataError):
+                higher_data = {}
+        result = analyze_candles(candle_data, timeframe, higher_timeframes=higher_data,
+                                 asset=symbol)
         result.update({
+            "higher_timeframe_data": "confirmed" if higher_data else "unavailable_or_not_applicable",
             "symbol": symbol,
             "category": category,
             "market_type": "binary_options_underlying" if category == "synthetic" else "forex",

@@ -15,7 +15,7 @@ async function get(url){const r=await fetch(url,{cache:"no-store"});const b=awai
 function mount(p){
  const section=$(p);if(!section)return;
  const panel=document.createElement("div");panel.className="panel qai-auto-panel";panel.id="auto-"+p;
- panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · AUTOMATIC TRADING</b><div class='sub'>Public market analysis · In-app account execution</div></div><span class='qai-engine-pill'>QUANTUM AI ENGINE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,2,3,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START AUTO TRADING</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>ACCOUNT BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>OPEN P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
+ panel.innerHTML="<div class='qai-auto-head'><div><b>QUANTUM AI · AUTOMATED PAPER TRADING</b><div class='sub'>Public market analysis · local paper simulation only</div></div><span class='qai-engine-pill'>QUANTUM AI ENGINE</span></div><div class='qai-auto-grid'><div><label>TRADE AMOUNT (USD)</label><input type='number' min='1' step='1' id='auto-"+p+"-amount' value='"+state.amount[p]+"'></div><div><label>"+(p==="binary"?"CONTRACT DURATION":"POSITION REVIEW")+"</label><select id='auto-"+p+"-expiry'>"+(p==="binary"?[1,2,3,5,10,15,30,60]:[5,15,30,60]).map(n=>"<option value='"+n+"' "+(state.expiry[p]===n?"selected":"")+">"+n+" min</option>").join("")+"</select></div><div><label>DAILY LOSS LIMIT</label><input type='number' id='auto-"+p+"-risk' value='10' min='1' max='10' disabled><small>10% maximum</small></div></div><div class='qai-auto-actions'><button class='primary' id='auto-"+p+"-start'>START PAPER ENGINE</button><button class='secondary' id='auto-"+p+"-stop' disabled>STOP PAPER ENGINE</button></div><div class='qai-auto-status' id='auto-"+p+"-status'>Engine stopped · Waiting for your command</div><div class='qai-auto-stats'><div><small>ACCOUNT BALANCE</small><strong id='auto-"+p+"-balance'>"+money(state.accounts[p])+"</strong></div><div><small>OPEN POSITION</small><strong id='auto-"+p+"-position'>NONE</strong></div><div><small>OPEN P/L</small><strong id='auto-"+p+"-pnl'>$0.00</strong></div><div><small>DAILY LOSS</small><strong id='auto-"+p+"-loss'>$0.00 / "+money(START[p]*.1)+"</strong></div></div><div class='qai-auto-analysis' id='auto-"+p+"-analysis'>Analyser: waiting for market candles…</div><div class='qai-auto-log' id='auto-"+p+"-log'></div>";
  section.appendChild(panel);
  $("auto-"+p+"-amount").addEventListener("change",e=>{const n=Number(e.target.value);if(Number.isFinite(n)&&n>0){state.amount[p]=Math.min(n,START[p]);e.target.value=state.amount[p];save();}});
  $("auto-"+p+"-expiry").addEventListener("change",e=>{state.expiry[p]=Number(e.target.value);save();});
@@ -61,7 +61,8 @@ async function quote(p,symbol){
 async function drawRealChart(p,symbol,position,price){
  const isCrypto=p==="crypto"||(p==="binary"&&symbol.kind==="crypto");
  const raw=typeof symbol==="string"?symbol:symbol.symbol;
- const url=isCrypto?"/api/candles/"+encodeURIComponent(raw)+"?interval=1h&limit=72":"/api/deriv/candles/"+encodeURIComponent(raw)+"?granularity=900&count=72";
+ const cryptoInterval=$( "cryptoTime" )?.value||"1h";
+ const url=isCrypto?"/api/candles/"+encodeURIComponent(raw)+"?interval="+encodeURIComponent(["1h","4h","1d"].includes(cryptoInterval)?cryptoInterval:"1h")+"&limit=72":"/api/deriv/candles/"+encodeURIComponent(raw)+"?granularity=900&count=72";
  const data=await get(url);const rows=(data.candles||[]).map(c=>({o:Number(c.open??c.o),h:Number(c.high??c.h),l:Number(c.low??c.l),c:Number(c.close??c.c)})).filter(c=>[c.o,c.h,c.l,c.c].every(Number.isFinite));
  const canvas=$(p==="binary"?"binaryChart":p==="forex"?"forexChart":"cryptoChart");if(!canvas||!rows.length)return;
  const ctx=canvas.getContext("2d"),w=canvas.clientWidth,h=canvas.clientHeight,dpr=window.devicePixelRatio||1;
@@ -71,14 +72,19 @@ async function drawRealChart(p,symbol,position,price){
  rows.forEach((c,i)=>{const x=pad+i*step+step/2,up=c.c>=c.o,color=up?"#18d995":"#ff526d";ctx.strokeStyle=color;ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,yy(c.h));ctx.lineTo(x,yy(c.l));ctx.stroke();ctx.fillRect(x-bw/2,Math.min(yy(c.o),yy(c.c)),bw,Math.max(1,Math.abs(yy(c.o)-yy(c.c))));});
  if(position){const y=yy(position.entry);ctx.setLineDash([5,4]);ctx.strokeStyle="#ffc857";ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#ffc857";ctx.font="bold 10px Arial";ctx.fillText("ENTRY "+position.side+" "+position.entry.toPrecision(7),8,Math.max(12,y-5));}
  if(Number.isFinite(price)){ctx.strokeStyle="#53b7ff";ctx.setLineDash([2,4]);ctx.beginPath();ctx.moveTo(0,yy(price));ctx.lineTo(w,yy(price));ctx.stroke();ctx.setLineDash([]);}
+ canvas.dataset.real="1";
  const heading=canvas.closest(".panel")?.querySelector(".chart-top b");if(heading)heading.textContent=raw;
+}
+async function refreshDisplayChart(p){
+ try{const symbol=await getSymbol(p);const price=await quote(p,symbol);await drawRealChart(p,symbol,state.positions[p]||null,price);}
+ catch(_){/* Keep the page usable while a public feed is unavailable. */}
 }
 function start(p){
  if(state.running[p])return;
- state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Automatic trading started");
+ state.running[p]=true;save();status(p,"Starting analyser · loading current public candles…");render(p);log(p,"Paper trading started");
  tick(p);
 }
-function stop(p){state.running[p]=false;save();status(p,"ENGINE OFF · Any open position remains active until it is settled.");render(p);log(p,"Engine stopped by user");}
+function stop(p){state.running[p]=false;save();status(p,"PAPER ENGINE OFF · Any simulated position remains active until it is settled.");render(p);log(p,"Engine stopped by user");}
 async function tick(p){
  if(!state.running[p]||busy[p])return;busy[p]=true;
  try{
@@ -105,10 +111,10 @@ async function tick(p){
     const side=p==="binary"?direction:(direction==="CALL"?"BUY":"SELL");
     const duration=Number(state.expiry[p]);
     state.positions[p]={id:"QAI-"+Date.now(),platform:p,symbol:typeof symbol==="string"?symbol:symbol.symbol,side,stake:amount,entry:price,mark:price,openedAt:Date.now(),expiresAt:Date.now()+duration*60000,expiry:duration};
-    status(p,"TRADE OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · in-app order");
+    status(p,"TRADE OPEN · "+side+" "+state.positions[p].symbol+" at "+price+" · simulated paper entry");
     log(p,"TRADE OPEN "+side+" "+state.positions[p].symbol+" · "+money(amount)+" at "+price);
    }
-  }else status(p,"MARKET DATA CONNECTED · ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
+  }else status(p,"MARKET DATA CONNECTED · PAPER ENGINE ON · "+(direction==="WAIT"?"No qualified signal; waiting.":direction+" signal below entry threshold."));
   render(p);save();
  }catch(e){status(p,"MARKET DATA ERROR · "+e.message);}
  finally{busy[p]=false;if(state.running[p])setTimeout(()=>tick(p),12000);}
@@ -135,6 +141,15 @@ function renderPortfolio(){
 const style=document.createElement("style");style.textContent=".qai-auto-panel{margin-top:18px;border-color:#245a79}.qai-auto-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.qai-engine-pill{font-size:9px;letter-spacing:1px;border:1px solid #d7a83e;color:#f2ce75;padding:7px 9px;border-radius:20px}.qai-auto-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:15px}.qai-auto-grid label{display:block;color:#91a6c2;font-size:10px;margin-bottom:6px}.qai-auto-grid input,.qai-auto-grid select{width:100%;padding:11px;border-radius:8px;border:1px solid #2b4059;background:#081321;color:#fff}.qai-auto-grid small{display:block;color:#f0c66c;font-size:9px;margin-top:4px}.qai-auto-actions{display:flex;gap:9px;margin-top:13px}.qai-auto-actions button{flex:1}.qai-auto-status,.qai-auto-analysis{margin-top:12px;padding:11px;border-radius:8px;background:#0a1625;color:#a9c9e9;font-size:11px;line-height:1.5}.qai-auto-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.qai-auto-stats>div{padding:10px;background:#0b1726;border:1px solid #23364d;border-radius:9px;min-width:0}.qai-auto-stats small{display:block;color:#8ea2bd;font-size:9px}.qai-auto-stats strong{display:block;font-size:13px;margin-top:7px;overflow-wrap:anywhere}.qai-auto-log{font-size:10px;color:#92a6c0;max-height:90px;overflow:auto;margin-top:9px}.qai-auto-log div{padding:4px 0;border-bottom:1px solid #22334a}@media(max-width:600px){.qai-auto-grid{grid-template-columns:1fr 1fr}.qai-auto-stats{grid-template-columns:1fr 1fr}.qai-auto-actions{flex-direction:column}}";document.head.appendChild(style);
 ["binary","forex","crypto"].forEach(mount);
 renderPortfolio();
-["binary","forex","crypto"].forEach(p=>{if(state.running[p]){status(p,"Resuming Quantum AI engine…");tick(p);}});
+["binary","forex","crypto"].forEach(refreshDisplayChart);
+$("binaryAsset")?.addEventListener("change",()=>refreshDisplayChart("binary"));
+$("cryptoPair")?.addEventListener("change",()=>refreshDisplayChart("crypto"));
+$("cryptoTime")?.addEventListener("change",()=>refreshDisplayChart("crypto"));
+window.addEventListener("qai:refresh-platform-chart",event=>{
+ const platform=event.detail?.platform;
+ if(["binary","forex","crypto"].includes(platform))refreshDisplayChart(platform);
+ else ["binary","forex","crypto"].forEach(refreshDisplayChart);
+});
+["binary","forex","crypto"].forEach(p=>{if(state.running[p]){status(p,"Resuming Quantum AI paper engine…");tick(p);}});
 window.addEventListener("beforeunload",save);
 })();
