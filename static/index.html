@@ -228,7 +228,7 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
     <p id="subscription-message" class="sub" role="status">Sign in to manage your membership. New account creation is available when enabled by the service.</p>
   </section>
-  <div class="ticker" aria-label="Market ticker"><div class="ticker-track"><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span><span>EUR/USD <b>▲ 1.1552</b></span><span>GBP/USD <b>▲ 1.3197</b></span><span>BTC <b>▲ 109,842</b></span><span>ETH/USDT <b>▲ 3,520</b></span><span>USD/JPY <b>▼ 149.820</b></span></div></div>
+  <div class="ticker" aria-label="Live market ticker"><div class="ticker-track" id="qai-ticker-track"><span>CONNECTING TO PUBLIC MARKET FEEDS…</span></div></div>
   <div class="balance-hero"><div><small>QUANTUM AI · MULTI-MARKET WORKSPACE</small><strong>One terminal. Multiple markets.</strong><span class="sub">Your connected broker balances remain separate and are shown only when verified.</span></div><div class="balance-icon">◈</div></div>
     <div class="workspace" id="workspace-signals">
       <section class="section panel qai-page-panel" id="signals-page">
@@ -241,6 +241,7 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
         <div class="qai-chart-shell"><div class="qai-chart-head"><b id="signal-chart-title">EUR/USD · 15m</b><span id="signal-feed-state">CONNECTING TO PUBLIC FEED</span></div><canvas id="signal-chart"></canvas></div>
         <button class="primary qai-full-button" id="signal-analyze-button" type="button">ANALYZE MARKET</button>
         <div class="qai-signal-card" id="signal-result-card" aria-live="polite"><span class="qai-overline">LATEST ANALYSIS</span><strong id="signal-direction">WAITING</strong><p id="signal-summary">Choose an asset and run an analysis to receive a signal.</p><div class="qai-signal-metrics"><span>Trend<b id="signal-trend">—</b></span><span>RSI<b id="signal-rsi">—</b></span><span>Strength<b id="signal-strength">—</b></span></div><ul id="signal-reasons"></ul></div>
+        <div class="qai-history-panel"><div class="qai-chart-head"><b>Signal history · Last 12 hours</b><span>THIS DEVICE</span></div><div id="signal-history-list" class="qai-history-list">No saved signals yet.</div></div>
       </section>
     </div>
     <div class="workspace" id="workspace-markets">
@@ -742,6 +743,15 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
 .qai-signal-popover p{font-size:12px;color:#b0c6df;line-height:1.5}
 .qai-pop-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .qai-pop-actions button{min-height:42px;border:1px solid #2675ad;border-radius:10px;background:#0b3156;color:white;font-weight:800;font-size:10px}
+.qai-pop-actions #qai-enable-system-overlay{grid-column:1/-1;background:linear-gradient(100deg,#073b70,#075a83);border-color:#40bfff}
+.qai-history-panel{margin-top:16px;padding:14px;border:1px solid #1b4168;border-radius:14px;background:#040d1b}
+.qai-history-list{display:grid;gap:7px;max-height:220px;overflow:auto}
+.qai-history-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:9px;border:1px solid #183758;border-radius:9px;background:#07172a;font-size:10px;color:#b8cde4}
+.qai-history-row b{color:#eaf6ff}.qai-history-row small{display:block;color:#7f9dbc;margin-top:3px}
+.qai-history-row .qai-call{color:#28e6a1}.qai-history-row .qai-put{color:#ff718b}.qai-history-row .qai-wait{color:#8fc8ff}
+.qai-ticker-item{flex:0 0 auto;min-width:145px;padding:11px 15px;border-right:1px solid #1b4168;color:#c7e5ff;font-size:11px;text-align:center}
+.qai-ticker-item b{display:block;color:#62c9ff;margin-top:3px;font-size:12px}
+
 .qai-pop-note{display:block;margin-top:10px;color:#829ab6;font-size:9px;line-height:1.5}
 @media(max-width:600px){.qai-form-grid{grid-template-columns:1fr 1fr}.qai-form-grid label:last-child{grid-column:1/-1}.nav button{font-size:9px;padding:8px 1px}.qai-page-panel{padding:13px}.qai-chart-shell{padding:9px}#signal-chart,#markets-chart{height:190px}}
 @media(prefers-reduced-motion:reduce){.logo,body:after{animation:none!important}}
@@ -749,7 +759,8 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
 <div id="qai-signal-popover" class="qai-signal-popover" hidden>
   <div class="qai-pop-head"><div><b>QUANTUM AI</b><small>FLOATING SIGNAL ASSISTANT</small></div><button id="qai-pop-close" type="button" aria-label="Close">×</button></div>
   <p>Request a fresh signal from the current market analysis.</p>
-  <div class="qai-pop-actions"><button id="qai-pop-analyze" type="button">GET SIGNAL</button><button type="button" onclick="document.querySelector('[data-workspace=\'workspace-signals\']')?.click()">OPEN SIGNAL CENTER</button></div>
+  <div class="qai-pop-actions"><button id="qai-pop-analyze" type="button">GET SIGNAL</button><button type="button" onclick="document.querySelector('[data-workspace=\'workspace-signals\']')?.click()">OPEN SIGNAL CENTER</button>
+  <button id="qai-enable-system-overlay" type="button">ENABLE OVER-APP CHAT HEAD</button></div>
   <small class="qai-pop-note">This in-app window stays inside QUANTUM AI. Displaying over other Android apps requires a separate Android overlay permission and service.</small>
 </div>
 <script>
@@ -773,13 +784,32 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
     rows.forEach((c,i)=>{const x=pad.l+i*step+step/2,col=c.c>=c.o?"#48b8ff":"#ff647c";ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(c.h));ctx.lineTo(x,y(c.l));ctx.stroke();ctx.fillRect(x-bw/2,Math.min(y(c.o),y(c.c)),bw,Math.max(1,Math.abs(y(c.o)-y(c.c))));});
     const last=rows[rows.length-1];ctx.setLineDash([3,4]);ctx.strokeStyle="#39d9ff";ctx.beginPath();ctx.moveTo(pad.l,y(last.c));ctx.lineTo(w-pad.r,y(last.c));ctx.stroke();ctx.setLineDash([]);
   }
+  const SIGNAL_HISTORY_KEY="qai_signal_history_12h";
+  function saveSignalHistory(record){
+    try{const now=Date.now(),items=JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||"[]").filter(x=>now-Number(x.time)<12*60*60*1000);items.unshift(record);localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(items.slice(0,80)));renderSignalHistory();}catch(_){}
+  }
+  function renderSignalHistory(){
+    const host=byId("signal-history-list");if(!host)return;
+    try{const now=Date.now(),items=JSON.parse(localStorage.getItem(SIGNAL_HISTORY_KEY)||"[]").filter(x=>now-Number(x.time)<12*60*60*1000);localStorage.setItem(SIGNAL_HISTORY_KEY,JSON.stringify(items));host.replaceChildren();
+      if(!items.length){host.textContent="No saved signals in the last 12 hours.";return;}
+      items.forEach(item=>{const row=document.createElement("div");row.className="qai-history-row";const dir=document.createElement("b");dir.className=item.direction==="CALL"?"qai-call":item.direction==="PUT"?"qai-put":"qai-wait";dir.textContent=item.direction;const info=document.createElement("span");info.textContent=item.symbol+" · "+item.timeframe;const detail=document.createElement("small");detail.textContent=new Date(item.time).toLocaleTimeString()+" · "+(item.strength||"Strength unavailable");info.appendChild(detail);const trend=document.createElement("small");trend.textContent=item.trend||"—";row.append(dir,info,trend);host.appendChild(row);});
+    }catch(_){host.textContent="Signal history is unavailable on this device.";}
+  }
+  function renderTicker(){
+    const host=byId("qai-ticker-track");if(!host)return;
+    const items=[...signalMarkets.slice(0,7),...cryptoMarkets.slice(0,7)];
+    if(!items.length)return;
+    host.replaceChildren();
+    const repeated=[...items,...items];
+    repeated.forEach(item=>{const span=document.createElement("span");span.className="qai-ticker-item";const name=document.createElement("span");name.textContent=item.name||item.symbol;const price=document.createElement("b");price.textContent=item.price===null||item.price===undefined?"QUOTE UNAVAILABLE":Number(item.price).toLocaleString("en-US",{maximumFractionDigits:8});span.append(name,price);host.appendChild(span);});
+  }
   function option(label,value){const o=document.createElement("option");o.value=value;o.textContent=label;return o;}
   async function getJson(url){const r=await fetch(url,{cache:"no-store"});const b=await r.json();if(!r.ok)throw new Error(b.detail||"Market feed unavailable");return b;}
   async function loadSignalMarkets(){
     try{
       const [fx,crypto]=await Promise.all([getJson("/api/deriv/markets?category=forex"),getJson("/api/markets")]);
       signalMarkets=fx.markets||[];cryptoMarkets=crypto.markets||[];
-      refreshSignalSymbols();loadMarketRows();
+      renderTicker();refreshSignalSymbols();loadMarketRows();
     }catch(e){safeText(byId("signal-feed-state"),"FEED UNAVAILABLE");safeText(byId("markets-feed-state"),"FEED UNAVAILABLE");}
   }
   function refreshSignalSymbols(){
@@ -811,6 +841,7 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
       safeText(byId("signal-summary"),body.summary||"Analysis is based on completed market candles. No order was placed.");
       safeText(byId("signal-trend"),body.trend||"—");safeText(byId("signal-rsi"),body.rsi_14??"—");safeText(byId("signal-strength"),body.signal_strength??"—");
       const list=byId("signal-reasons");list.replaceChildren();(body.reasons||[]).slice(0,6).forEach(reason=>{const li=document.createElement("li");li.textContent=reason;list.appendChild(li);});
+      saveSignalHistory({time:Date.now(),symbol:symbol,timeframe:tf,direction:direction,strength:body.signal_strength||"",trend:body.trend||""});
     }catch(e){safeText(byId("signal-direction"),"WAIT");safeText(byId("signal-summary"),e.message||"Analysis unavailable.");}
     finally{button.disabled=false;button.textContent="ANALYZE MARKET";}
   }
@@ -844,8 +875,8 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
   byId("signal-analyze-button")?.addEventListener("click",analyzeSignal);
   marketType?.addEventListener("change",loadMarketRows);marketTf?.addEventListener("change",loadMarketChart);
   window.addEventListener("resize",()=>{drawOhlc("signal-chart",signalCandles);drawOhlc("markets-chart",marketCandles);});
-  loadSignalMarkets();
-  setInterval(()=>{if(document.getElementById("workspace-markets")?.classList.contains("active"))loadMarketRows();},30000);
+  renderSignalHistory();loadSignalMarkets();
+  setInterval(()=>{loadSignalMarkets();if(document.getElementById("workspace-markets")?.classList.contains("active"))loadMarketRows();},30000);
 })();
 </script>
 <script>
@@ -858,6 +889,11 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
   bubble.addEventListener("pointerup",()=>{dragging=false;if(!moved)panel.hidden=!panel.hidden;});
   document.getElementById("qai-pop-close")?.addEventListener("click",()=>panel.hidden=true);
   document.getElementById("qai-pop-analyze")?.addEventListener("click",()=>document.getElementById("signal-analyze-button")?.click());
+  document.getElementById("qai-enable-system-overlay")?.addEventListener("click",()=>{
+    if(window.QuantumAndroid&&typeof window.QuantumAndroid.enableFloatingAssistant==="function"){window.QuantumAndroid.enableFloatingAssistant();}
+    else{const note=document.querySelector(".qai-pop-note");if(note)note.textContent="System-wide floating chat heads are available in the QUANTUM AI Android app. Install the Android APK to enable the Android overlay permission.";}
+  });
+
 })();
 </script>
 <script src="/static/auto-trading.js?v=20261109-1905" defer></script>
