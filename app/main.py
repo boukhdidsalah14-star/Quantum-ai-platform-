@@ -11,7 +11,8 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview, get_order_book
+from app.market_data import ALLOWED_SYMBOLS, get_order_book
+from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_live_execution import get_account_info as get_mexc_account_info, MexcExecutionError
@@ -1014,7 +1015,7 @@ async def market_universe():
         "binary_options": BINARY_PAIRS,
         "crypto_futures": CRYPTO_FUTURES,
         "crypto_quote_currency": "USDT",
-        "crypto_source": "Binance USD-M futures public market data",
+        "crypto_source": "MEXC USDT-margined perpetual futures public market data",
         "execution_enabled": False,
     }
 
@@ -1022,7 +1023,7 @@ async def market_universe():
 @app.get("/api/markets")
 async def markets():
     try:
-        return {"source": "Binance USD-M futures public market data", "markets": await get_market_overview()}
+        return {"source": "MEXC USDT-margined perpetual futures public market data", "markets": await get_market_overview()}
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public market data is temporarily unavailable")
 
@@ -1041,7 +1042,7 @@ async def binance_order_book(symbol: str, limit: int = Query(default=10, ge=5, l
 @app.get("/api/candles/{symbol}")
 async def candles(symbol: str, interval: str = Query(default="1h"), limit: int = Query(default=72, ge=20, le=200)):
     try:
-        return {"symbol": symbol.upper(), "interval": interval, "source": "Binance USD-M futures public candles", "candles": await get_candles(symbol, interval, limit)}
+        return {"symbol": symbol.upper(), "interval": interval, "source": "MEXC USDT-margined perpetual futures public candles", "candles": await get_candles(symbol, interval, limit)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
@@ -1066,7 +1067,7 @@ async def crypto_signal(
         result = analyze_candles(candle_data, timeframe)
         result.update({"symbol": symbol.upper(), "category": "crypto",
                        "trade_bias": "LONG" if result["direction"] == "CALL" else "SHORT" if result["direction"] == "PUT" else "WAIT",
-                       "source": "Binance USD-M futures public candles",
+                       "source": "MEXC USDT-margined perpetual futures public candles",
                        "execution_enabled": False})
         return result
     except ValueError as exc:
