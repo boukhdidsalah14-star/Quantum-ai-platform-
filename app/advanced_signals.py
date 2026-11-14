@@ -116,9 +116,12 @@ def analyze_market(
     rsi = _rsi(closes)
     atr = _atr(bars)
     adx = _adx(bars)
-    macd_line = fast - mid
-    macd_hist = macd_line - ((_ema(closes, 26)[-1] - _ema(closes, 52)[-1])
-                             if len(closes) >= 52 else macd_line)
+    macd_fast, macd_slow = _ema(closes, 12), _ema(closes, 26)
+    macd_line = macd_fast[-1] - macd_slow[-1] if macd_slow else fast - mid
+    macd_series = [macd_fast[i] - macd_slow[i] for i in range(25, len(closes))]
+    macd_signal_values = _ema(macd_series, 9)
+    macd_signal = macd_signal_values[-1] if macd_signal_values else macd_line
+    macd_hist = macd_line - macd_signal
     recent = closes[-20:]
     basis = mean(recent)
     deviation = pstdev(recent)
