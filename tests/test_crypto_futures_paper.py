@@ -21,6 +21,7 @@ def test_long_plan_has_atr_stop_two_to_one_target_and_one_x_cap():
     assert plan["take_profit"] == 106.0
     assert plan["risk_reward_ratio"] == 2.0
     assert plan["leverage"] == 1
+    assert plan["margin_required_usdt"] == pytest.approx(plan["notional_usdt"])
     assert plan["execution"] == "simulated_only"
     assert plan["broker_order_sent"] is False
     assert plan["notional_usdt"] <= 500.0
@@ -49,3 +50,19 @@ def test_bad_prices_and_atr_are_rejected():
         build_paper_trade_plan(sample(last_close=0), account_balance=1000)
     with pytest.raises(ValueError):
         build_paper_trade_plan(sample(atr_14=-1), account_balance=1000)
+
+
+@pytest.mark.parametrize("leverage", [1, 2, 5, 10, 20])
+def test_client_leverage_changes_margin_not_stop_risk(leverage):
+    plan = build_paper_trade_plan(sample(), account_balance=1000, leverage=leverage)
+    assert plan["leverage"] == leverage
+    assert plan["margin_required_usdt"] == pytest.approx(plan["notional_usdt"] / leverage)
+    assert plan["risk_budget_usdt"] == pytest.approx(5.0)
+    assert plan["stop_loss"] == 97.0
+    assert plan["notional_usdt"] <= 500.0
+
+
+@pytest.mark.parametrize("leverage", [0, -1, 21, 1.5, float("inf")])
+def test_leverage_outside_whole_number_one_to_twenty_is_rejected(leverage):
+    with pytest.raises(ValueError):
+        build_paper_trade_plan(sample(), account_balance=1000, leverage=leverage)
