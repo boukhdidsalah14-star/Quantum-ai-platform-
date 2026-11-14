@@ -1,5 +1,6 @@
 """Customer-isolated virtual trading accounts. No broker orders are sent."""
-import os, sqlite3, time, secrets, math
+import os, time, secrets, math
+from app.database import sqlite3
 from pathlib import Path
 
 PLATFORMS={"binary":{"name":"Olymp-style Binary","initial":63578.0},
