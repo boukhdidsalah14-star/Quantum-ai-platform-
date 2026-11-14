@@ -159,6 +159,7 @@ def test_mt4_auto_trader_api_requires_subscription_and_starts_stops_demo(monkeyp
 def test_mt4_auto_trader_api_rejects_when_server_demo_switch_is_off(monkeypatch, tmp_path):
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setattr(main, "subscription_for_customer", lambda customer_id: {"active": True})
     monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
     monkeypatch.setenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "false")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "mt4-auto-locked.sqlite3"))
@@ -168,3 +169,4 @@ def test_mt4_auto_trader_api_rejects_when_server_demo_switch_is_off(monkeypatch,
             "symbol": "XAUUSD", "timeframe": "15m", "lots": 0.01,
         })
         assert response.status_code == 403
+        assert "locked" in response.json()["detail"].lower()
