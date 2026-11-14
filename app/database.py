@@ -80,7 +80,7 @@ class _PostgresConnection:
 class _SQLiteFacade:
     Row = _sqlite3.Row
     Connection = _sqlite3.Connection
-    IntegrityError = psycopg.IntegrityError if psycopg is not None else _sqlite3.IntegrityError
+    IntegrityError = (psycopg.IntegrityError, _sqlite3.IntegrityError) if psycopg is not None else _sqlite3.IntegrityError
 
     @staticmethod
     def connect(path: str, timeout: int = 10, **kwargs):
