@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#020b1b"><title>QUANTUM AI — Trading Terminal</title>
-<link rel="stylesheet" href="/static/styles.css?v=20261114-step3-paper">
+<link rel="stylesheet" href="/static/styles.css?v=20261114-step3-leverage">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -108,7 +108,14 @@
    <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto futures candlestick chart"></canvas></div>
    <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a futures asset and timeframe.</small></div>
    <div id="crypto-signal-details" class="signal-details" hidden></div>
-   <p class="risk-note">Read-only Binance USD-M market data. USDT is the quote/settlement currency, not a selectable asset. No crypto order is sent from this analysis panel.</p>
+    <div class="chart-toolbar crypto-paper-controls">
+     <label for="crypto-paper-balance">PAPER BALANCE (USDT)</label><input id="crypto-paper-balance" type="number" min="1" max="1000000" step="1" value="1000">
+     <label for="crypto-paper-risk">RISK %</label><input id="crypto-paper-risk" type="number" min="0.1" max="1" step="0.1" value="0.5">
+     <label for="crypto-paper-leverage">LEVERAGE</label><select id="crypto-paper-leverage"><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option><option value="6">6×</option><option value="7">7×</option><option value="8">8×</option><option value="9">9×</option><option value="10">10×</option><option value="11">11×</option><option value="12">12×</option><option value="13">13×</option><option value="14">14×</option><option value="15">15×</option><option value="16">16×</option><option value="17">17×</option><option value="18">18×</option><option value="19">19×</option><option value="20">20×</option></select>
+     <button id="crypto-paper-entry" class="solid-btn">AUTO PAPER ENTRY</button>
+    </div>
+    <div id="crypto-paper-result" class="signal-details" hidden></div>
+    <p class="risk-note">MEXC USD-M perpetual futures public market data. USDT is quote/settlement currency, not a tradable asset. Leverage selection applies to simulated paper positions only. Max planned risk is 1%; max paper notional is $500. No MEXC order is sent.</p>
   </section>
   <div class="provider-card">
    <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>Binary Options</h2><p>Dedicated CALL / PUT / WAIT analysis for the selected binary pair. Signals appear in the floating window. No binary broker account connection or automatic orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
