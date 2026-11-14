@@ -184,11 +184,12 @@ bool SyncSymbolCandles(string symbol)
    if(timeframe == "") return false;
    int wanted = MathMax(50, MathMin(CandleCount, 200));
    int bars = iBars(symbol, ChartTimeframe);
-   if(bars < 50) return false;
-   int count = MathMin(wanted, bars);
+   if(bars < 51) return false;
+   // Include only completed candles; shift 0 is still forming and must not drive a signal.
+   int count = MathMin(wanted + 1, bars);
    string candles = "";
    int added = 0;
-   for(int shift=count-1; shift>=0; shift--)
+   for(int shift=count-1; shift>=1; shift--)
    {
       datetime candleTime = iTime(symbol, ChartTimeframe, shift);
       double openPrice = iOpen(symbol, ChartTimeframe, shift);
