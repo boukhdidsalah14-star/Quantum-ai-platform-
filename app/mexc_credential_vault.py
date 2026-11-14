@@ -5,7 +5,7 @@ database is durable. This module never logs or returns API secrets.
 """
 import json
 import os
-import sqlite3
+from app.database import sqlite3
 import time
 from pathlib import Path
 
