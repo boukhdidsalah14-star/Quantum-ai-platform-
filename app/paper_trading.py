@@ -34,6 +34,7 @@ def init_paper_db():
                 exit_price REAL,
                 stop_loss REAL,
                 take_profit REAL,
+                leverage INTEGER NOT NULL DEFAULT 1 CHECK(leverage BETWEEN 1 AND 20),
                 status TEXT NOT NULL CHECK(status IN ('open','closed')),
                 realized_pnl REAL,
                 idempotency_key TEXT NOT NULL,
@@ -42,18 +43,24 @@ def init_paper_db():
                 UNIQUE(customer_id,idempotency_key)
             )
         """)
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(paper_trades)").fetchall()}
+        if "leverage" not in columns:
+            db.execute("ALTER TABLE paper_trades ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1")
         db.execute("CREATE INDEX IF NOT EXISTS idx_paper_trades_customer ON paper_trades(customer_id,created_at)")
 
 
 def open_paper_trade(customer_id: str, symbol: str, side: str, quantity: float,
                      entry_price: float, stop_loss: float | None,
-                     take_profit: float | None, idempotency_key: str) -> dict:
+                     take_profit: float | None, idempotency_key: str,
+                     leverage: int = 1) -> dict:
     symbol = symbol.upper().strip()
     side = side.lower().strip()
     if symbol not in ALLOWED_SYMBOLS:
         raise ValueError("Unsupported paper-trading market")
     if side not in {"long", "short"}:
         raise ValueError("Side must be long or short")
+    if isinstance(leverage, bool) or not isinstance(leverage, int) or not 1 <= leverage <= 20:
+        raise ValueError("Leverage must be a whole number from 1x to 20x")
     if not (quantity > 0 and entry_price > 0):
         raise ValueError("Quantity and entry price must be positive")
     notional = quantity * entry_price
@@ -80,9 +87,9 @@ def open_paper_trade(customer_id: str, symbol: str, side: str, quantity: float,
         trade_id = secrets.token_urlsafe(18)
         db.execute("""
             INSERT INTO paper_trades
-            (id,customer_id,symbol,side,quantity,entry_price,stop_loss,take_profit,status,idempotency_key,created_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?)
-        """, (trade_id,customer_id,symbol,side,quantity,entry_price,stop_loss,take_profit,"open",idempotency_key,now))
+            (id,customer_id,symbol,side,quantity,entry_price,stop_loss,take_profit,leverage,status,idempotency_key,created_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (trade_id,customer_id,symbol,side,quantity,entry_price,stop_loss,take_profit,leverage,"open",idempotency_key,now))
         row = db.execute("SELECT * FROM paper_trades WHERE id=?", (trade_id,)).fetchone()
     return dict(row)
 
