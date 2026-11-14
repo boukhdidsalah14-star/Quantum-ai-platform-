@@ -161,6 +161,7 @@ public class SignalOverlayService extends Service {
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(-1, dp(48)); buttonParams.topMargin = dp(8); root.addView(analyze, buttonParams);
         resultText = text("READY · Choose an asset and request a signal.", 12, false); resultText.setBackgroundColor(Color.rgb(8, 29, 53)); root.addView(resultText);
         Button open = new Button(this); open.setText("OPEN QUANTUM AI"); open.setTextColor(Color.rgb(166, 219, 255)); open.setBackgroundColor(Color.TRANSPARENT); root.addView(open);
+        Button stop = new Button(this); stop.setText("TURN OFF FLOATING CHAT HEAD"); stop.setTextColor(Color.rgb(255, 160, 175)); stop.setBackgroundColor(Color.TRANSPARENT); root.addView(stop);
         panel = root;
         WindowManager.LayoutParams params = overlayParams(dp(310), -2, WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, Gravity.TOP | Gravity.START);
         params.x = dp(12); params.y = dp(90);
@@ -168,6 +169,7 @@ public class SignalOverlayService extends Service {
         close.setOnClickListener(v -> hidePanel());
         analyze.setOnClickListener(v -> requestSignal());
         open.setOnClickListener(v -> { Intent i = new Intent(this, MainActivity.class); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP); startActivity(i); });
+        stop.setOnClickListener(v -> stopSelf());
     }
 
     private void hidePanel() {
