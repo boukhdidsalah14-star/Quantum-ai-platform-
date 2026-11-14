@@ -20,8 +20,8 @@ def test_backtest_returns_directional_metrics_without_execution():
 
 
 def test_backtest_rejects_too_few_candles():
-    with pytest.raises(ValueError, match="At least 40"):
-        backtest_candles(rising_candles(30), "5m", 1)
+    with pytest.raises(ValueError, match="At least 51"):
+        backtest_candles(rising_candles(50), "5m", 1)
 
 
 @pytest.mark.parametrize("lookahead", [0, 5, -1])
