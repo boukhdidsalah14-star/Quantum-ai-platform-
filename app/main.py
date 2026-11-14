@@ -16,6 +16,7 @@ from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_live_execution import get_account_info as get_mexc_account_info, MexcExecutionError
+from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
@@ -90,6 +91,12 @@ class CryptoPaperAutoRequest(BaseModel):
     account_balance: float = Field(gt=0, le=1000000)
     risk_percent: float = Field(default=0.5, gt=0, le=1)
     leverage: int = Field(default=1, ge=1, le=20)
+
+
+class MetaTraderCloudConnectRequest(BaseModel):
+    platform: str = Field(min_length=3, max_length=3)
+    broker: str = Field(default="JustMarkets", min_length=2, max_length=80)
+    server: str = Field(min_length=2, max_length=120)
 
 
 class MT4BridgeRegistration(BaseModel):
@@ -223,6 +230,7 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
+    init_metaapi_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
     if _persistent_credentials_ready():
@@ -398,6 +406,67 @@ async def nowpayments_ipn(
 async def brokers():
     """Return verified implementation scope; this endpoint never claims a live account."""
     return broker_capabilities()
+
+
+@app.get("/api/connections/metatrader")
+async def metatrader_connections(request: Request):
+    init_auth_db()
+    init_metaapi_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"accounts": metaapi_metadata(customer["id"]), "provider_configured": bool(os.getenv("METAAPI_TOKEN", "").strip())}
+
+
+@app.post("/api/connections/metatrader")
+async def create_metatrader_cloud_connection(payload: MetaTraderCloudConnectRequest, request: Request):
+    """Create a cloud MT4/MT5 account and return a one-day hosted credential setup link."""
+    _check_same_origin(request)
+    init_auth_db()
+    init_metaapi_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        result = await create_metaapi_account(customer["id"], payload.platform, payload.broker, payload.server)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except MetaApiError as exc:
+        message = str(exc)
+        status = 503 if "not configured" in message.lower() else 502
+        raise HTTPException(status_code=status, detail=message)
+
+
+@app.get("/api/connections/metatrader/{platform}")
+async def metatrader_cloud_connection_status(platform: str, request: Request):
+    init_auth_db()
+    init_metaapi_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await get_metaapi_account_status(customer["id"], platform)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except MetaApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.delete("/api/connections/metatrader/{platform}")
+async def disconnect_metatrader_cloud_account(platform: str, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_metaapi_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return {"deleted": await delete_metaapi_account(customer["id"], platform)}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except MetaApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
 
 @app.post("/api/mt4/bridge/register")
@@ -605,6 +674,7 @@ async def health(request: Request):
         "deriv_demo_connector": "available",
         "customer_auth": "available",
         "credential_storage_ready": _persistent_credentials_ready(),
+        "metatrader_cloud_provider_configured": bool(os.getenv("METAAPI_TOKEN", "").strip()),
         "deriv_demo_execution_enabled": _demo_execution_enabled(),
         "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
         "mt4_demo_execution_enabled": mt4_demo_execution_enabled(),
