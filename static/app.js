@@ -34,6 +34,50 @@ function setSelected(p){selected=p; $("home-pair").value=p.symbol;$("chart-title
 function renderPairList(){ $("pair-list").innerHTML=binaryPairs.map(p=>'<button class="pair-item '+(p.symbol===selectedBinary.symbol?'active':'')+'" data-pair="'+p.symbol+'"><span class="flag">'+p.flag+'</span><span><b>'+p.label+'</b><small>Binary Options · Forex</small></span><span class="pair-price">'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"—")+'</span></button>').join("");document.querySelectorAll("[data-pair]").forEach(b=>b.addEventListener("click",()=>{selectedBinary=binaryPairs.find(p=>p.symbol===b.dataset.pair);setSelected(pairs.find(p=>p.symbol===b.dataset.pair));$("signal-pair-title").textContent=selectedBinary.label;renderPairList()}))}
 function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>USD-M FUTURES FEED</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
 async function loadMarkets(){try{let r=await fetch("/api/deriv/markets?category=forex");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();$("feed-label").textContent="IQ OPTION · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable"}}
+const cryptoAssets=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","TRXUSDT","DOGEUSDT","ADAUSDT","BCHUSDT","LINKUSDT"];
+$("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.replace("USDT","")+' / USDT</option>').join("");
+async function loadCryptoMarkets(){
+ try{
+  const response=await fetch("/api/markets");
+  if(!response.ok)throw Error("Futures market feed unavailable");
+  const data=await response.json();
+  const rows=new Map((data.markets||[]).map(item=>[item.symbol,item]));
+  $("crypto-market-list").innerHTML=cryptoAssets.map(symbol=>{
+   const item=rows.get(symbol);
+   const price=item?money(Number(item.price)):"—";
+   const change=item?Number(item.change_percent):0;
+   return '<button class="pair-item" data-crypto-symbol="'+symbol+'"><span class="flag">₿</span><span><b>'+symbol.replace("USDT","")+'</b><small>USD-M perpetual · '+(item?((change>=0?"+":"")+change.toFixed(2)+"%"):"feed unavailable")+'</small></span><span class="pair-price">'+price+'</span></button>';
+  }).join("");
+  document.querySelectorAll("[data-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>{
+   $("crypto-symbol").value=button.dataset.cryptoSymbol;
+  }));
+ }catch(error){
+  $("crypto-market-list").innerHTML="<p class='muted'>Crypto futures feed temporarily unavailable.</p>";
+ }
+}
+async function runCryptoAnalysis(){
+ if(!signed||!member){nav("account");toast("Sign in and activate membership to generate analysis");return;}
+ const symbol=$("crypto-symbol").value;
+ const timeframe=$("crypto-timeframe").value;
+ const result=$("crypto-signal-result");
+ const detail=$("crypto-signal-details");
+ result.className="signal-result idle";
+ result.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING "+safe(symbol)+"…</b><small>Fetching completed Binance USD-M futures candles</small>";
+ try{
+  const response=await fetch("/api/signals/crypto/"+encodeURIComponent(symbol)+"?timeframe="+encodeURIComponent(timeframe));
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Crypto analysis unavailable");
+  const direction=data.direction||"WAIT";
+  result.className="signal-result "+(direction==="CALL"?"call":direction==="PUT"?"put":"idle");
+  result.innerHTML="<div class='signal-arrow'>"+(direction==="CALL"?"↗":direction==="PUT"?"↘":"Ⅱ")+"</div><b>"+direction+"</b><small>"+safe(symbol)+" · "+safe(timeframe)+" · "+safe(data.signal_strength)+" confidence</small>";
+  detail.hidden=false;
+  detail.innerHTML="<b>BINANCE USD-M · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";
+ }catch(error){
+  result.className="signal-result idle";
+  result.innerHTML="<b>NO SIGNAL</b><small>"+safe(error.message)+"</small>";
+ }
+}
+$("crypto-analyze").addEventListener("click",runCryptoAnalysis);
 async function loadChart(){try{let tf=$("home-timeframe").value;let gran={"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400}[tf];let r=await fetch("/api/deriv/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+gran+"&count=80");if(!r.ok)throw Error("Chart unavailable");let d=await r.json();chartCandles=d.candles||[];let last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();}catch(e){chartCandles=[];drawChart();$("current-price").textContent="—";}}
 function drawChart(){let c=$("price-chart"),box=c.parentElement,w=box.clientWidth,h=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;let x=c.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle="#0b3153";x.lineWidth=1;for(let i=1;i<5;i++){let y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!chartCandles.length){x.fillStyle="#7998b7";x.font="12px Inter";x.fillText("Waiting for live candle data…",16,h/2);return}let lo=Math.min(...chartCandles.map(v=>+v.low)),hi=Math.max(...chartCandles.map(v=>+v.high)),span=hi-lo||1,step=w/chartCandles.length,bw=Math.max(2,step*.52);chartCandles.forEach((v,i)=>{let cx=i*step+step/2,yo=h-(v.open-lo)/span*h*.86-h*.07,yc=h-(v.close-lo)/span*h*.86-h*.07,yh=h-(v.high-lo)/span*h*.86-h*.07,yl=h-(v.low-lo)/span*h*.86-h*.07,up=v.close>=v.open;x.strokeStyle=up?"#00e99a":"#ff456b";x.fillStyle=x.strokeStyle;x.beginPath();x.moveTo(cx,yh);x.lineTo(cx,yl);x.stroke();x.fillRect(cx-bw/2,Math.min(yo,yc),bw,Math.max(2,Math.abs(yc-yo)));});}
 window.addEventListener("resize",drawChart);
@@ -59,7 +103,7 @@ const providerInfo={
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth()});setInterval(loadMarkets,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
