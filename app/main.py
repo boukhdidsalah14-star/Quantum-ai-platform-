@@ -407,9 +407,9 @@ async def mt4_bridge_candles(payload: dict, authorization: str = Header(default=
 
 
 @app.get("/api/mt4/candles/{symbol}")
-async def get_customer_mt4_candles(symbol: str, timeframe: str = Query(default="15m"), request: Request = None):
+async def get_customer_mt4_candles(request: Request, symbol: str, timeframe: str = Query(default="15m")):
     init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE) if request else None)
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
