@@ -65,7 +65,19 @@
    </form>
    <div id="mt4-bridge-token-box" class="payment-box" hidden><b>ONE-TIME EA TOKEN</b><code id="mt4-bridge-token"></code><button id="mt4-copy-token" class="outline-btn" type="button">COPY TOKEN</button><p><a href="/static/mt4/QuantumAI_JustMarkets_MT4.mq4" download>Download QUANTUM AI MT4 Expert Advisor (.mq4)</a></p><small>Copy the token into the EA inputs before attaching it to your JustMarkets MT4 demo terminal. The token is stored as a hash and cannot be displayed again.</small></div>
    <div id="mt4-bridge-details" class="mt4-position-strip"><div><small>ACCOUNT</small><strong id="mt4-bridge-account">—</strong></div><div><small>BALANCE</small><strong id="mt4-bridge-balance">—</strong></div><div><small>EQUITY</small><strong id="mt4-bridge-equity">—</strong></div></div>
-   <p id="mt4-bridge-message" class="risk-note">Demo connection only. The EA reports broker positions, quotes and candles. This free preview has temporary storage, so bridge registration may reset after a restart; demo order execution stays locked until durable storage is configured. Real-account execution is disabled.</p>
+   <p id="mt4-bridge-message" class="risk-note">Demo connection only. The EA reports broker positions, quotes and completed candles. Customer bridge data is stored in the connected persistent database. Real-account execution is not available.</p>
+   <div class="section-title"><h3>Automatic Forex demo trader</h3><span id="mt4-auto-status" class="live-badge">STOPPED</span></div>
+   <p id="mt4-auto-message" class="risk-note">Uses completed JustMarkets MT4 candles and the multi-indicator analysis engine. Orders can only be sent to a verified demo terminal; the EA must also have demo execution enabled.</p>
+   <form id="mt4-auto-form" class="signal-controls">
+    <label>ASSET<select id="mt4-auto-symbol"><option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option><option>USDCHF</option><option>NZDUSD</option><option>EURJPY</option><option>GBPJPY</option></select></label>
+    <label>TIMEFRAME<select id="mt4-auto-timeframe"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option><option>4h</option></select></label>
+    <label>LOT SIZE<input id="mt4-auto-lots" type="number" min="0.01" max="0.10" step="0.01" value="0.01" required></label>
+    <label>MAX EQUITY DRAWDOWN %<input id="mt4-auto-drawdown" type="number" min="1" max="10" step="0.5" value="10" required></label>
+    <label>STOP LOSS · ATR<input id="mt4-auto-stop-atr" type="number" min="0.5" max="5" step="0.1" value="1.5" required></label>
+    <label>TAKE PROFIT · ATR<input id="mt4-auto-target-atr" type="number" min="0.5" max="8" step="0.1" value="2" required></label>
+    <button id="mt4-auto-start" class="solid-btn" type="submit">START DEMO AUTOTRADER</button>
+    <button id="mt4-auto-stop" class="outline-btn" type="button">STOP AUTOTRADER</button>
+   </form>
    <div class="section-title"><h3>Demo order test</h3><span class="live-badge">LOCKED BY DEFAULT</span></div>
    <form id="mt4-demo-order-form" class="signal-controls">
     <label>ASSET<select id="mt4-order-symbol"><option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option><option>USDCHF</option><option>NZDUSD</option><option>EURJPY</option><option>GBPJPY</option></select></label>
