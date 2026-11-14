@@ -82,7 +82,7 @@ class PaperTradeRequest(BaseModel):
 
 
 class OlympSignalRequest(BaseModel):
-    candles: list[dict] = Field(min_length=30, max_length=500)
+    candles: list[dict] = Field(min_length=50, max_length=500)
     timeframe: str = Field(min_length=2, max_length=3)
 
 
