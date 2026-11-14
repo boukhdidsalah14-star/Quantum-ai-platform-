@@ -48,7 +48,7 @@ class _PostgresConnection:
         if ignore_conflict:
             statement = re.sub(r"^INSERT\\s+OR\\s+IGNORE\\s+INTO", "INSERT INTO", statement, flags=re.I)
             statement += " ON CONFLICT DO NOTHING"
-        statement = re.sub(r"\\?", "%s", statement)
+        statement = re.sub(r"\\?", "%s", statement)\n        statement = re.sub(r"\\bBLOB\\b", "BYTEA", statement, flags=re.I)
         return self._conn.execute(statement, parameters)
 
     def executescript(self, script: str):
