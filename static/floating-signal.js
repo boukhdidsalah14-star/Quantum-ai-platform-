@@ -1,0 +1,26 @@
+(()=>{
+ const launcher=document.createElement('button');launcher.id='qai-signal-launcher';launcher.type='button';launcher.setAttribute('aria-label','Open QUANTUM AI floating signal assistant');launcher.setAttribute('aria-expanded','false');launcher.textContent='QAI';
+ const panel=document.createElement('section');panel.id='qai-signal-panel';panel.setAttribute('aria-label','Floating signal assistant');panel.innerHTML=`<div class="qai-head"><div class="qai-brand">QUANTUM AI<small>INSTANT MARKET ANALYSIS</small></div><button class="qai-close" type="button" aria-label="Close signal assistant">×</button></div><div class="qai-body"><div class="qai-row"><div class="qai-field"><label class="qai-label" for="qai-category">MARKET</label><select id="qai-category"><option value="forex">FOREX</option><option value="synthetic">BINARY / SYNTHETICS</option><option value="crypto">CRYPTO</option></select></div><div class="qai-field"><label class="qai-label" for="qai-timeframe">TIMEFRAME</label><select id="qai-timeframe"></select></div></div><div class="qai-field"><label class="qai-label" for="qai-asset">ASSET</label><select id="qai-asset"></select></div><button class="qai-run" id="qai-run" type="button">GENERATE SIGNAL</button><div class="qai-result" id="qai-result" aria-live="polite"><span class="qai-foot">Choose a market and generate an indicator-based analysis from recent public candles.</span></div><p class="qai-foot">Research indicator only — not a guaranteed prediction. No order is placed by this window. Confirm prices and test on demo.</p></div>`;
+ document.body.append(launcher,panel);
+ const $=id=>document.getElementById(id), category=$('qai-category'), timeframe=$('qai-timeframe'), asset=$('qai-asset'), run=$('qai-run'), result=$('qai-result');
+ const markets={forex:[['frxEURUSD','EUR/USD'],['frxGBPUSD','GBP/USD'],['frxUSDJPY','USD/JPY'],['frxAUDUSD','AUD/USD'],['frxUSDCAD','USD/CAD'],['frxUSDCHF','USD/CHF'],['frxNZDUSD','NZD/USD']],synthetic:[['1HZ100V','Volatility 100 (1s)'],['1HZ50V','Volatility 50 (1s)'],['R_100','Volatility 100'],['R_75','Volatility 75'],['R_50','Volatility 50'],['R_25','Volatility 25']],crypto:[['BTCUSDT','BTC / USDT'],['ETHUSDT','ETH / USDT'],['BNBUSDT','BNB / USDT'],['SOLUSDT','SOL / USDT'],['XRPUSDT','XRP / USDT']]};
+ const timeframes={forex:['1m','5m','15m','30m','1h','4h','1d'],synthetic:['1m','5m','15m','30m','1h','4h','1d'],crypto:['1h','4h','1d']};
+ function options(el,items){el.replaceChildren(...items.map(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;return o;}));}
+ function configure(){const c=category.value;options(asset,markets[c]);options(timeframe,timeframes[c].map(x=>[x,x]));}
+ category.addEventListener('change',configure);configure();
+ function open(){panel.classList.add('qai-open');launcher.setAttribute('aria-expanded','true');}
+ function close(){panel.classList.remove('qai-open');launcher.setAttribute('aria-expanded','false');}
+ launcher.addEventListener('click',()=>panel.classList.contains('qai-open')?close():open());panel.querySelector('.qai-close').addEventListener('click',close);
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+ run.addEventListener('click',async()=>{
+  const c=category.value,s=asset.value,t=timeframe.value;const endpoint=c==='crypto'?'/api/signals/crypto/'+encodeURIComponent(s)+'?source=binance&timeframe='+encodeURIComponent(t):'/api/signals/deriv/'+encodeURIComponent(s)+'?category='+encodeURIComponent(c)+'&timeframe='+encodeURIComponent(t);
+  run.disabled=true;run.textContent='ANALYZING MARKET…';result.textContent='Loading recent public candles…';
+  try{const response=await fetch(endpoint,{headers:{'Accept':'application/json'}});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Market analysis is temporarily unavailable.');
+   const direction=String(data.direction||'WAIT').toUpperCase();const box=document.createElement('div');const d=document.createElement('div');d.className='qai-direction '+(direction==='CALL'?'call':direction==='PUT'?'put':'wait');d.textContent=direction;box.append(d);
+   const meta=document.createElement('div');meta.className='qai-meta';[[data.symbol||s,''],['TREND '+(data.trend||'—'),''],['RSI '+(data.rsi_14??'—'),''],['STRENGTH '+(data.signal_strength||'low'),'']].forEach(([v])=>{const chip=document.createElement('span');chip.className='qai-chip';chip.textContent=v;meta.append(chip);});box.append(meta);
+   const reasons=Array.isArray(data.reasons)?data.reasons:[];if(reasons.length){const ul=document.createElement('ul');ul.className='qai-reasons';reasons.forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.append(li);});box.append(ul);}
+   const note=document.createElement('p');note.className='qai-foot';note.textContent='Source: '+(data.source||'public candles')+' · '+(data.candle_count||'')+' candles · Suggested expiry: '+(data.suggested_expiry_minutes||'—')+' min';box.append(note);result.replaceChildren(box);
+  }catch(error){const p=document.createElement('p');p.className='qai-error';p.textContent=error.message||'Unable to generate analysis.';result.replaceChildren(p);}
+  finally{run.disabled=false;run.textContent='GENERATE SIGNAL';}
+ });
+})();
