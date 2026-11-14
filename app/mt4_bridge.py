@@ -155,7 +155,8 @@ def _authenticate(db, token: str, account_login: str, account_server: str, compa
         raise BridgeAuthError("MT4 account login does not match the registered account")
     if not hmac.compare_digest(str(row["account_server"]), str(account_server or "")):
         raise BridgeAuthError("MT4 server does not match the registered account")
-    if "justmarkets" not in str(company or "").lower():
+    company_name = str(company or "").lower()
+    if "justmarkets" not in company_name and "just global markets" not in company_name:
         raise BridgeAuthError("This bridge token is restricted to a JustMarkets terminal")
     if row["account_mode"] != "demo":
         raise BridgeAuthError("Only a demo MT4 account is supported")
