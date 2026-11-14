@@ -833,7 +833,8 @@ async def crypto_signal(
         candle_data = await get_candles(symbol, timeframe, 100)
         result = analyze_candles(candle_data, timeframe)
         result.update({"symbol": symbol.upper(), "category": "crypto",
-                       "source": source.upper() + " public candles",
+                       "trade_bias": "LONG" if result["direction"] == "CALL" else "SHORT" if result["direction"] == "PUT" else "WAIT",
+                       "source": "Binance USD-M futures public candles",
                        "execution_enabled": False})
         return result
     except ValueError as exc:
