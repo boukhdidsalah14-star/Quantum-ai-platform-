@@ -12,7 +12,7 @@ The signal API now uses `app.advanced_signals.analyze_market` through the existi
 ## Factors
 
 - EMA 9/21/50/200 trend alignment (EMA 200 falls back to EMA 50 when fewer than 200 bars are supplied).
-- RSI(14), MACD momentum proxy, ATR(14), ADX(14), Bollinger position and 20-bar breakout checks.
+- RSI(14), MACD (12/26/9) histogram, ATR(14), ADX(14), Bollinger position and 20-bar breakout checks.
 - Candle body strength and optional higher-timeframe EMA 9/21 bias.
 - Regime labels: trending, high volatility, or ranging/weak trend. High-volatility conditions are filtered to WAIT.
 - Conflicting supplied higher-timeframe biases block a directional entry.
