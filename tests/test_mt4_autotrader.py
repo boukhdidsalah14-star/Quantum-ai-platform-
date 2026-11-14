@@ -75,6 +75,7 @@ def test_auto_trader_queues_one_demo_order_per_completed_candle(monkeypatch, tmp
     assert status["active"] is True
     assert status["last_signal"] == "CALL"
     assert status["last_command_id"] == queued[0]
+    assert len("QAI:" + queued[0]) <= 31  # MT4 order comments are limited to 31 characters.
     assert status["last_candle_time"] == candles[-1]["time"]
 
 
