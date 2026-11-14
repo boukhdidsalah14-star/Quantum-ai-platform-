@@ -1,14 +1,14 @@
-"""Read-only public crypto market data adapter."""
+"""Read-only Binance USD-M futures public market data adapter."""
 from __future__ import annotations
 import time
 from typing import Any
 import httpx
 
-BASE_URL = "https://api.binance.com/api/v3"
+BASE_URL = "https://fapi.binance.com/fapi/v1"
 # Binance documents this host as a market-data-only alternative to the trading API.
-BASE_URLS = (BASE_URL, "https://data-api.binance.vision/api/v3", "https://api1.binance.com/api/v3", "https://api2.binance.com/api/v3", "https://api3.binance.com/api/v3")
-ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "AVAXUSDT", "DOTUSDT", "LTCUSDT", "BCHUSDT", "ATOMUSDT", "NEARUSDT", "UNIUSDT", "ETCUSDT", "FILUSDT", "APTUSDT", "ARBUSDT"}
-ALLOWED_INTERVALS = {"5m", "15m", "1h", "4h", "1d"}
+BASE_URLS = (BASE_URL,)
+ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "BCHUSDT", "LINKUSDT"}
+ALLOWED_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 8.0
 
@@ -43,13 +43,13 @@ async def get_candles(symbol: str, interval: str, limit: int = 72) -> list[dict[
         raise ValueError("Unsupported market symbol")
     if interval not in ALLOWED_INTERVALS:
         raise ValueError("Unsupported candle interval")
-    bounded_limit = max(20, min(int(limit), 200))
+    bounded_limit = max(50, min(int(limit), 200))
     rows = await _get_json("klines", {"symbol": symbol, "interval": interval, "limit": str(bounded_limit)})
     return [{"time": int(r[0]), "open": float(r[1]), "high": float(r[2]), "low": float(r[3]), "close": float(r[4]), "volume": float(r[5])} for r in rows]
 
 
 async def get_order_book(symbol: str, limit: int = 10) -> dict[str, Any]:
-    """Return real public Binance spot depth for the supported watchlist."""
+    """Return read-only public Binance USD-M futures order-book depth."""
     symbol = symbol.upper()
     if symbol not in ALLOWED_SYMBOLS:
         raise ValueError("Unsupported market symbol")
@@ -58,7 +58,7 @@ async def get_order_book(symbol: str, limit: int = 10) -> dict[str, Any]:
     bids = [[float(price), float(quantity)] for price, quantity in payload.get("bids", [])]
     asks = [[float(price), float(quantity)] for price, quantity in payload.get("asks", [])]
     if not bids or not asks:
-        raise httpx.HTTPError("Binance returned an empty order book")
+        raise httpx.HTTPError("Binance Futures returned an empty order book")
     return {"symbol": symbol, "bids": bids, "asks": asks,
             "last_update_id": payload.get("lastUpdateId"),
             "spread": asks[0][0] - bids[0][0]}
