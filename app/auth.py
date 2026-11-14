@@ -142,7 +142,12 @@ def revoke_session(token: str | None) -> None:
 
 
 def signup_enabled() -> bool:
-    return os.getenv("ALLOW_CUSTOMER_SIGNUP", "false").strip().lower() in {"1", "true", "yes"}
+    requested = os.getenv("ALLOW_CUSTOMER_SIGNUP", "false").strip().lower() in {"1", "true", "yes"}
+    # Production signups must never be enabled on an ephemeral filesystem.
+    if os.getenv("ENVIRONMENT", "development").strip().lower() == "production":
+        durable = os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        return requested and durable
+    return requested
 
 
 
