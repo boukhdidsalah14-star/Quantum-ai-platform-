@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://fapi.binance.com/fapi/v1"
-# Binance documents this host as a market-data-only alternative to the trading API.
+# Read-only public USD-M futures endpoints; no authenticated order endpoints are used.
 BASE_URLS = (BASE_URL,)
 ALLOWED_SYMBOLS = {"BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "ADAUSDT", "BCHUSDT", "LINKUSDT"}
 ALLOWED_INTERVALS = {"5m", "15m", "30m", "1h", "4h", "1d"}
