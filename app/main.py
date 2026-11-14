@@ -23,6 +23,7 @@ from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
 from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, sync_candles as sync_mt4_candles, get_mt4_candles, BridgeAuthError)
+from app.mt4_autotrader import (init_db as init_mt4_auto_db, demo_execution_enabled as mt4_demo_execution_enabled, get_settings as mt4_auto_status, start_auto_trader, stop_auto_trader, process_active_auto_traders)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
@@ -93,6 +94,15 @@ class MT4DemoOrderRequest(BaseModel):
     lots: float = Field(gt=0, le=0.10)
     stop_loss: float = Field(gt=0)
     take_profit: float = Field(gt=0)
+
+
+class MT4AutoStartRequest(BaseModel):
+    symbol: str = Field(min_length=3, max_length=12)
+    timeframe: str = Field(min_length=2, max_length=3)
+    lots: float = Field(gt=0, le=0.10)
+    stop_atr: float = Field(ge=0.5, le=5, default=1.5)
+    target_atr: float = Field(ge=0.5, le=8, default=2.0)
+    max_drawdown_pct: float = Field(ge=1, le=10, default=10.0)
 
 
 class OlympSignalRequest(BaseModel):
@@ -185,6 +195,16 @@ async def _deriv_demo_monitor_loop():
         await asyncio.sleep(15)
 
 
+async def _mt4_auto_monitor_loop():
+    """Run customer-isolated MT4 auto strategies against completed broker candles."""
+    while True:
+        try:
+            await asyncio.to_thread(process_active_auto_traders)
+        except Exception:
+            logger.exception("MT4 demo auto-trader monitor loop failed")
+        await asyncio.sleep(15)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
@@ -195,11 +215,15 @@ async def lifespan(app: FastAPI):
     init_vault_db()
     init_mexc_vault_db()
     init_mt4_bridge_db()
+    init_mt4_auto_db()
     if _persistent_credentials_ready():
         init_deriv_trading_db()
     monitor_task = None
+    mt4_auto_task = None
     if _demo_execution_enabled():
         monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
+    if mt4_demo_execution_enabled():
+        mt4_auto_task = asyncio.create_task(_mt4_auto_monitor_loop())
     bot = None
     token, token_env_name = _configured_telegram_token()
     if token:
@@ -246,6 +270,12 @@ async def lifespan(app: FastAPI):
             monitor_task.cancel()
             try:
                 await monitor_task
+            except asyncio.CancelledError:
+                pass
+        if mt4_auto_task is not None:
+            mt4_auto_task.cancel()
+            try:
+                await mt4_auto_task
             except asyncio.CancelledError:
                 pass
         if bot is not None:
@@ -508,6 +538,44 @@ async def list_mt4_demo_orders(request: Request):
     return {"orders": mt4_order_status(customer["id"]), "execution_mode": "demo_only"}
 
 
+@app.get("/api/mt4/auto")
+async def get_mt4_auto_trader_status(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {**mt4_auto_status(customer["id"]), "server_execution_enabled": mt4_demo_execution_enabled()}
+
+
+@app.post("/api/mt4/auto/start")
+async def start_mt4_auto_trader(payload: MT4AutoStartRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=403, detail="An active membership is required to start MT4 demo auto trading")
+    try:
+        return start_auto_trader(customer["id"], payload.symbol, payload.timeframe,
+            payload.lots, payload.stop_atr, payload.target_atr, payload.max_drawdown_pct)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/mt4/auto/stop")
+async def stop_mt4_auto_trader(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return stop_auto_trader(customer["id"])
+
+
 @app.get("/api/auth/config")
 async def auth_config():
     """Expose non-sensitive account availability to the dashboard."""
@@ -530,6 +598,8 @@ async def health(request: Request):
         "credential_storage_ready": _persistent_credentials_ready(),
         "deriv_demo_execution_enabled": _demo_execution_enabled(),
         "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
+        "mt4_demo_execution_enabled": mt4_demo_execution_enabled(),
+        "mt4_auto_trader_monitor_running": bool(mt4_demo_execution_enabled()),
         "order_execution": False,
         "trading_enabled": False,
     }
