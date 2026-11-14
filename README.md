@@ -27,7 +27,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 - Passwords are salted PBKDF2-SHA256 hashes. Session tokens are random, stored server-side as SHA-256 hashes, and sent in HttpOnly cookies.
 - Login attempts are throttled per normalized email + client IP using a persistent 15-minute SQLite bucket; successful login clears the bucket.
 - Browser-origin checks reject cross-origin register/login/logout requests when an Origin header is present.
-- SQLite customer/session tables with per-customer identifiers as the foundation for tenant-owned resources.
+- Customer/session tables with per-customer identifiers as the foundation for tenant-owned resources. SQLite is used for local development; when `DATABASE_URL` is configured, customer, subscription, encrypted credential, paper-trading, virtual-account, and Deriv demo ledgers use Neon PostgreSQL.
 
 ## Olymp Trade integration foundation
 
@@ -57,7 +57,7 @@ Each customer must configure a paper account balance before opening an Olymp Tra
 - IQ Option account automation is blocked pending a verified supported retail API; the commonly found community clients are reverse-engineered and are not used. MEXC public Spot quotes/candles are integrated read-only. MEXC account execution remains disabled because its official API connects directly to live trading and does not provide a sandbox; a separate reviewed risk-control gate is required. See the [MEXC API introduction](https://www.mexc.io/api-docs/spot-v3/introduction) and [MEXC API overview](https://www.mexc.com/mexc-api). The broker registry is a capability display, not proof of a live customer connection.
 - The crypto paper-trading feature is a simulation only. Deriv binary execution is restricted to a customer-verified VRTC demo account and remains locked by default. No real-account trading is implemented or enabled.
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
-- SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
+- Production persistence uses Neon PostgreSQL through `DATABASE_URL`. Keep the connection string private in the hosting provider's secret environment. Before customer launch, verify backups, restore procedures, encryption keys, and all tenant-isolation flows.
 
 ## Subscription payments (NOWPayments)
 
@@ -183,3 +183,8 @@ Deriv's current engine remains demo-only. The official API provides separate aut
 IQ Option has been removed from the product scope and is not listed as a broker.
 
 No live order is placed by this branch, and the production service is not changed until this branch is reviewed, tested, and merged.
+
+
+## Persistent database
+
+The application keeps SQLite as its local-test fallback. Production services use Neon PostgreSQL when `DATABASE_URL` is present. The database adapter translates the existing repository queries to PostgreSQL, keeps customer rows as dictionary-style records, and serializes the existing critical idempotent order paths with a transaction-scoped advisory lock. Do not set `QUANTUM_PERSISTENT_STORAGE=true` until the Neon-backed deployment has passed end-to-end auth, subscription, vault, and trading-ledger tests.
