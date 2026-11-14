@@ -281,4 +281,50 @@ $("mt4-demo-order-form").addEventListener("submit",async e=>{
  finally{button.disabled=false;}
 });
 setInterval(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()},10000);
+
+async function refreshMetaTraderConnection(){
+ const platform=$("mt-cloud-platform").value;
+ const state=$("mt-cloud-state"),note=$("mt-cloud-note"),result=$("mt-cloud-result");
+ try{
+  const response=await fetch("/api/connections/metatrader/"+encodeURIComponent(platform));
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Connection status unavailable");
+  state.textContent=data.connected?"CONNECTED":(data.state||"NOT CONNECTED");
+  note.textContent=data.connected
+   ? "Cloud terminal connected. Trading remains locked until the demo execution tests and account risk controls are completed."
+   : "Cloud account status: "+(data.state||"not configured")+" · "+(data.connection_status||"waiting for secure account setup");
+  if(result.hidden===false&&!data.connected) result.hidden=false;
+ }catch(error){state.textContent="STATUS UNAVAILABLE";note.textContent=error.message;}
+}
+$("mt-cloud-form")?.addEventListener("submit",async event=>{
+ event.preventDefault();
+ const button=$("mt-cloud-connect"),result=$("mt-cloud-result"),state=$("mt-cloud-state");
+ const payload={platform:$("mt-cloud-platform").value,broker:$("mt-cloud-broker").value.trim(),server:$("mt-cloud-server").value.trim()};
+ button.disabled=true;button.textContent="CREATING CLOUD CONNECTION…";
+ try{
+  const response=await fetch("/api/connections/metatrader",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not create cloud connection");
+  result.hidden=false;
+  result.replaceChildren();
+  const heading=document.createElement("b");heading.textContent=payload.platform.toUpperCase()+" CLOUD ACCOUNT CREATED";result.appendChild(heading);
+  const status=document.createElement("p");status.textContent="State: "+(data.state||"DRAFT")+". Complete the secure broker login on MetaApi.";result.appendChild(status);
+  const link=document.createElement("a");link.href=data.configuration_link;link.target="_blank";link.rel="noopener noreferrer";link.textContent="OPEN SECURE META TRADER ACCOUNT SETUP";result.appendChild(link);
+  const detail=document.createElement("small");detail.textContent="This one-time setup link expires in 24 hours. QUANTUM AI does not receive or store your MetaTrader password.";result.appendChild(detail);
+  state.textContent="SETUP REQUIRED";toast("Cloud account created. Finish secure setup.");
+ }catch(error){result.hidden=false;result.textContent=error.message;state.textContent="NOT CONNECTED";toast(error.message);}
+ finally{button.disabled=false;button.textContent="CREATE SECURE CLOUD CONNECTION";}
+});
+$("mt-cloud-refresh")?.addEventListener("click",refreshMetaTraderConnection);
+$("mt-cloud-platform")?.addEventListener("change",refreshMetaTraderConnection);
+$("mt-cloud-disconnect")?.addEventListener("click",async()=>{
+ const platform=$("mt-cloud-platform").value;
+ if(!window.confirm("Disconnect the "+platform.toUpperCase()+" cloud account?"))return;
+ try{
+  const response=await fetch("/api/connections/metatrader/"+encodeURIComponent(platform),{method:"DELETE"});
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Disconnect failed");
+  $("mt-cloud-result").hidden=true;$("mt-cloud-state").textContent="DISCONNECTED";$("mt-cloud-note").textContent="Cloud account disconnected.";
+  toast(data.deleted?"Account disconnected":"No account was registered");
+ }catch(error){toast(error.message);}
+});
 })();
