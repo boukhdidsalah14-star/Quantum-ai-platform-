@@ -544,59 +544,18 @@ navigationButtons.forEach(button=>{
   button.addEventListener('click',()=>activateWorkspace(button.dataset.workspace));
 });
 // Candlestick chart renderer.
-function drawChart(canvasId, count=38, volume=false){
+function drawChart(canvasId){
   const canvas=$(canvasId);
   if(!canvas||canvas.dataset.real==="1")return;
-  const rect=canvas.getBoundingClientRect();
-  const ratio=window.devicePixelRatio||1;
-  canvas.width=Math.max(1,rect.width*ratio);
-  canvas.height=Math.max(1,rect.height*ratio);
-  const ctx=canvas.getContext('2d');
-  ctx.setTransform(ratio,0,0,ratio,0,0);
-  const w=rect.width,h=rect.height;
-  ctx.clearRect(0,0,w,h);
-  const pad=18, chartH=volume?h*.72:h-15;
-  ctx.strokeStyle='#233149';ctx.lineWidth=1;
-  for(let i=0;i<5;i++){
-    const y=pad+(chartH-pad)*i/4;
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
-  }
-  let values=[],v=.52;
-  for(let i=0;i<count;i++){
-    v+=((Math.random()-.47)*.105);
-    v=Math.max(.13,Math.min(.88,v));
-    values.push(v);
-  }
-  const step=(w-2*pad)/count;
-  values.forEach((value,i)=>{
-    const x=pad+i*step+step*.5;
-    const spread=.025+Math.random()*.07;
-    const open=value+(Math.random()-.5)*.06;
-    const close=value+(Math.random()-.5)*.07;
-    const high=Math.max(open,close)+spread*.45;
-    const low=Math.min(open,close)-spread*.45;
-    const y=n=>pad+(1-n)*(chartH-pad);
-    const up=close>=open;
-    ctx.strokeStyle=up?'#42a5ff':'#ff647c';
-    ctx.fillStyle=ctx.strokeStyle;
-    ctx.beginPath();ctx.moveTo(x,y(high));ctx.lineTo(x,y(low));ctx.stroke();
-    const top=Math.min(y(open),y(close));
-    const height=Math.max(2,Math.abs(y(open)-y(close)));
-    ctx.fillRect(x-step*.29,top,step*.58,height);
-    if(volume){
-      ctx.globalAlpha=.4;
-      ctx.fillRect(x-step*.29,chartH+8,step*.58,(h-chartH-13)*(.15+Math.random()*.75));
-      ctx.globalAlpha=1;
-    }
-  });
-  if(volume){
-    ctx.strokeStyle='#3288ff';ctx.lineWidth=2;ctx.beginPath();
-    values.forEach((value,i)=>{
-      const x=pad+i*step+step*.5,y=pad+(1-value)* (chartH-pad);
-      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-    });
-    ctx.stroke();
-  }
+  const rect=canvas.getBoundingClientRect(),ratio=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(1,rect.width),h=Math.max(1,rect.height);
+  canvas.width=Math.max(1,w*ratio);canvas.height=Math.max(1,h*ratio);
+  const ctx=canvas.getContext("2d");ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#17375b";ctx.lineWidth=1;
+  for(let i=0;i<5;i++){const y=14+(h-28)*i/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  ctx.fillStyle="#7196bd";ctx.font="10px Arial";ctx.textAlign="center";
+  ctx.fillText("WAITING FOR PUBLIC OHLC DATA",w/2,h/2);
+  ctx.textAlign="start";
 }
 function drawAll(){
   drawChart('binaryChart',35);
