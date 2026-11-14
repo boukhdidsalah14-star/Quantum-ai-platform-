@@ -43,9 +43,14 @@ def init_paper_db():
                 UNIQUE(customer_id,idempotency_key)
             )
         """)
-        columns = {row["name"] for row in db.execute("PRAGMA table_info(paper_trades)").fetchall()}
-        if "leverage" not in columns:
-            db.execute("ALTER TABLE paper_trades ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1")
+        schema_info = db.execute("PRAGMA table_info(paper_trades)")
+        if schema_info is None:
+            # PostgreSQL compatibility facade returns None for SQLite PRAGMA.
+            db.execute("ALTER TABLE paper_trades ADD COLUMN IF NOT EXISTS leverage INTEGER NOT NULL DEFAULT 1")
+        else:
+            columns = {row["name"] for row in schema_info.fetchall()}
+            if "leverage" not in columns:
+                db.execute("ALTER TABLE paper_trades ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1")
         db.execute("CREATE INDEX IF NOT EXISTS idx_paper_trades_customer ON paper_trades(customer_id,created_at)")
 
 
