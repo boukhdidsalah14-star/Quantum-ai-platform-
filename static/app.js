@@ -241,7 +241,7 @@ $("mt4-auto-stop").addEventListener("click",async()=>{
   const response=await fetch("/api/mt4/auto/stop",{method:"POST"});
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Could not stop auto trader");
-  toast("Auto trader stopped. No new entries will be generated.");
+  toast("Auto trader stopped. Pending auto entries cancelled; an already delivered MT4 command may still execute.");
   refreshMt4Auto();
  }catch(error){toast(error.message);}
  finally{button.disabled=false;}
