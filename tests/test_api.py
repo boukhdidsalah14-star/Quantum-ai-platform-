@@ -85,6 +85,7 @@ def test_customer_register_login_me_and_logout(monkeypatch, tmp_path):
 
 
 def test_customer_password_and_duplicate_validation(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "customers.sqlite3"))
     with TestClient(main.app) as test_client:
@@ -300,6 +301,7 @@ def test_auth_config_reports_registration_closed_by_default(monkeypatch):
 
 
 def test_auth_config_reports_registration_enabled(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     response = client.get("/api/auth/config")
     assert response.status_code == 200
