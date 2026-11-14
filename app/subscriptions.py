@@ -6,7 +6,7 @@ import hmac
 import json
 import os
 import secrets
-import sqlite3
+from app.database import sqlite3
 import time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
