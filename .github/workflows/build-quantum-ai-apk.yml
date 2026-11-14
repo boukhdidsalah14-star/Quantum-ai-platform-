@@ -8,7 +8,7 @@ on:
       - 'android/**'
       - '.github/workflows/build-quantum-ai-apk.yml'
   push:
-    branches: [feature/quantum-ai-android-subscriptions]
+    branches: [main, feature/quantum-ai-android-subscriptions]
     paths:
       - 'android/**'
       - '.github/workflows/build-quantum-ai-apk.yml'
