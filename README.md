@@ -188,3 +188,8 @@ No live order is placed by this branch, and the production service is not change
 ## Persistent database
 
 The application keeps SQLite as its local-test fallback. Production services use Neon PostgreSQL when `DATABASE_URL` is present. The database adapter translates the existing repository queries to PostgreSQL, keeps customer rows as dictionary-style records, and serializes the existing critical idempotent order paths with a transaction-scoped advisory lock. Do not set `QUANTUM_PERSISTENT_STORAGE=true` until the Neon-backed deployment has passed end-to-end auth, subscription, vault, and trading-ledger tests.
+
+
+## Advanced multi-factor analysis upgrade
+
+The shared signal engine now routes through `app/advanced_signals.py`. It combines EMA trend structure, RSI, MACD momentum, ATR, ADX, Bollinger position, 20-candle breakout structure, candle-body strength, optional higher-timeframe confirmation, and a volatility regime guard. Crypto signals request the next higher available timeframe (1h→4h, 4h→1d); Deriv signals request the next higher supported interval where available. Missing higher-timeframe data is explicitly reported and does not fabricate confirmation. The engine accepts at least 30 completed candles. Its confluence score is not a win probability. See [Advanced analysis methodology](docs/ADVANCED_ANALYSIS.md) for validation requirements and limitations.
