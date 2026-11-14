@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview, get_order_book
+from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_live_execution import get_account_info as get_mexc_account_info, MexcExecutionError
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
@@ -773,19 +774,32 @@ async def mexc_candles(symbol: str, interval: str = Query(default="1h"), limit: 
         raise HTTPException(status_code=503, detail="MEXC public candle data is temporarily unavailable")
 
 
+@app.get("/api/market-universe")
+async def market_universe():
+    """Return the agreed analysis watchlists; stablecoin assets are excluded."""
+    return {
+        "forex": FOREX_PAIRS,
+        "binary_options": BINARY_PAIRS,
+        "crypto_futures": CRYPTO_FUTURES,
+        "crypto_quote_currency": "USDT",
+        "crypto_source": "Binance USD-M futures public market data",
+        "execution_enabled": False,
+    }
+
+
 @app.get("/api/markets")
 async def markets():
     try:
-        return {"source": "Binance public market data", "markets": await get_market_overview()}
+        return {"source": "Binance USD-M futures public market data", "markets": await get_market_overview()}
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public market data is temporarily unavailable")
 
 
 @app.get("/api/orderbook/{symbol}")
 async def binance_order_book(symbol: str, limit: int = Query(default=10, ge=5, le=20)):
-    """Read-only public Binance spot order book depth."""
+    """Read-only public Binance USD-M futures order book depth."""
     try:
-        return {"source": "Binance public spot depth", **await get_order_book(symbol, limit)}
+        return {"source": "Binance USD-M futures public depth", **await get_order_book(symbol, limit)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
@@ -795,7 +809,7 @@ async def binance_order_book(symbol: str, limit: int = Query(default=10, ge=5, l
 @app.get("/api/candles/{symbol}")
 async def candles(symbol: str, interval: str = Query(default="1h"), limit: int = Query(default=72, ge=20, le=200)):
     try:
-        return {"symbol": symbol.upper(), "interval": interval, "source": "Binance public market data", "candles": await get_candles(symbol, interval, limit)}
+        return {"symbol": symbol.upper(), "interval": interval, "source": "Binance USD-M futures public candles", "candles": await get_candles(symbol, interval, limit)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
@@ -811,16 +825,16 @@ async def crypto_signal(
     """Calculate a read-only indicator signal from public crypto candles."""
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto signal timeframe must be 1h, 4h, or 1d")
-    if source not in {"binance", "mexc"}:
-        raise HTTPException(status_code=400, detail="Crypto source must be binance or mexc")
+    if source != "binance":
+        raise HTTPException(status_code=400, detail="Crypto analysis currently uses Binance USD-M futures data; MEXC adapter is spot-only")
     if symbol.upper() not in ALLOWED_SYMBOLS:
         raise HTTPException(status_code=400, detail="Unsupported crypto market")
     try:
-        candle_data = (await get_candles(symbol, timeframe, 100) if source == "binance"
-                       else await get_mexc_candles(symbol, timeframe, 100))
+        candle_data = await get_candles(symbol, timeframe, 100)
         result = analyze_candles(candle_data, timeframe)
         result.update({"symbol": symbol.upper(), "category": "crypto",
-                       "source": source.upper() + " public candles",
+                       "trade_bias": "LONG" if result["direction"] == "CALL" else "SHORT" if result["direction"] == "PUT" else "WAIT",
+                       "source": "Binance USD-M futures public candles",
                        "execution_enabled": False})
         return result
     except ValueError as exc:
@@ -839,13 +853,12 @@ async def crypto_backtest(
     """Evaluate historical crypto signal direction without placing orders."""
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto backtest timeframe must be 1h, 4h, or 1d")
-    if source not in {"binance", "mexc"}:
-        raise HTTPException(status_code=400, detail="Crypto source must be binance or mexc")
+    if source != "binance":
+        raise HTTPException(status_code=400, detail="Crypto backtesting currently uses Binance USD-M futures data; MEXC adapter is spot-only")
     if symbol.upper() not in ALLOWED_SYMBOLS:
         raise HTTPException(status_code=400, detail="Unsupported crypto market")
     try:
-        candle_data = (await get_candles(symbol, timeframe, 200) if source == "binance"
-                       else await get_mexc_candles(symbol, timeframe, 200))
+        candle_data = await get_candles(symbol, timeframe, 200)
         result = backtest_candles(candle_data, timeframe, lookahead_candles)
         result.update({"symbol": symbol.upper(), "category": "crypto",
                        "source": source.upper() + " historical candles",

@@ -188,3 +188,14 @@ No live order is placed by this branch, and the production service is not change
 ## Persistent database
 
 The application keeps SQLite as its local-test fallback. Production services use Neon PostgreSQL when `DATABASE_URL` is present. The database adapter translates the existing repository queries to PostgreSQL, keeps customer rows as dictionary-style records, and serializes the existing critical idempotent order paths with a transaction-scoped advisory lock. Do not set `QUANTUM_PERSISTENT_STORAGE=true` until the Neon-backed deployment has passed end-to-end auth, subscription, vault, and trading-ledger tests.
+
+
+## Step 2 market analysis
+
+The analysis layer uses conservative, read-only indicators: EMA 9/21/50, MACD, RSI(14), ADX(14), ATR(14), Bollinger Bands and a volume filter where volume is supplied. It returns CALL, PUT or WAIT with reasons; it does not place orders and does not promise profitable outcomes.
+
+The requested Forex chart universe contains EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD, USD/CHF, NZD/USD, EUR/JPY, GBP/JPY and XAU/USD. The binary-options analysis shortlist is EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, EUR/JPY and GBP/JPY.
+
+The crypto futures watchlist contains BTC, ETH, BNB, XRP, SOL, TRX, DOGE, ADA, BCH and LINK. Binance USD-M Futures public candles, tickers and order-book data are used for this analysis; USDT is only the quote/settlement currency, not a selectable asset. The MEXC public market-data adapter remains spot-only and is not represented as a futures feed.
+
+All analysis endpoints are read-only. Broker order execution remains separately gated and must be verified through broker demo testing before any live use.
