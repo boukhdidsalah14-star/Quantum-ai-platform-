@@ -22,6 +22,7 @@ ALLOWED_SYMBOLS = {
     "USDCHF", "NZDUSD", "EURJPY", "GBPJPY", "XAUUSD",
 }
 MAX_SYNC_POSITIONS = 100
+ALLOWED_TIMEFRAMES = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
 MAX_ORDER_LOTS = 0.10
 MIN_ORDER_LOTS = 0.01
 MAX_OPEN_POSITIONS = 3
@@ -96,6 +97,14 @@ def init_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_mt4_commands_customer_status
             ON mt4_bridge_commands(customer_id, status, created_at);
+        CREATE TABLE IF NOT EXISTS mt4_bridge_candles (
+            customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+            symbol TEXT NOT NULL,
+            timeframe TEXT NOT NULL,
+            candles_json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY(customer_id, symbol, timeframe)
+        );
         """)
 
 
@@ -274,6 +283,77 @@ def bridge_status(customer_id: str) -> dict[str, Any]:
         "execution_enabled": False,
     }
 
+
+
+def sync_candles(token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Store broker-origin OHLC candles for the authenticated demo account."""
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid MT4 candle payload")
+    login = str(payload.get("account_login") or "")
+    server = str(payload.get("account_server") or "")
+    company = str(payload.get("company") or "")
+    symbol = str(payload.get("symbol") or "").strip().upper()
+    timeframe = str(payload.get("timeframe") or "").strip()
+    raw = payload.get("candles")
+    if symbol not in ALLOWED_SYMBOLS:
+        raise ValueError("Unsupported MT4 candle symbol")
+    if timeframe not in ALLOWED_TIMEFRAMES:
+        raise ValueError("Unsupported MT4 candle timeframe")
+    if not isinstance(raw, list) or not 50 <= len(raw) <= 200:
+        raise ValueError("MT4 candle sync requires between 50 and 200 candles")
+    candles = []
+    previous_time = -1
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid MT4 candle row")
+        timestamp = int(item.get("time") or 0)
+        if timestamp <= previous_time:
+            raise ValueError("MT4 candles must be in ascending time order")
+        row = {
+            "time": timestamp,
+            "open": _finite(item.get("open"), "candle open", 0.00000001),
+            "high": _finite(item.get("high"), "candle high", 0.00000001),
+            "low": _finite(item.get("low"), "candle low", 0.00000001),
+            "close": _finite(item.get("close"), "candle close", 0.00000001),
+            "volume": _finite(item.get("volume", 0), "candle volume", 0),
+        }
+        if row["high"] < max(row["open"], row["close"], row["low"]):
+            raise ValueError("Invalid MT4 candle high")
+        if row["low"] > min(row["open"], row["close"], row["high"]):
+            raise ValueError("Invalid MT4 candle low")
+        candles.append(row)
+        previous_time = timestamp
+    now = _now()
+    with _connect() as db:
+        bridge = _authenticate(db, token, login, server, company)
+        db.execute("""
+            INSERT INTO mt4_bridge_candles(customer_id, symbol, timeframe, candles_json, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(customer_id, symbol, timeframe) DO UPDATE SET
+                candles_json=excluded.candles_json, updated_at=excluded.updated_at
+        """, (bridge["customer_id"], symbol, timeframe,
+              json.dumps(candles, separators=(",", ":")), now))
+    return {"ok": True, "symbol": symbol, "timeframe": timeframe, "candles_received": len(candles)}
+
+
+def get_mt4_candles(customer_id: str, symbol: str, timeframe: str) -> dict[str, Any] | None:
+    symbol = str(symbol or "").strip().upper()
+    if symbol not in ALLOWED_SYMBOLS or timeframe not in ALLOWED_TIMEFRAMES:
+        raise ValueError("Unsupported MT4 candle symbol or timeframe")
+    with _connect() as db:
+        row = db.execute("""
+            SELECT candles_json, updated_at FROM mt4_bridge_candles
+            WHERE customer_id=? AND symbol=? AND timeframe=?
+        """, (customer_id, symbol, timeframe)).fetchone()
+    if not row or _now() - int(row["updated_at"]) > 120:
+        return None
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "source": "JustMarkets MT4 broker candles",
+        "candles": json.loads(row["candles_json"]),
+        "updated_at": int(row["updated_at"]),
+    }
 
 def delete_bridge(customer_id: str) -> bool:
     with _connect() as db:
