@@ -254,8 +254,8 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
     <div>QUANTUM AI<small>AI MARKET INTELLIGENCE</small></div>
   </div>
   <div class="total">
-    <small>MARKET INTELLIGENCE</small>
-    <strong>LIVE TERMINAL</strong>
+    <small>SIMULATED ACCOUNTS TOTAL</small>
+    <strong>$155,946.00</strong>
   </div>
 </header>
 
@@ -333,12 +333,12 @@ body:after{content:"";position:fixed;inset:5px;z-index:8;pointer-events:none;bor
 
     <div class="section" style="margin-top:20px">
       <div class="section-head"><div><h2>Market Watch</h2><div class="sub">Public market data</div></div></div>
-      <div class="market-strip">
-        <div class="market"><b>EUR/USD</b><span>FOREX</span><strong>1.08425</strong><span class="positive">+0.24%</span></div>
-        <div class="market"><b>GBP/USD</b><span>FOREX</span><strong>1.27180</strong><span class="positive">+0.18%</span></div>
-        <div class="market"><b>USD/JPY</b><span>FOREX</span><strong>149.820</strong><span class="negative">-0.12%</span></div>
-        <div class="market"><b>BTC/USDT</b><span>CRYPTO</span><strong>67,420</strong><span class="positive">+1.32%</span></div>
-        <div class="market"><b>ETH/USDT</b><span>CRYPTO</span><strong>3,520</strong><span class="negative">-0.42%</span></div>
+      <div class="market-strip" id="home-market-strip">
+        <div class="market"><b>EUR/USD</b><span>FOREX · PUBLIC FEED</span><strong data-qai-market="frxEURUSD">—</strong></div>
+        <div class="market"><b>GBP/USD</b><span>FOREX · PUBLIC FEED</span><strong data-qai-market="frxGBPUSD">—</strong></div>
+        <div class="market"><b>USD/JPY</b><span>FOREX · PUBLIC FEED</span><strong data-qai-market="frxUSDJPY">—</strong></div>
+        <div class="market"><b>BTC/USDT</b><span>CRYPTO · PUBLIC FEED</span><strong data-qai-market="BTCUSDT">—</strong></div>
+        <div class="market"><b>ETH/USDT</b><span>CRYPTO · PUBLIC FEED</span><strong data-qai-market="ETHUSDT">—</strong></div>
       </div>
     </div>
   </section>
@@ -577,7 +577,7 @@ function drawChart(canvasId, count=38, volume=false){
     const low=Math.min(open,close)-spread*.45;
     const y=n=>pad+(1-n)*(chartH-pad);
     const up=close>=open;
-    ctx.strokeStyle=up?'#18d995':'#ff526d';
+    ctx.strokeStyle=up?'#42a5ff':'#ff647c';
     ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();ctx.moveTo(x,y(high));ctx.lineTo(x,y(low));ctx.stroke();
     const top=Math.min(y(open),y(close));
@@ -601,7 +601,7 @@ function drawChart(canvasId, count=38, volume=false){
 function drawAll(){
   drawChart('binaryChart',35);
   drawChart('forexChart',35);
-  drawChart('cryptoChart',48,true);
+  window.dispatchEvent(new CustomEvent('qai:refresh-platform-chart',{detail:{platform:'crypto'}}));
 }
 window.addEventListener('load',drawAll);
 window.addEventListener('resize',drawAll);
@@ -624,7 +624,7 @@ function selectPair(row,pair){
   document.querySelectorAll('#forexRows tr').forEach(r=>r.style.background='');
   row.style.background='#1b3553';
   $('selectedPair').textContent=pair;
-  notify(pair+' selected.');
+  notify(pair+' selected.');window.dispatchEvent(new CustomEvent('qai:refresh-platform-chart',{detail:{platform:'forex'}}));
 }
 
 // Bot engine switch.
@@ -679,7 +679,7 @@ $('cryptoTime').addEventListener('change',e=>{
         const bodyH=7+Math.abs(Math.sin(time*.001+c.seed*2))*13;
         const x=j*step+step*.5;
         const rising=Math.sin(time*.0008+c.seed*1.35+lane.phase)>0;
-        const color=rising?'rgba(24,217,149,.82)':'rgba(255,82,109,.82)';
+        const color=rising?'rgba(66,165,255,.82)':'rgba(0,217,255,.78)';
         ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x,mid-bodyH*1.35);ctx.lineTo(x,mid+bodyH*1.35);ctx.stroke();
         ctx.globalAlpha=.82;ctx.fillRect(x-Math.max(2,step*.19),mid-bodyH*.5,Math.max(4,step*.38),bodyH);ctx.globalAlpha=1;
       });
@@ -798,6 +798,13 @@ $('cryptoTime').addEventListener('change',e=>{
       items.forEach(item=>{const row=document.createElement("div");row.className="qai-history-row";const dir=document.createElement("b");dir.className=item.direction==="CALL"?"qai-call":item.direction==="PUT"?"qai-put":"qai-wait";dir.textContent=item.direction;const info=document.createElement("span");info.textContent=item.symbol+" · "+item.timeframe;const detail=document.createElement("small");detail.textContent=new Date(item.time).toLocaleTimeString()+" · "+(item.strength||"Strength unavailable");info.appendChild(detail);const trend=document.createElement("small");trend.textContent=item.trend||"—";row.append(dir,info,trend);host.appendChild(row);});
     }catch(_){host.textContent="Signal history is unavailable on this device.";}
   }
+  function updateHomeMarketCards(){
+    const all=[...signalMarkets,...cryptoMarkets];
+    document.querySelectorAll("[data-qai-market]").forEach(node=>{
+      const item=all.find(x=>x.symbol===node.dataset.qaiMarket);
+      node.textContent=item&&item.price!==null&&item.price!==undefined?Number(item.price).toLocaleString("en-US",{maximumFractionDigits:8}):"—";
+    });
+  }
   function renderTicker(){
     const host=byId("qai-ticker-track");if(!host)return;
     const items=[...signalMarkets.slice(0,7),...cryptoMarkets.slice(0,7)];
@@ -812,7 +819,7 @@ $('cryptoTime').addEventListener('change',e=>{
     try{
       const [fx,crypto]=await Promise.all([getJson("/api/deriv/markets?category=forex"),getJson("/api/markets")]);
       signalMarkets=fx.markets||[];cryptoMarkets=crypto.markets||[];
-      renderTicker();refreshSignalSymbols();loadMarketRows();
+      renderTicker();updateHomeMarketCards();refreshSignalSymbols();loadMarketRows();
     }catch(e){safeText(byId("signal-feed-state"),"FEED UNAVAILABLE");safeText(byId("markets-feed-state"),"FEED UNAVAILABLE");}
   }
   function refreshSignalSymbols(){
