@@ -632,7 +632,7 @@ async def mexc_candles(symbol: str, interval: str = Query(default="1h"), limit: 
 @app.get("/api/markets")
 async def markets():
     try:
-        return {"source": "Binance public market data", "markets": await get_market_overview()}
+        return {"source": "Binance USD-M futures public market data", "markets": await get_market_overview()}
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Public market data is temporarily unavailable")
 
