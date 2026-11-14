@@ -113,3 +113,58 @@ def test_mt4_candle_endpoint_returns_broker_candles_for_signed_in_customer(monke
         assert chart.status_code == 200
         assert chart.json()["source"] == "JustMarkets MT4 broker candles"
         assert len(chart.json()["candles"]) == 60
+
+
+def test_mt4_auto_trader_api_requires_subscription_and_starts_stops_demo(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
+    monkeypatch.setenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "true")
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "mt4-auto-api.sqlite3"))
+    monkeypatch.setattr(main, "subscription_for_customer", lambda customer_id: {"active": True})
+    with TestClient(main.app) as client:
+        register_member(client)
+        registered = client.post("/api/mt4/bridge/register", json={
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2"
+        })
+        token = registered.json()["bridge_token"]
+        sync = client.post("/api/mt4/bridge/sync", headers={
+            "Authorization": "Bearer " + token
+        }, json={
+            "account_login": "12345678", "account_server": "JustMarkets-Demo2",
+            "company": "JustMarkets Ltd", "balance": 10000, "equity": 10000,
+            "currency": "USD", "positions": [],
+            "quotes": {"XAUUSD": {"bid": 2000, "ask": 2000.2}},
+        })
+        assert sync.status_code == 200
+
+        started = client.post("/api/mt4/auto/start", json={
+            "symbol": "XAUUSD", "timeframe": "15m", "lots": 0.01,
+            "stop_atr": 1.5, "target_atr": 2.0, "max_drawdown_pct": 10,
+        })
+        assert started.status_code == 200
+        assert started.json()["active"] is True
+        assert started.json()["execution_mode"] == "demo_only"
+
+        status = client.get("/api/mt4/auto")
+        assert status.status_code == 200
+        assert status.json()["active"] is True
+        assert status.json()["server_execution_enabled"] is True
+
+        stopped = client.post("/api/mt4/auto/stop")
+        assert stopped.status_code == 200
+        assert stopped.json()["active"] is False
+
+
+def test_mt4_auto_trader_api_rejects_when_server_demo_switch_is_off(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
+    monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
+    monkeypatch.setenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "false")
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "mt4-auto-locked.sqlite3"))
+    with TestClient(main.app) as client:
+        register_member(client)
+        response = client.post("/api/mt4/auto/start", json={
+            "symbol": "XAUUSD", "timeframe": "15m", "lots": 0.01,
+        })
+        assert response.status_code == 403
