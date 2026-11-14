@@ -333,11 +333,17 @@ def pending_commands(token: str, account_login: str, account_server: str, compan
         bridge = _authenticate(db, token, account_login, account_server, company)
         if os.getenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "").strip().lower() != "true":
             return []
+        db.execute("""
+            UPDATE mt4_bridge_commands
+            SET status='expired', result_message='Command expired before MT4 delivery', updated_at=?
+            WHERE customer_id=? AND status IN ('pending','delivered') AND created_at<?
+        """, (now, bridge["customer_id"], now - 60))
         rows = db.execute("""
             SELECT * FROM mt4_bridge_commands
-            WHERE customer_id=? AND (status='pending' OR (status='delivered' AND updated_at<?))
+            WHERE customer_id=? AND created_at>=?
+              AND (status='pending' OR (status='delivered' AND updated_at<?))
             ORDER BY created_at LIMIT 10
-        """, (bridge["customer_id"], now - 30)).fetchall()
+        """, (bridge["customer_id"], now - 60, now - 30)).fetchall()
         for row in rows:
             db.execute("UPDATE mt4_bridge_commands SET status='delivered', updated_at=? WHERE command_id=?",
                        (now, row["command_id"]))
