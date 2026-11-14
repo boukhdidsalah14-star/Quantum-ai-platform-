@@ -14,7 +14,7 @@ A mobile-first trading workspace foundation with a custom candlestick dashboard,
 ## Current capabilities
 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
-- Public, read-only crypto quotes and candles for BTC, ETH, BNB, SOL and XRP from selectable Binance and MEXC Spot feeds.
+- Public, read-only USDT-margined perpetual futures quotes and candles for the approved crypto watchlist through the MEXC Futures API; separate MEXC Spot endpoints remain available for spot data.
 - Initial Deriv public market-data adapter for Forex and synthetic underlyings: active symbols, OHLC candles, and available binary/option contract metadata. This uses the official unauthenticated public WebSocket and cannot place trades.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, `/price BTCUSDT`, `/forex`, `/binary`, `/signal`, `/quote`, and `/backtest`; market commands use allowlisted public read-only quotes. In production, Telegram updates are delivered through an authenticated HTTPS webhook handled by the FastAPI service.
@@ -144,7 +144,7 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 ## Market API
 
 - `GET /health` — service and execution status.
-- `GET /api/markets` — allowlisted Binance public crypto market overview.
+- `GET /api/markets` — allowlisted MEXC USDT-margined perpetual futures market overview.
 - `GET /api/mexc/markets` — allowlisted MEXC public Spot market overview.
 - `GET /api/deriv/markets?category=forex` — public Deriv Forex symbols with batched live tick prices; use `category=synthetic` for synthetic indices or `all` for both (up to 25 symbols per response).
 - `GET /api/deriv/candles/frxEURUSD?granularity=900&count=100` — public Deriv OHLC candles for a verified active Forex/synthetic symbol.
@@ -152,7 +152,7 @@ Supported paper symbols: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT. Maximum no
 - `GET /api/signals/deriv/frxEURUSD?category=forex&timeframe=15m` — indicator-based CALL/PUT/WAIT analysis from public Deriv candles; no broker order is sent.
 - `GET /api/deriv/proposal/R_100?contract_type=CALL&amount=1&duration=5` — public binary contract price preview only; the endpoint never buys a contract.
 - `GET /api/backtest/deriv/frxEURUSD?category=forex&timeframe=15m` — no-lookahead historical directional test; no orders or profit forecast.
-- `GET /api/signals/crypto/BTCUSDT?source=binance&timeframe=1h` and `GET /api/backtest/crypto/BTCUSDT?source=binance&timeframe=1h` — read-only crypto signals and historical direction tests (Binance or MEXC).
+- `GET /api/signals/crypto/BTCUSDT?source=binance&timeframe=1h` and `GET /api/backtest/crypto/BTCUSDT?source=binance&timeframe=1h` — read-only crypto futures signals and historical direction tests using the MEXC perpetual futures feed. The legacy `source=binance` query value is retained for API compatibility.
 - `GET /api/risk/policy` — static demo risk policy. Deriv customer demo execution has a separate per-customer ledger and enforces its limits only when its explicit safety gates are enabled.
 
 Telegram commands: `/forex`, `/binary`, `/signal SYMBOL 15m forex`, `/signal SYMBOL 5m synthetic`, `/signal BTCUSDT 1h crypto`, `/quote R_100 CALL 1 5`, and `/backtest SYMBOL 15m forex` or `/backtest BTCUSDT 1h crypto`. Quotes are previews only; no orders are placed. Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBAPP_URL` privately in the hosting environment to activate the bot.
@@ -196,7 +196,7 @@ The analysis layer uses conservative, read-only indicators: EMA 9/21/50, MACD, R
 
 The requested Forex chart universe contains EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD, USD/CHF, NZD/USD, EUR/JPY, GBP/JPY and XAU/USD. The binary-options analysis shortlist is EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, EUR/JPY and GBP/JPY.
 
-The crypto futures watchlist contains BTC, ETH, BNB, XRP, SOL, TRX, DOGE, ADA, BCH and LINK. Binance USD-M Futures public candles, tickers and order-book data are used for this analysis; USDT is only the quote/settlement currency, not a selectable asset. The MEXC public market-data adapter remains spot-only and is not represented as a futures feed.
+The crypto futures watchlist contains BTC, ETH, BNB, XRP, SOL, TRX, DOGE, ADA, BCH and LINK. MEXC USDT-margined perpetual futures public candles and tickers are used for crypto signals; USDT is only the quote/settlement currency, not a selectable asset. This adapter is read-only and does not place futures orders. MEXC futures order execution requires a separate authenticated, risk-controlled integration and exchange/account eligibility checks.
 
 All analysis endpoints are read-only. Broker order execution remains separately gated and must be verified through broker demo testing before any live use.
 
