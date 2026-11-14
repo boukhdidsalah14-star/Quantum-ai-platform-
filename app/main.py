@@ -1106,6 +1106,11 @@ async def auto_crypto_paper_entry(
     try:
         candles_data = await get_candles(symbol, payload.timeframe, 100)
         analysis = analyze_candles(candles_data, payload.timeframe)
+        current_quotes = await get_market_overview()
+        current_quote = next((item for item in current_quotes if item["symbol"] == symbol), None)
+        if not current_quote:
+            raise HTTPException(status_code=503, detail="No current MEXC futures quote; no paper trade was created")
+        analysis["last_close"] = float(current_quote["price"])
         analysis["trade_bias"] = (
             "LONG" if analysis["direction"] == "CALL"
             else "SHORT" if analysis["direction"] == "PUT"
