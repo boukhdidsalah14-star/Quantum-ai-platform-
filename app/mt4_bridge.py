@@ -49,6 +49,13 @@ def _now() -> int:
     return int(time.time())
 
 
+def _demo_execution_enabled() -> bool:
+    return (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and os.getenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "").strip().lower() == "true"
+    )
+
+
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
@@ -276,7 +283,7 @@ def delete_bridge(customer_id: str) -> bool:
 
 def enqueue_demo_order(customer_id: str, symbol: str, side: str, lots: float,
                        stop_loss: float, take_profit: float) -> dict[str, Any]:
-    if os.getenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "").strip().lower() != "true":
+    if not _demo_execution_enabled():
         raise PermissionError("MT4 demo order execution is locked until the demo bridge is explicitly enabled")
     symbol = str(symbol or "").strip().upper()
     side = str(side or "").strip().upper()
@@ -302,9 +309,9 @@ def enqueue_demo_order(customer_id: str, symbol: str, side: str, lots: float,
         raise ValueError("For SELL orders, take profit must be below and stop loss above the current price")
     balance = float(snapshot.get("balance") or 0)
     equity = float(snapshot.get("equity") or 0)
-    daily_loss_limit = float(os.getenv("QUANTUM_MT4_DAILY_LOSS_LIMIT_PCT", "10"))
+    daily_loss_limit = float(os.getenv("QUANTUM_MT4_MAX_EQUITY_DRAWDOWN_PCT", "10"))
     if balance > 0 and (balance - equity) / balance * 100 >= daily_loss_limit:
-        raise PermissionError("MT4 demo daily drawdown limit reached; new orders are paused")
+        raise PermissionError("MT4 demo equity drawdown guard reached; new orders are paused")
     if len(snapshot.get("positions", [])) >= MAX_OPEN_POSITIONS:
         raise PermissionError("Maximum of three open MT4 positions reached")
     command_id = "qai_" + secrets.token_urlsafe(15)
