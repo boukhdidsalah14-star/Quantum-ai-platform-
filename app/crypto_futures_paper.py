@@ -29,12 +29,15 @@ def build_paper_trade_plan(
         risk_pct = float(risk_percent)
         price = float(analysis["last_close"])
         atr = float(analysis["atr_14"])
-        leverage_value = int(leverage)
-    except (KeyError, TypeError, ValueError):
+        leverage_numeric = float(leverage)
+    except (KeyError, TypeError, ValueError, OverflowError):
         raise ValueError("Analysis, balance, ATR, and whole-number leverage are required")
 
-    if isinstance(leverage, bool) or leverage_value != leverage or not 1 <= leverage_value <= MAX_LEVERAGE:
+    if not all(isfinite(v) for v in (balance, risk_pct, price, atr, leverage_numeric)):
+        raise ValueError("Trade-plan inputs must be finite numbers")
+    if isinstance(leverage, bool) or not leverage_numeric.is_integer() or not 1 <= leverage_numeric <= MAX_LEVERAGE:
         raise ValueError("Leverage must be a whole number from 1x to 20x")
+    leverage_value = int(leverage_numeric)
     if not all(isfinite(v) for v in (balance, risk_pct, price, atr)):
         raise ValueError("Trade-plan inputs must be finite numbers")
     if balance <= 0 or price <= 0 or atr <= 0:
