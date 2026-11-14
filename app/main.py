@@ -22,7 +22,7 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
-from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, BridgeAuthError)
+from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, sync_candles as sync_mt4_candles, get_mt4_candles, BridgeAuthError)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
@@ -393,6 +393,32 @@ async def disconnect_mt4_bridge(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"disconnected": delete_mt4_bridge(customer["id"]), "execution_enabled": False}
+
+
+@app.post("/api/mt4/bridge/candles")
+async def mt4_bridge_candles(payload: dict, authorization: str = Header(default="", alias="Authorization")):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        return sync_mt4_candles(token, payload)
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/candles/{symbol}")
+async def get_customer_mt4_candles(symbol: str, timeframe: str = Query(default="15m"), request: Request = None):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE) if request else None)
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        data = get_mt4_candles(customer["id"], symbol, timeframe)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not data:
+        raise HTTPException(status_code=404, detail="No fresh MT4 broker candles for this symbol/timeframe")
+    return data
 
 
 @app.get("/api/mt4/positions")
