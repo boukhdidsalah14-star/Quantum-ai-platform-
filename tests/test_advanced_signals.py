@@ -30,8 +30,8 @@ def test_advanced_engine_reports_confluence_not_win_probability():
 
 
 def test_advanced_engine_requires_sufficient_completed_candles():
-    with pytest.raises(ValueError, match="60 completed candles"):
-        analyze_market(candles(59), "5m")
+    with pytest.raises(ValueError, match="30 completed candles"):
+        analyze_market(candles(29), "5m")
 
 
 def test_higher_timeframe_conflict_is_reported():
