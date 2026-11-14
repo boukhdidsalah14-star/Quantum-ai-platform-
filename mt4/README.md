@@ -30,9 +30,9 @@ This Expert Advisor is a demo-first connector. It syncs account balance/equity, 
 
 The MetaTrader Android app cannot run MQL4 Expert Advisors. The EA must run inside MT4 desktop on Windows or a Windows VPS. The QUANTUM AI app can be opened on your phone while the terminal/EA runs separately.
 
-## Current deployment limitation
+## Current deployment status
 
-The free preview service does not currently have confirmed durable storage. The bridge can be built and its API tested, but demo order execution remains locked until persistent storage is configured and the server-side demo switch is explicitly enabled. Do not use a live account or change the EA to bypass its demo checks.
+The preview is connected to Neon PostgreSQL, and the customer bridge and auto-trader tables have been created there. The server-side QUANTUM_MT4_DEMO_EXECUTION_ENABLED switch is intentionally still false. Demo auto-trading must not be started until the EA has been compiled in MetaEditor, connected to a JustMarkets demo account, and verified end-to-end. The EA's EnableDemoOrderExecution input also defaults to false. Never use a live account or change the EA to bypass its demo checks.
 
 ## Chart data
 
