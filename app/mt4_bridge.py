@@ -280,7 +280,7 @@ def bridge_status(customer_id: str) -> dict[str, Any]:
         "positions": json.loads(row["positions_json"] or "[]") if connected else [],
         "quotes": json.loads(row["quotes_json"] or "{}") if connected else {},
         "last_seen_at": last_seen or None,
-        "execution_enabled": False,
+        "execution_enabled": _demo_execution_enabled(),
     }
 
 
@@ -363,7 +363,8 @@ def delete_bridge(customer_id: str) -> bool:
 
 
 def enqueue_demo_order(customer_id: str, symbol: str, side: str, lots: float,
-                       stop_loss: float, take_profit: float) -> dict[str, Any]:
+                       stop_loss: float, take_profit: float,
+                       command_id: str | None = None) -> dict[str, Any]:
     if not _demo_execution_enabled():
         raise PermissionError("MT4 demo order execution is locked until the demo bridge is explicitly enabled")
     symbol = str(symbol or "").strip().upper()
@@ -395,9 +396,16 @@ def enqueue_demo_order(customer_id: str, symbol: str, side: str, lots: float,
         raise PermissionError("MT4 demo equity drawdown guard reached; new orders are paused")
     if len(snapshot.get("positions", [])) >= MAX_OPEN_POSITIONS:
         raise PermissionError("Maximum of three open MT4 positions reached")
-    command_id = "qai_" + secrets.token_urlsafe(15)
+    command_id = str(command_id or ("qai_" + secrets.token_urlsafe(15)))
+    if not command_id.startswith("qai_") or len(command_id) > 64:
+        raise ValueError("Invalid MT4 command id")
     now = _now()
     with _connect() as db:
+        existing = db.execute("SELECT status FROM mt4_bridge_commands WHERE command_id=? AND customer_id=?",
+                               (command_id, customer_id)).fetchone()
+        if existing:
+            return {"command_id": command_id, "status": existing["status"],
+                    "execution": "demo_only", "broker_order_sent": False, "duplicate": True}
         db.execute("""
             INSERT INTO mt4_bridge_commands
                 (command_id, customer_id, symbol, side, lots, stop_loss, take_profit,
