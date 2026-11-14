@@ -203,6 +203,6 @@ All analysis endpoints are read-only. Broker order execution remains separately 
 
 ## JustMarkets MT4 bridge foundation
 
-The JustMarkets MT4 Expert Advisor source is in `static/mt4/QuantumAI_JustMarkets_MT4.mq4`; installation notes are in `mt4/README.md`. The authenticated bridge binds one customer token to an exact MT4 demo login and server, syncs broker-reported positions/quotes, and exposes an app chart overlay for entry, SL, TP and floating P/L.
+The JustMarkets MT4 Expert Advisor source is in `static/mt4/QuantumAI_JustMarkets_MT4.mq4`; installation notes are in `mt4/README.md`. The authenticated bridge binds one customer token to an exact MT4 demo login and server, syncs broker-reported positions/quotes and OHLC candles for all ten Forex symbols, and exposes an app chart overlay for entry, SL, TP and floating P/L.
 
 The bridge is demo-only. It refuses live accounts. Demo order commands remain disabled unless durable storage and the explicit `QUANTUM_MT4_DEMO_EXECUTION_ENABLED=true` server switch are configured. The EA also requires `EnableDemoOrderExecution=true`. The current preview has not yet been connected to a real JustMarkets MT4 desktop terminal, and the MQL4 source still needs compilation in MetaEditor and broker-demo verification. The MT4 Android app cannot run Expert Advisors.
