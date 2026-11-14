@@ -52,6 +52,7 @@ def init_auth_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_customer_sessions_expiry
             ON customer_sessions(expires_at);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_email_lower ON customers(lower(email));
         CREATE TABLE IF NOT EXISTS login_attempt_buckets (
             bucket_key TEXT PRIMARY KEY,
             window_started INTEGER NOT NULL,
