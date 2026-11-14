@@ -92,7 +92,7 @@ async function runCryptoAnalysis(){
  const result=$("crypto-signal-result");
  const detail=$("crypto-signal-details");
  result.className="signal-result idle";
- result.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING "+safe(symbol)+"…</b><small>Fetching completed Binance USD-M futures candles</small>";
+ result.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING "+safe(symbol)+"…</b><small>Fetching completed MEXC USD-M futures candles</small>";
  try{
   const response=await fetch("/api/signals/crypto/"+encodeURIComponent(symbol)+"?timeframe="+encodeURIComponent(timeframe));
   const data=await response.json();
