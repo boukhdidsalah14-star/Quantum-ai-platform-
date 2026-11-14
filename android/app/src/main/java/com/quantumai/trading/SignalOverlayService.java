@@ -11,6 +11,8 @@ import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -81,7 +83,9 @@ public class SignalOverlayService extends Service {
 
     private WindowManager.LayoutParams overlayParams(int width, int height, int flags, int gravity) {
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
-        return new WindowManager.LayoutParams(width, height, type, flags, PixelFormat.TRANSLUCENT, gravity);
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(width, height, type, flags, PixelFormat.TRANSLUCENT);
+        params.gravity = gravity;
+        return params;
     }
 
     private void showBubble() {
@@ -206,10 +210,10 @@ public class SignalOverlayService extends Service {
                 if (reasons != null) for (int i = 0; i < Math.min(3, reasons.length()); i++) message.append("• ").append(reasons.optString(i)).append("\n");
                 message.append("Analysis only · no order placed.");
                 String output = message.toString();
-                runOnUiThread(() -> { if (resultText != null) resultText.setText(output); });
+                new Handler(Looper.getMainLooper()).post(() -> { if (resultText != null) resultText.setText(output); });
             } catch (Exception e) {
                 String error = "WAIT · " + (e.getMessage() == null ? "Analysis unavailable" : e.getMessage());
-                runOnUiThread(() -> { if (resultText != null) resultText.setText(error); });
+                new Handler(Looper.getMainLooper()).post(() -> { if (resultText != null) resultText.setText(error); });
             } finally { if (connection != null) connection.disconnect(); }
         });
     }
