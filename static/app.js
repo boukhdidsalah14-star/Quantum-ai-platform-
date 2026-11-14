@@ -101,13 +101,32 @@ async function runCryptoAnalysis(){
   result.className="signal-result "+(direction==="LONG"?"call":direction==="SHORT"?"put":"idle");
   result.innerHTML="<div class='signal-arrow'>"+(direction==="LONG"?"↗":direction==="SHORT"?"↘":"Ⅱ")+"</div><b>"+direction+"</b><small>"+safe(symbol)+" · "+safe(timeframe)+" · "+safe(data.signal_strength)+" confidence</small>";
   detail.hidden=false;
-  detail.innerHTML="<b>BINANCE USD-M · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";
+  detail.innerHTML="<b>MEXC USD-M · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";
  }catch(error){
   result.className="signal-result idle";
   result.innerHTML="<b>NO SIGNAL</b><small>"+safe(error.message)+"</small>";
  }
 }
 $("crypto-analyze").addEventListener("click",runCryptoAnalysis);
+async function runCryptoPaperEntry(){
+ if(!signed||!member){nav("account");toast("Sign in and activate membership to use paper auto-entry");return;}
+ const button=$("crypto-paper-entry"),output=$("crypto-paper-result");
+ const balance=Number($("crypto-paper-balance").value),risk=Number($("crypto-paper-risk").value);
+ if(!Number.isFinite(balance)||balance<=0||!Number.isFinite(risk)||risk<=0||risk>1){toast("Use a positive balance and risk up to 1%");return;}
+ button.disabled=true;button.textContent="CHECKING SIGNAL…";output.hidden=false;output.textContent="Checking completed MEXC futures candles and risk limits…";
+ try{
+  const key=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"qai-"+Date.now()+"-"+Math.random().toString(16).slice(2);
+  const response=await fetch("/api/paper/crypto/auto",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify({symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,account_balance:balance,risk_percent:risk})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Paper entry unavailable");
+  if(!data.created){output.textContent="NO PAPER ENTRY · "+(data.reason||"No qualifying high-confidence signal");toast("No entry: signal filter says wait");return;}
+  const trade=data.trade,plan=data.plan;
+  output.innerHTML="<b>PAPER POSITION OPENED · "+safe(plan.side.toUpperCase())+"</b><br>"+safe(trade.symbol)+" · Entry "+money(plan.entry_price)+" · Qty "+Number(plan.quantity).toFixed(6)+"<br>Stop "+money(plan.stop_loss)+" · Target "+money(plan.take_profit)+"<br>Notional "+money(plan.notional_usdt)+" USDT · Risk "+Number(plan.risk_percent).toFixed(2)+"% · 1×<br><small>Simulated only. No MEXC order was sent.</small>";
+  toast("Paper position created");
+ }catch(error){output.textContent="PAPER ENTRY FAILED · "+error.message;toast(error.message);}
+ finally{button.disabled=false;button.textContent="AUTO PAPER ENTRY";}
+}
+$("crypto-paper-entry").addEventListener("click",runCryptoPaperEntry);
 async function loadChart(){try{let tf=$("home-timeframe").value;let gran={"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400}[tf];let r=await fetch("/api/deriv/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+gran+"&count=80");if(!r.ok)throw Error("Chart unavailable");let d=await r.json();chartCandles=d.candles||[];let last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();}catch(e){chartCandles=[];drawChart();$("current-price").textContent="—";}}
 function drawChart(){let c=$("price-chart"),box=c.parentElement,w=box.clientWidth,h=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;let x=c.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle="#0b3153";x.lineWidth=1;for(let i=1;i<5;i++){let y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!chartCandles.length){x.fillStyle="#7998b7";x.font="12px Inter";x.fillText("Waiting for live candle data…",16,h/2);return}let lo=Math.min(...chartCandles.map(v=>+v.low)),hi=Math.max(...chartCandles.map(v=>+v.high)),span=hi-lo||1,step=w/chartCandles.length,bw=Math.max(2,step*.52);chartCandles.forEach((v,i)=>{let cx=i*step+step/2,yo=h-(v.open-lo)/span*h*.86-h*.07,yc=h-(v.close-lo)/span*h*.86-h*.07,yh=h-(v.high-lo)/span*h*.86-h*.07,yl=h-(v.low-lo)/span*h*.86-h*.07,up=v.close>=v.open;x.strokeStyle=up?"#00e99a":"#ff456b";x.fillStyle=x.strokeStyle;x.beginPath();x.moveTo(cx,yh);x.lineTo(cx,yl);x.stroke();x.fillRect(cx-bw/2,Math.min(yo,yc),bw,Math.max(2,Math.abs(yc-yo)));});}
 window.addEventListener("resize",drawChart);
