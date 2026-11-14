@@ -97,9 +97,9 @@ async function runCryptoAnalysis(){
   const response=await fetch("/api/signals/crypto/"+encodeURIComponent(symbol)+"?timeframe="+encodeURIComponent(timeframe));
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Crypto analysis unavailable");
-  const direction=data.direction||"WAIT";
-  result.className="signal-result "+(direction==="CALL"?"call":direction==="PUT"?"put":"idle");
-  result.innerHTML="<div class='signal-arrow'>"+(direction==="CALL"?"↗":direction==="PUT"?"↘":"Ⅱ")+"</div><b>"+direction+"</b><small>"+safe(symbol)+" · "+safe(timeframe)+" · "+safe(data.signal_strength)+" confidence</small>";
+  const direction=data.trade_bias||"WAIT";
+  result.className="signal-result "+(direction==="LONG"?"call":direction==="SHORT"?"put":"idle");
+  result.innerHTML="<div class='signal-arrow'>"+(direction==="LONG"?"↗":direction==="SHORT"?"↘":"Ⅱ")+"</div><b>"+direction+"</b><small>"+safe(symbol)+" · "+safe(timeframe)+" · "+safe(data.signal_strength)+" confidence</small>";
   detail.hidden=false;
   detail.innerHTML="<b>BINANCE USD-M · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";
  }catch(error){
