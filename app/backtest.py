@@ -13,12 +13,12 @@ def backtest_candles(
 ) -> dict[str, Any]:
     if not 1 <= int(lookahead_candles) <= 4:
         raise ValueError("Lookahead must be between 1 and 4 candles")
-    if len(candles) < 40:
-        raise ValueError("At least 40 candles are required for a meaningful backtest")
+    if len(candles) < 51:
+        raise ValueError("At least 51 candles are required for a meaningful backtest with a 50-candle signal warmup")
     wins = losses = ties = skipped = 0
     examples = []
     final_index = len(candles) - lookahead_candles
-    for index in range(29, final_index):
+    for index in range(49, final_index):
         history = candles[: index + 1]
         signal = analyze_candles(history, timeframe)
         direction = signal["direction"]
@@ -55,7 +55,7 @@ def backtest_candles(
         "ties": ties,
         "waits": skipped,
         "directional_accuracy_percent": round((wins / decided) * 100, 2) if decided else None,
-        "signal_coverage_percent": round(((decided + ties) / max(1, final_index - 29)) * 100, 2),
+        "signal_coverage_percent": round(((decided + ties) / max(1, final_index - 49)) * 100, 2),
         "examples": examples,
         "execution_enabled": False,
         "disclaimer": "Historical directional test only. No broker trades, stake, payout, spread, slippage, or future performance is represented.",
