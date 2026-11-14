@@ -22,7 +22,7 @@ def test_olymp_trade_signal_requires_supported_timeframe():
 def test_olymp_trade_signal_marks_execution_disabled():
     candles = []
     price = 100.0
-    for i in range(40):
+    for i in range(60):
         close = price + i * 0.2
         candles.append({
             "time": i,
