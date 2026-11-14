@@ -111,7 +111,7 @@ def analyze_market(
     last, prev = bars[-1], bars[-2]
     e9, e21, e50, e200 = (_ema(closes, p) for p in (9, 21, 50, 200))
     fast, mid = e9[-1], e21[-1]
-    slow = e50[-1]
+    slow = e50[-1] if e50 else mid
     long_trend = e200[-1] if e200 else slow
     rsi = _rsi(closes)
     atr = _atr(bars)
