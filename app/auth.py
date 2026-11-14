@@ -9,7 +9,7 @@ import hmac
 import os
 import re
 import secrets
-import sqlite3
+from app.database import sqlite3
 import time
 from pathlib import Path
 
@@ -39,7 +39,7 @@ def init_auth_db() -> None:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS customers (
             id TEXT PRIMARY KEY,
-            email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            email TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             created_at INTEGER NOT NULL,
             is_active INTEGER NOT NULL DEFAULT 1
@@ -99,7 +99,7 @@ def create_customer(email: str, password: str) -> dict:
 def authenticate_customer(email: str, password: str) -> dict | None:
     with _connect() as db:
         row = db.execute(
-            "SELECT id,email,password_hash,created_at,is_active FROM customers WHERE email=? COLLATE NOCASE",
+            "SELECT id,email,password_hash,created_at,is_active FROM customers WHERE lower(email)=lower(?)",
             (email.strip().lower(),),
         ).fetchone()
     if not row or not row["is_active"] or not _password_matches(password, row["password_hash"]):
