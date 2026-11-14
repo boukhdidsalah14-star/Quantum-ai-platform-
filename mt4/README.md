@@ -36,4 +36,4 @@ The free preview service does not currently have confirmed durable storage. The 
 
 ## Chart data
 
-The app overlays MT4-reported entry, stop-loss and take-profit levels and floating P/L on its chart. The chart candle background currently comes from the public Deriv Forex feed; broker-specific MT4 candle history is not yet synchronized. Always compare with the actual JustMarkets MT4 terminal.
+The EA uploads broker-origin OHLC candles for the ten supported Forex symbols at the configured `ChartTimeframe` (default M15) every 30 seconds. The app uses fresh JustMarkets candles first, then falls back to public Deriv candles when broker candles are unavailable. It overlays MT4-reported entry, stop-loss, take-profit and floating P/L for matching open positions. Choose the same timeframe in the app and EA for exact candle alignment. Always compare with the actual JustMarkets MT4 terminal.
