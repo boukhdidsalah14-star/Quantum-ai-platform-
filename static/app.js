@@ -8,7 +8,19 @@ const pairs=[
  {symbol:"frxUSDCAD",label:"USD / CAD",flag:"🇺🇸🇨🇦"},
  {symbol:"frxUSDCHF",label:"USD / CHF",flag:"🇺🇸🇨🇭"},
  {symbol:"frxNZDUSD",label:"NZD / USD",flag:"🇳🇿🇺🇸"},
- {symbol:"frxEURJPY",label:"EUR / JPY",flag:"🇪🇺🇯🇵"}
+ {symbol:"frxEURJPY",label:"EUR / JPY",flag:"🇪🇺🇯🇵"},
+ {symbol:"frxGBPJPY",label:"GBP / JPY",flag:"🇬🇧🇯🇵"},
+ {symbol:"frxXAUUSD",label:"XAU / USD",flag:"🥇🇺🇸"}
+];
+const binaryPairs=[
+ {symbol:"frxEURUSD",label:"EUR / USD",flag:"🇪🇺🇺🇸"},
+ {symbol:"frxGBPUSD",label:"GBP / USD",flag:"🇬🇧🇺🇸"},
+ {symbol:"frxUSDJPY",label:"USD / JPY",flag:"🇺🇸🇯🇵"},
+ {symbol:"frxAUDUSD",label:"AUD / USD",flag:"🇦🇺🇺🇸"},
+ {symbol:"frxUSDCHF",label:"USD / CHF",flag:"🇺🇸🇨🇭"},
+ {symbol:"frxUSDCAD",label:"USD / CAD",flag:"🇺🇸🇨🇦"},
+ {symbol:"frxEURJPY",label:"EUR / JPY",flag:"🇪🇺🇯🇵"},
+ {symbol:"frxGBPJPY",label:"GBP / JPY",flag:"🇬🇧🇯🇵"}
 ];
 let selected=pairs[0], marketMap={}, chartCandles=[], member=false, signed=false, history=[];
 const safe=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
