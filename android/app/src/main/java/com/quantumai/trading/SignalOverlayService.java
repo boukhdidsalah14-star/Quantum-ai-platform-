@@ -200,7 +200,7 @@ public class SignalOverlayService extends Service {
                 String rsi = json.has("rsi_14") ? json.optString("rsi_14") : "—";
                 String strength = json.optString("signal_strength", "—");
                 JSONArray reasons = json.optJSONArray("reasons");
-                StringBuilder message = new StringBuilder(direction + " · " + asset + " · " + timeframe + "\nTrend: " + trend + " · RSI: " + rsi + "\nStrength: " + strength + "\n");
+                StringBuilder message = new StringBuilder(direction + " · " + asset + " · " + interval + "\nTrend: " + trend + " · RSI: " + rsi + "\nStrength: " + strength + "\n");
                 if (reasons != null) for (int i = 0; i < Math.min(3, reasons.length()); i++) message.append("• ").append(reasons.optString(i)).append("\n");
                 message.append("Analysis only · no order placed.");
                 String output = message.toString();
