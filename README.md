@@ -50,6 +50,19 @@ Each customer must configure a paper account balance before opening an Olymp Tra
 - Public exchange quotes are not broker execution prices and do not guarantee an executable quote.
 - SQLite is suitable for the initial single-instance prototype; use managed PostgreSQL and persistent encrypted backups before a multi-instance customer launch.
 
+## Subscription payments (NOWPayments)
+
+The subscription checkout is configured for **$20 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`; the server creates a NOWPayments payment with `pay_currency=usdttrc20` and a unique internal order ID. The public callback is `POST /api/payments/nowpayments/ipn`.
+
+Only a signed NOWPayments IPN with a matching order ID and payment ID, `payment_status=finished`, `price_amount=20`, `price_currency=usd`, and `pay_currency=usdttrc20` activates access. Activation is idempotent; a repeated successful callback does not grant extra days. A renewal extends from the later of now or the existing expiry. `GET /api/subscription` reports the customer's status.
+
+Configure these private Render environment values before enabling checkout:
+- `NOWPAYMENTS_API_KEY` — API key from NOWPayments.
+- `NOWPAYMENTS_IPN_SECRET` — IPN secret from NOWPayments.
+- `QUANTUM_PUBLIC_URL` — canonical HTTPS public app URL (for example, `https://quantum-ai-platform-62cz.onrender.com`).
+
+The MEXC USDT TRC20 address is configured in the NOWPayments merchant dashboard, not embedded in application code. The checkout API does not initiate payouts or hold wallet private keys. Confirm the NOWPayments dashboard payout-wallet and IPN settings before accepting customer funds. Do not enable customer registration or advertise checkout as live until the API key and IPN secret are installed and a real low-value end-to-end payment has been verified.
+
 ## Customer authentication API
 
 - `GET /api/auth/config` — return whether customer registration is currently open.
