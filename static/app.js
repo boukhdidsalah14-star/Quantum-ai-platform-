@@ -111,17 +111,17 @@ $("crypto-analyze").addEventListener("click",runCryptoAnalysis);
 async function runCryptoPaperEntry(){
  if(!signed||!member){nav("account");toast("Sign in and activate membership to use paper auto-entry");return;}
  const button=$("crypto-paper-entry"),output=$("crypto-paper-result");
- const balance=Number($("crypto-paper-balance").value),risk=Number($("crypto-paper-risk").value);
- if(!Number.isFinite(balance)||balance<=0||!Number.isFinite(risk)||risk<=0||risk>1){toast("Use a positive balance and risk up to 1%");return;}
+ const balance=Number($("crypto-paper-balance").value),risk=Number($("crypto-paper-risk").value),leverage=Number($("crypto-paper-leverage").value);
+ if(!Number.isFinite(balance)||balance<=0||!Number.isFinite(risk)||risk<=0||risk>1||!Number.isInteger(leverage)||leverage<1||leverage>20){toast("Use a positive balance, risk up to 1%, and leverage from 1x to 20x");return;}
  button.disabled=true;button.textContent="CHECKING SIGNAL…";output.hidden=false;output.textContent="Checking completed MEXC futures candles and risk limits…";
  try{
   const key=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"qai-"+Date.now()+"-"+Math.random().toString(16).slice(2);
-  const response=await fetch("/api/paper/crypto/auto",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify({symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,account_balance:balance,risk_percent:risk})});
+  const response=await fetch("/api/paper/crypto/auto",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify({symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,account_balance:balance,risk_percent:risk,leverage})});
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Paper entry unavailable");
   if(!data.created){output.textContent="NO PAPER ENTRY · "+(data.reason||"No qualifying high-confidence signal");toast("No entry: signal filter says wait");return;}
   const trade=data.trade,plan=data.plan;
-  output.innerHTML="<b>PAPER POSITION OPENED · "+safe(plan.side.toUpperCase())+"</b><br>"+safe(trade.symbol)+" · Entry "+money(plan.entry_price)+" · Qty "+Number(plan.quantity).toFixed(6)+"<br>Stop "+money(plan.stop_loss)+" · Target "+money(plan.take_profit)+"<br>Notional "+money(plan.notional_usdt)+" USDT · Risk "+Number(plan.risk_percent).toFixed(2)+"% · 1×<br><small>Simulated only. No MEXC order was sent.</small>";
+  output.innerHTML="<b>PAPER POSITION OPENED · "+safe(plan.side.toUpperCase())+"</b><br>"+safe(trade.symbol)+" · Entry "+money(plan.entry_price)+" · Qty "+Number(plan.quantity).toFixed(6)+"<br>Stop "+money(plan.stop_loss)+" · Target "+money(plan.take_profit)+"<br>Notional "+money(plan.notional_usdt)+" USDT · Margin est. "+money(plan.margin_required_usdt)+" USDT · Risk "+Number(plan.risk_percent).toFixed(2)+"% · "+Number(plan.leverage)+"×<br><small>Simulated only. No MEXC order was sent.</small>";
   toast("Paper position created");
  }catch(error){output.textContent="PAPER ENTRY FAILED · "+error.message;toast(error.message);}
  finally{button.disabled=false;button.textContent="AUTO PAPER ENTRY";}
