@@ -10,6 +10,8 @@ from math import isfinite
 MAX_NOTIONAL_USDT = 500.0
 MAX_RISK_PERCENT = 1.0
 DEFAULT_RISK_PERCENT = 0.5
+DEFAULT_LEVERAGE = 1
+MAX_LEVERAGE = 20
 STOP_ATR_MULTIPLE = 1.5
 TARGET_R_MULTIPLE = 2.0
 
@@ -19,6 +21,7 @@ def build_paper_trade_plan(
     *,
     account_balance: float,
     risk_percent: float = DEFAULT_RISK_PERCENT,
+    leverage: int = DEFAULT_LEVERAGE,
 ) -> dict | None:
     """Return a bounded LONG/SHORT plan, or None when analysis says WAIT."""
     try:
@@ -26,9 +29,12 @@ def build_paper_trade_plan(
         risk_pct = float(risk_percent)
         price = float(analysis["last_close"])
         atr = float(analysis["atr_14"])
+        leverage_value = int(leverage)
     except (KeyError, TypeError, ValueError):
-        raise ValueError("Analysis, balance, and ATR inputs are required")
+        raise ValueError("Analysis, balance, ATR, and whole-number leverage are required")
 
+    if isinstance(leverage, bool) or leverage_value != leverage or not 1 <= leverage_value <= MAX_LEVERAGE:
+        raise ValueError("Leverage must be a whole number from 1x to 20x")
     if not all(isfinite(v) for v in (balance, risk_pct, price, atr)):
         raise ValueError("Trade-plan inputs must be finite numbers")
     if balance <= 0 or price <= 0 or atr <= 0:
@@ -60,6 +66,7 @@ def build_paper_trade_plan(
         stop_loss = price + stop_distance
         take_profit = price - stop_distance * TARGET_R_MULTIPLE
 
+    notional = quantity * price
     return {
         "mode": "paper",
         "execution": "simulated_only",
@@ -67,12 +74,13 @@ def build_paper_trade_plan(
         "side": bias.lower(),
         "entry_price": price,
         "quantity": quantity,
-        "notional_usdt": quantity * price,
+        "notional_usdt": notional,
+        "margin_required_usdt": notional / leverage_value,
         "risk_budget_usdt": risk_budget,
         "risk_percent": risk_pct,
         "stop_loss": stop_loss,
         "take_profit": take_profit,
         "risk_reward_ratio": TARGET_R_MULTIPLE,
         "max_notional_usdt": MAX_NOTIONAL_USDT,
-        "leverage": 1,
+        "leverage": leverage_value,
     }
