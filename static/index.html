@@ -68,6 +68,14 @@
    <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · PERPETUAL FUTURES</span><h2>MEXC Futures</h2><p>Selected for the futures integration because its official API documents contract orders and position management. Futures API access requires eligible KYC and API permissions.</p><div class="provider-tags"><span>USDT contracts</span><span>API keys</span><span>Kill switch</span></div></div><span class="provider-state locked">LOCKED</span>
    <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
   </div>
+  <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
+   <div class="section-title"><div><span class="eyebrow">BINANCE USD-M · PUBLIC FUTURES DATA</span><h2>Crypto Futures Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
+   <div class="chart-toolbar"><label for="crypto-symbol">ASSET</label><select id="crypto-symbol"></select><label for="crypto-timeframe">TIMEFRAME</label><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select><button id="crypto-analyze" class="solid-btn">ANALYZE</button></div>
+   <div id="crypto-market-list" class="pair-list"></div>
+   <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a futures asset and timeframe.</small></div>
+   <div id="crypto-signal-details" class="signal-details" hidden></div>
+   <p class="risk-note">Read-only Binance USD-M market data. USDT is the quote/settlement currency, not a selectable asset. No crypto order is sent from this analysis panel.</p>
+  </section>
   <div class="provider-card">
    <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>Binary Options</h2><p>Dedicated CALL / PUT / WAIT analysis for the selected binary pair. Signals appear in the floating window. No binary broker account connection or automatic orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
    <button class="provider-action" data-provider="deriv">VIEW BINARY OPTIONS SIGNAL STATUS <b>→</b></button>
