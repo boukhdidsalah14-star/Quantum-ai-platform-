@@ -26,6 +26,7 @@ from app.brokers import broker_capabilities
 from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, sync_candles as sync_mt4_candles, get_mt4_candles, BridgeAuthError)
 from app.mt4_autotrader import (init_db as init_mt4_auto_db, demo_execution_enabled as mt4_demo_execution_enabled, get_settings as mt4_auto_status, start_auto_trader, stop_auto_trader, process_active_auto_traders)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
+from app.crypto_futures_paper import build_paper_trade_plan
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
 
@@ -82,6 +83,12 @@ class PaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
+
+class CryptoPaperAutoRequest(BaseModel):
+    symbol: str = Field(min_length=5, max_length=12)
+    timeframe: str = Field(default="1h", min_length=2, max_length=3)
+    account_balance: float = Field(gt=0, le=1000000)
+    risk_percent: float = Field(default=0.5, gt=0, le=1)
 
 
 class MT4BridgeRegistration(BaseModel):
@@ -1074,6 +1081,68 @@ async def crypto_signal(
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Crypto historical data is temporarily unavailable")
+
+
+@app.post("/api/paper/crypto/auto")
+async def auto_crypto_paper_entry(
+    payload: CryptoPaperAutoRequest,
+    request: Request,
+    idempotency_key: str = Header(default="", alias="Idempotency-Key"),
+):
+    """Create at most one high-quality simulated futures entry; never contacts MEXC trading APIs."""
+    _check_same_origin(request)
+    init_auth_db()
+    init_paper_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    symbol = payload.symbol.upper()
+    if symbol not in CRYPTO_FUTURES:
+        raise HTTPException(status_code=400, detail="Unsupported crypto futures market")
+    if payload.timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Crypto paper auto-entry timeframe must be 1h, 4h, or 1d")
+    if not idempotency_key:
+        raise HTTPException(status_code=400, detail="Idempotency-Key header is required")
+    try:
+        candles_data = await get_candles(symbol, payload.timeframe, 100)
+        analysis = analyze_candles(candles_data, payload.timeframe)
+        analysis["trade_bias"] = (
+            "LONG" if analysis["direction"] == "CALL"
+            else "SHORT" if analysis["direction"] == "PUT"
+            else "WAIT"
+        )
+        plan = build_paper_trade_plan(
+            analysis,
+            account_balance=payload.account_balance,
+            risk_percent=payload.risk_percent,
+        )
+        if plan is None:
+            return {
+                "created": False,
+                "reason": "Signal is WAIT or does not meet the high-confidence paper-entry filter",
+                "analysis": analysis,
+                "mode": "paper",
+                "execution": "simulated_only",
+                "broker_order_sent": False,
+            }
+        trade = open_paper_trade(
+            customer["id"], symbol, plan["side"], plan["quantity"],
+            plan["entry_price"], plan["stop_loss"], plan["take_profit"],
+            idempotency_key,
+        )
+        return {
+            "created": True,
+            "trade": trade,
+            "plan": plan,
+            "analysis": analysis,
+            "mode": "paper",
+            "execution": "simulated_only",
+            "broker_order_sent": False,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="MEXC futures candles unavailable; no paper trade was created")
 
 
 @app.get("/api/backtest/crypto/{symbol}")
