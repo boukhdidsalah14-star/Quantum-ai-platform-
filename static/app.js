@@ -133,7 +133,7 @@ const providerInfo={
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
@@ -176,6 +176,26 @@ async function loadMt4Orders(){
   $("mt4-order-history").innerHTML=orders.length?orders.map(o=>'<div class="history-row"><b>'+safe(o.symbol)+' '+safe(o.side)+'</b><span>'+safe(o.lots)+' lots · '+safe(o.status.toUpperCase())+'</span><small>SL '+safe(o.stop_loss)+' · TP '+safe(o.take_profit)+(o.broker_ticket?' · Ticket '+safe(o.broker_ticket):'')+'</small></div>').join(""):"<p class='muted'>No MT4 commands yet.</p>";
  }catch(error){}
 }
+
+async function refreshMt4Auto(){
+ const badge=$("mt4-auto-status"),message=$("mt4-auto-message");
+ if(!signed){badge.textContent="SIGN IN";message.textContent="Sign in to configure your JustMarkets demo auto trader.";return;}
+ try{
+  const response=await fetch("/api/mt4/auto",{cache:"no-store"});
+  if(!response.ok)throw Error("Auto-trader status unavailable");
+  const data=await response.json();
+  badge.textContent=data.active?"RUNNING · DEMO":"STOPPED";
+  $("mt4-auto-symbol").value=data.symbol||"XAUUSD";
+  $("mt4-auto-timeframe").value=data.timeframe||"15m";
+  $("mt4-auto-lots").value=data.lots||0.01;
+  $("mt4-auto-drawdown").value=data.max_drawdown_pct||10;
+  $("mt4-auto-stop-atr").value=data.stop_atr||1.5;
+  $("mt4-auto-target-atr").value=data.target_atr||2;
+  message.textContent=data.last_message||"Demo-only auto trader is stopped.";
+  $("mt4-auto-start").disabled=!data.server_execution_enabled;
+  if(!data.server_execution_enabled)message.textContent="The MT4 demo execution safety switch is currently off. Real-account execution is not available.";
+ }catch(error){badge.textContent="STATUS UNAVAILABLE";message.textContent=error.message;}
+}
 $("mt4-bridge-form").addEventListener("submit",async e=>{
  e.preventDefault();
  if(!signed){nav("account");toast("Sign in first to register your MT4 bridge");return;}
@@ -198,6 +218,34 @@ $("mt4-copy-token").addEventListener("click",async()=>{
  try{await navigator.clipboard.writeText(value);toast("Bridge token copied");}
  catch(error){const field=document.createElement("textarea");field.value=value;document.body.appendChild(field);field.select();document.execCommand("copy");field.remove();toast("Bridge token copied");}
 });
+
+$("mt4-auto-form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ if(!signed){nav("account");toast("Sign in first to configure auto trading");return;}
+ if(!member){nav("account");toast("Active membership required for auto trading");return;}
+ const button=$("mt4-auto-start");button.disabled=true;
+ try{
+  const payload={symbol:$("mt4-auto-symbol").value,timeframe:$("mt4-auto-timeframe").value,lots:Number($("mt4-auto-lots").value),max_drawdown_pct:Number($("mt4-auto-drawdown").value),stop_atr:Number($("mt4-auto-stop-atr").value),target_atr:Number($("mt4-auto-target-atr").value)};
+  const response=await fetch("/api/mt4/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not start demo auto trader");
+  toast("JustMarkets demo auto trader started");
+  refreshMt4Auto();
+ }catch(error){$("mt4-auto-message").textContent=error.message;toast(error.message);}
+ finally{button.disabled=false;}
+});
+$("mt4-auto-stop").addEventListener("click",async()=>{
+ if(!signed){nav("account");toast("Sign in first");return;}
+ const button=$("mt4-auto-stop");button.disabled=true;
+ try{
+  const response=await fetch("/api/mt4/auto/stop",{method:"POST"});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not stop auto trader");
+  toast("Auto trader stopped. No new entries will be generated.");
+  refreshMt4Auto();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+});
 $("mt4-demo-order-form").addEventListener("submit",async e=>{
  e.preventDefault();
  if(!signed){nav("account");toast("Sign in first");return;}
@@ -213,5 +261,5 @@ $("mt4-demo-order-form").addEventListener("submit",async e=>{
  }catch(error){toast(error.message);}
  finally{button.disabled=false;}
 });
-setInterval(()=>{refreshMt4Bridge();loadMt4Orders()},10000);
+setInterval(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()},10000);
 })();
