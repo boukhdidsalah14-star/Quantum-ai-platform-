@@ -1,7 +1,7 @@
 """Encrypted customer-isolated storage for Deriv demo credentials only."""
 import json
 import os
-import sqlite3
+from app.database import sqlite3
 import time
 from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
