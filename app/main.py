@@ -1052,14 +1052,14 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
 @app.get("/api/signals/crypto/{symbol}")
 async def crypto_signal(
     symbol: str,
-    source: str = Query(default="binance"),
+    source: str = Query(default="mexc"),
     timeframe: str = Query(default="1h"),
 ):
     """Calculate a read-only indicator signal from public crypto candles."""
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto signal timeframe must be 1h, 4h, or 1d")
-    if source != "binance":
-        raise HTTPException(status_code=400, detail="Crypto analysis currently uses Binance USD-M futures data; MEXC adapter is spot-only")
+    if source not in {"mexc", "binance"}:
+        raise HTTPException(status_code=400, detail="Crypto analysis currently uses the MEXC perpetual futures public feed")
     if symbol.upper() not in ALLOWED_SYMBOLS:
         raise HTTPException(status_code=400, detail="Unsupported crypto market")
     try:
@@ -1086,8 +1086,8 @@ async def crypto_backtest(
     """Evaluate historical crypto signal direction without placing orders."""
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto backtest timeframe must be 1h, 4h, or 1d")
-    if source != "binance":
-        raise HTTPException(status_code=400, detail="Crypto backtesting currently uses Binance USD-M futures data; MEXC adapter is spot-only")
+    if source not in {"mexc", "binance"}:
+        raise HTTPException(status_code=400, detail="Crypto backtesting currently uses the MEXC perpetual futures public feed")
     if symbol.upper() not in ALLOWED_SYMBOLS:
         raise HTTPException(status_code=400, detail="Unsupported crypto market")
     try:
