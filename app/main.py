@@ -22,6 +22,7 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
+from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, BridgeAuthError)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
@@ -79,6 +80,19 @@ class PaperTradeRequest(BaseModel):
     symbol: str = Field(min_length=3, max_length=20)
     side: str
     quantity: float = Field(gt=0, le=1000000)
+
+
+class MT4BridgeRegistration(BaseModel):
+    account_login: str = Field(min_length=5, max_length=12)
+    account_server: str = Field(min_length=2, max_length=120)
+
+
+class MT4DemoOrderRequest(BaseModel):
+    symbol: str = Field(min_length=3, max_length=12)
+    side: str
+    lots: float = Field(gt=0, le=0.10)
+    stop_loss: float = Field(gt=0)
+    take_profit: float = Field(gt=0)
 
 
 class OlympSignalRequest(BaseModel):
@@ -180,6 +194,7 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
+    init_mt4_bridge_db()
     if _persistent_credentials_ready():
         init_deriv_trading_db()
     monitor_task = None
@@ -344,6 +359,127 @@ async def nowpayments_ipn(
 async def brokers():
     """Return verified implementation scope; this endpoint never claims a live account."""
     return broker_capabilities()
+
+
+@app.post("/api/mt4/bridge/register")
+async def register_mt4_bridge_endpoint(payload: MT4BridgeRegistration, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        result = register_mt4_bridge(customer["id"], payload.account_login, payload.account_server)
+        return {**result, "ea_download": "/static/mt4/QuantumAI_JustMarkets_MT4.mq4",
+                "instructions": "Install the EA in a JustMarkets MT4 demo terminal. The bridge token is shown once; store it securely."}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/bridge/status")
+async def get_mt4_bridge_status(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return mt4_bridge_status(customer["id"])
+
+
+@app.delete("/api/mt4/bridge")
+async def disconnect_mt4_bridge(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"disconnected": delete_mt4_bridge(customer["id"]), "execution_enabled": False}
+
+
+@app.get("/api/mt4/positions")
+async def get_mt4_positions(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = mt4_bridge_status(customer["id"])
+    return {"broker": "justmarkets", "platform": "mt4", **snapshot}
+
+
+@app.post("/api/mt4/bridge/sync")
+async def mt4_bridge_sync(payload: dict, authorization: str = Header(default="", alias="Authorization")):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        return sync_mt4_snapshot(token, payload)
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/bridge/commands")
+async def mt4_bridge_commands(
+    account_login: str,
+    account_server: str,
+    company: str,
+    authorization: str = Header(default="", alias="Authorization"),
+):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        commands = mt4_pending_commands(token, account_login, account_server, company)
+        lines = ["|".join([
+            item["command_id"], item["symbol"], item["side"],
+            str(item["lots"]), str(item["stop_loss"]), str(item["take_profit"]),
+        ]) for item in commands]
+        return Response(content="\\n".join(lines), media_type="text/plain")
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+
+
+@app.post("/api/mt4/bridge/command-result")
+async def mt4_bridge_command_result(
+    payload: dict,
+    authorization: str = Header(default="", alias="Authorization"),
+):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        return mt4_command_result(
+            token, str(payload.get("account_login") or ""),
+            str(payload.get("account_server") or ""), str(payload.get("company") or ""),
+            str(payload.get("command_id") or ""), str(payload.get("status") or ""),
+            int(payload.get("ticket") or 0), str(payload.get("message") or ""),
+        )
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/mt4/orders")
+async def create_mt4_demo_order(payload: MT4DemoOrderRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=403, detail="An active membership is required to submit an MT4 demo order")
+    try:
+        return enqueue_mt4_demo_order(customer["id"], payload.symbol, payload.side,
+                                       payload.lots, payload.stop_loss, payload.take_profit)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/orders")
+async def list_mt4_demo_orders(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"orders": mt4_order_status(customer["id"]), "execution_mode": "demo_only"}
 
 
 @app.get("/api/auth/config")
