@@ -80,8 +80,8 @@ def _adx(candles: list[dict[str, Any]], period: int = 14) -> float:
 
 
 def _validate(candles: list[dict[str, Any]]) -> list[dict[str, float]]:
-    if len(candles) < 60:
-        raise ValueError("At least 60 completed candles are required for advanced analysis")
+    if len(candles) < 30:
+        raise ValueError("At least 30 completed candles are required for advanced analysis")
     clean = []
     for i, c in enumerate(candles):
         try:
@@ -175,6 +175,12 @@ def analyze_market(
         elif bias == "BEARISH": add(-0.75, f"{tf} higher-timeframe trend is bearish")
 
     direction = "CALL" if score >= 3.5 else "PUT" if score <= -3.5 else "WAIT"
+    if direction == "CALL" and rsi >= 75:
+        direction = "WAIT"
+        reasons.append("Overbought RSI blocks a fresh CALL")
+    elif direction == "PUT" and rsi <= 25:
+        direction = "WAIT"
+        reasons.append("Oversold RSI blocks a fresh PUT")
     max_score = 10.0 + 0.75 * len(mtf)
     confluence = min(100, round(abs(score) / max_score * 100))
     # A conflicting higher timeframe blocks an otherwise directional signal.
@@ -193,13 +199,14 @@ def analyze_market(
         target_distance = 2.0 * atr
     else:
         stop_distance = target_distance = None
-    trend = "BULLISH" if trend_up else "BEARISH" if trend_down else "MIXED"
+    trend = ("BULLISH" if trend_up else "BEARISH" if trend_down else
+             "NEUTRAL" if pstdev(closes[-20:]) < 1e-12 else "MIXED")
     return {
         "asset": asset,
         "direction": direction,
         "trend": trend,
         "market_regime": regime,
-        "signal_strength": "strong_confluence" if direction != "WAIT" and confluence >= 65 else "moderate_confluence" if direction != "WAIT" else "no_trade",
+        "signal_strength": "moderate" if direction != "WAIT" else "low",
         "confluence_score": confluence,
         "confidence_is_probability": False,
         "score": round(score, 3),
