@@ -38,3 +38,6 @@ main{width:min(1180px,100%);margin:0 auto;padding:20px clamp(12px,3vw,28px)}.pag
 .mt4-bridge-panel .history-row{display:grid;gap:4px;padding:10px 0;border-bottom:1px solid #123654;font-size:10px}
 .mt4-bridge-panel .history-row span,.mt4-bridge-panel .history-row small{color:#8ca8c6}
 @media(max-width:600px){#mt4-demo-order-form{grid-template-columns:1fr 1fr}.mt4-bridge-panel .mt4-position-strip{grid-template-columns:1fr 1fr}}
+
+/* Responsive bottom advertising slot */
+.ad-inner{min-height:56px;position:relative}.ad-fallback{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;text-align:center}.ad-fallback b{font-size:10px;color:#9fdcff}.ad-fallback small{font-size:8px;color:#7e9bb7}.ad-label{flex:0 0 auto}.ad-inner .adsbygoogle{flex:1 1 320px;min-width:0;max-width:900px;min-height:50px}@media(max-width:600px){.ad-inner{min-height:48px}.ad-fallback{gap:4px}.ad-fallback small{display:none}.ad-inner .adsbygoogle{flex-basis:250px}}

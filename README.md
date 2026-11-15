@@ -232,3 +232,13 @@ The preview now includes a customer-specific demo auto-trader control and server
 The strategy reads completed MT4 broker candles, applies the conservative multi-indicator signal engine, and queues at most one idempotent command per completed candle. It waits on weak/unclear signals, avoids opening a second position on the same symbol, and pauses when the configured equity-drawdown limit is reached. The EA also refuses non-demo accounts and has its own EnableDemoOrderExecution input, which defaults to false.
 
 The persistent Neon database is connected and the bridge/auto-trader tables are initialized. The server-side MT4 demo execution switch remains OFF pending end-to-end verification with a compiled EA on a real JustMarkets demo terminal. No live-account execution is implemented. The MQL4 source still requires MetaEditor compilation and broker-demo verification before the demo auto-trader can be called complete.
+
+
+## Bottom banner advertising
+
+The mobile web dashboard includes a fixed, responsive bottom banner above the bottom navigation. Google AdSense is loaded only when both public placement values are configured in the hosting environment:
+
+- `GOOGLE_ADSENSE_CLIENT_ID` — the approved publisher client ID in the `ca-pub-…` format.
+- `GOOGLE_ADSENSE_BOTTOM_SLOT_ID` — the numeric responsive display-ad unit ID created for the bottom banner.
+
+Create and verify the site in Google AdSense, wait for approval, create a responsive display ad unit, then add those two values to the Render service environment. Until then, the app shows a clearly labelled ad-placement placeholder and does not make ad requests. Ad blockers, consent requirements, invalid IDs, and provider fill rates can prevent ads from appearing. The native Android APK requires a separate Google AdMob SDK integration and app/ad unit IDs; the web AdSense slot is not represented as native APK advertising.
