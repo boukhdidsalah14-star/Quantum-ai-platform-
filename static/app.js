@@ -148,7 +148,7 @@ async function refreshMexcAuto(){
  }catch(e){$("mexc-auto-status").textContent="MEXC status unavailable";}
 }
 async function connectMexcAccount(){
- if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
+ if(!signed){nav("account");toast("Sign in first to connect your MEXC account");return;}
  const apiKey=$("mexc-api-key").value.trim(),apiSecret=$("mexc-api-secret").value;
  if(!apiKey||!apiSecret){toast("Enter both MEXC API credentials");return;}
  const button=$("mexc-connect");button.disabled=true;button.textContent="VERIFYING…";
