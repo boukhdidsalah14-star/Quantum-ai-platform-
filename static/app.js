@@ -131,13 +131,20 @@ $("crypto-paper-entry").addEventListener("click",runCryptoPaperEntry);
 
 async function refreshMexcAuto(){
  try{
-  const [connection,strategy]=await Promise.all([
-   fetch("/api/connections/mexc"),fetch("/api/mexc/futures/auto")
+  const [connection,strategy,live]=await Promise.all([
+   fetch("/api/connections/mexc"),fetch("/api/mexc/futures/auto"),fetch("/api/mexc/futures/positions")
   ]);
   if(connection.ok){const c=await connection.json();$("mexc-connection-status").textContent=c.connected?"MEXC account connected · encrypted credentials stored":"MEXC account not connected";}
   if(strategy.ok){const d=await strategy.json(),v=d.strategy||{};$("mexc-auto-status").textContent=
    v.status==="active"?"AUTO TRADING ACTIVE · "+v.symbol+" · "+v.timeframe+" · "+v.risk_percent+"% risk · "+v.leverage+"×":
    v.status==="stopped"?"AUTO TRADING STOPPED"+(v.last_error?" · "+v.last_error:""):"AUTO TRADING NOT STARTED";}
+  if(live.ok){
+   const d=await live.json(),positions=d.positions||[],orders=d.open_orders||[];
+   const positionHtml=positions.map(p=>'<div class="trade-row"><b>'+safe(p.symbol)+'</b><span>'+(Number(p.positionType)===1?'LONG':'SHORT')+' · '+safe(p.holdVol)+'</span><span>Entry '+money(p.holdAvgPrice)+' · P/L '+money(p.unRealizedPnl)+'</span></div>').join("");
+   const orderHtml=orders.map(o=>'<div class="trade-row"><b>'+safe(o.symbol)+'</b><span>OPEN ORDER · '+safe(o.side)+'</span><span>'+safe(o.vol)+' contracts</span></div>').join("");
+   $("mexc-live-positions").innerHTML=(positionHtml||'<small>No open MEXC Futures positions.</small>')+(orderHtml||"");
+  }else if(live.status===409){$("mexc-live-positions").textContent="Connect MEXC to view live positions.";}
+
  }catch(e){$("mexc-auto-status").textContent="MEXC status unavailable";}
 }
 async function connectMexcAccount(){
