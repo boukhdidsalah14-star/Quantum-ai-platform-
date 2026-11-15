@@ -228,6 +228,88 @@ async def _mt4_auto_monitor_loop():
         await asyncio.sleep(15)
 
 
+async def _mexc_auto_monitor_loop():
+    """Execute at most one high-confidence entry per completed candle and customer."""
+    while True:
+        try:
+            for strategy in list_active_mexc_auto_strategies():
+                customer_id = strategy["customer_id"]
+                external_oid = None
+                try:
+                    if not subscription_for_customer(customer_id).get("active"):
+                        stop_mexc_auto_strategy(customer_id)
+                        continue
+                    credentials = load_mexc_credentials(customer_id)
+                    if not credentials:
+                        stop_mexc_auto_strategy(customer_id)
+                        continue
+                    client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+                    account = await client.verify_account()
+                    usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
+                    balance = float(usdt["available_balance"]) if usdt else 0.0
+                    if balance <= 0:
+                        set_mexc_auto_strategy_error(customer_id, "No available USDT futures balance")
+                        continue
+                    symbol = strategy["symbol"]
+                    if await client.get_open_positions(symbol):
+                        set_mexc_auto_strategy_error(customer_id, None)
+                        continue
+                    candles = await get_candles(symbol, strategy["timeframe"], 100)
+                    completed = candles[:-1]
+                    if len(completed) < 50:
+                        continue
+                    analysis = analyze_candles(completed, strategy["timeframe"])
+                    if str(analysis.get("signal_strength", "")).lower() != "high":
+                        continue
+                    direction = analysis.get("direction")
+                    if direction not in {"CALL", "PUT"}:
+                        continue
+                    candle_time = int(completed[-1]["time"])
+                    quotes = await get_market_overview()
+                    quote = next((x for x in quotes if x["symbol"] == symbol), None)
+                    if not quote or float(quote["price"]) <= 0:
+                        continue
+                    analysis["last_close"] = float(quote["price"])
+                    analysis["trade_bias"] = "LONG" if direction == "CALL" else "SHORT"
+                    risk = float(strategy["risk_percent"])
+                    leverage = int(strategy["leverage"])
+                    plan = build_paper_trade_plan(analysis, account_balance=balance,
+                                                  risk_percent=risk, leverage=leverage)
+                    if plan is None:
+                        continue
+                    contract = await client.get_contract(symbol)
+                    sizing = contracts_for_risk(
+                        symbol=symbol, entry_price=plan["entry_price"],
+                        stop_loss=plan["stop_loss"], account_balance=balance,
+                        risk_percent=risk, contract=contract, leverage=leverage)
+                    external_oid = hashlib.sha256(
+                        f"qai-auto:{customer_id}:{symbol}:{candle_time}".encode()
+                    ).hexdigest()[:32]
+                    if not reserve_mexc_auto_order(customer_id, symbol, candle_time, external_oid):
+                        continue
+                    try:
+                        order = await client.place_market_order(
+                            symbol=symbol, side=plan["side"], volume=sizing["contracts"],
+                            leverage=leverage, stop_loss=plan["stop_loss"],
+                            take_profit=plan["take_profit"], external_oid=external_oid)
+                        update_mexc_auto_order(external_oid, "submitted", order["order_id"])
+                        set_mexc_auto_strategy_error(customer_id, None)
+                        logger.info("MEXC auto order submitted for customer %s symbol %s order %s",
+                                    customer_id, symbol, order["order_id"])
+                    except Exception:
+                        update_mexc_auto_order(external_oid, "unknown")
+                        set_mexc_auto_strategy_error(
+                            customer_id, "Order result uncertain; duplicate entry blocked pending exchange reconciliation")
+                        logger.exception("MEXC order result uncertain for customer %s", customer_id)
+                except Exception as exc:
+                    set_mexc_auto_strategy_error(customer_id, str(exc)[:240])
+                    logger.warning("MEXC auto strategy failed for customer %s: %s",
+                                   customer_id, str(exc)[:180])
+        except Exception:
+            logger.exception("MEXC auto-trader monitor loop failed")
+        await asyncio.sleep(20)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
@@ -237,6 +319,7 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
+    init_mexc_auto_db()
     init_metaapi_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
@@ -244,10 +327,13 @@ async def lifespan(app: FastAPI):
         init_deriv_trading_db()
     monitor_task = None
     mt4_auto_task = None
+    mexc_auto_task = None
     if _demo_execution_enabled():
         monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
     if mt4_demo_execution_enabled():
         mt4_auto_task = asyncio.create_task(_mt4_auto_monitor_loop())
+    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true":
+        mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
     bot = None
     token, token_env_name = _configured_telegram_token()
     if token:
@@ -300,6 +386,12 @@ async def lifespan(app: FastAPI):
             mt4_auto_task.cancel()
             try:
                 await mt4_auto_task
+            except asyncio.CancelledError:
+                pass
+        if mexc_auto_task is not None:
+            mexc_auto_task.cancel()
+            try:
+                await mexc_auto_task
             except asyncio.CancelledError:
                 pass
         if bot is not None:
