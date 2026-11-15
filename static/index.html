@@ -329,6 +329,52 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
   </div>
 
     <div class="workspace" id="workspace-metatrader">
+<section class="section" id="mt4-connection">
+    <div class="section-head">
+      <div><h2>JustMarkets MT4 Connection</h2><div class="sub">Connect your own MT4 demo terminal · read-only sync</div></div>
+      <span class="pill" id="mt4-connection-badge">NOT CONNECTED</span>
+    </div>
+    <div class="panel">
+      <div class="grid two">
+        <div>
+          <div class="field"><label for="mt4-account-login">MT4 DEMO ACCOUNT LOGIN</label><input id="mt4-account-login" inputmode="numeric" autocomplete="off" placeholder="Numeric account login"></div>
+          <div class="field"><label for="mt4-account-server">EXACT MT4 SERVER NAME</label><input id="mt4-account-server" autocomplete="off" placeholder="Example: JustMarkets-Demo2"></div>
+          <div class="controls" style="margin-top:12px">
+            <button class="primary" id="mt4-register" type="button">GENERATE READ-ONLY TOKEN</button>
+            <button class="secondary" id="mt4-refresh" type="button">REFRESH STATUS</button>
+          </div>
+          <p class="sub" id="mt4-connection-message" role="status" style="line-height:1.6;margin-top:12px">A durable database is required before the app can issue a connection token.</p>
+        </div>
+        <div>
+          <div class="trade-card">
+            <b>Connection details</b>
+            <div class="trade-row"><span>Broker</span><b>JustMarkets</b></div>
+            <div class="trade-row"><span>Platform</span><b>MetaTrader 4</b></div>
+            <div class="trade-row"><span>Account mode</span><b>DEMO ONLY</b></div>
+            <div class="trade-row"><span>Execution</span><b class="negative">READ-ONLY · NO ORDERS</b></div>
+            <div class="trade-row"><span>Balance</span><b id="mt4-balance">—</b></div>
+            <div class="trade-row"><span>Equity</span><b id="mt4-equity">—</b></div>
+            <div class="trade-row"><span>Open positions</span><b id="mt4-position-count">0</b></div>
+          </div>
+        </div>
+      </div>
+      <div id="mt4-token-panel" class="trade-card" hidden style="margin-top:14px">
+        <b>One-time bridge token</b>
+        <p class="sub">Copy this token now. It is not shown again after you leave this page. If lost, generate a new token.</p>
+        <code id="mt4-token" style="display:block;overflow-wrap:anywhere;user-select:all"></code>
+        <button class="secondary" id="mt4-copy-token" type="button" style="margin-top:10px">COPY TOKEN</button>
+        <p class="sub" style="margin-top:12px"><a href="/static/mt4/QuantumAI_JustMarkets_MT4.mq4" download>Download QUANTUM AI MT4 Expert Advisor</a></p>
+      </div>
+      <div class="trade-card" style="margin-top:14px">
+        <b>Open JustMarkets MT4 positions</b>
+        <div style="overflow-x:auto;margin-top:10px">
+          <table class="table"><thead><tr><th>TICKET</th><th>SYMBOL</th><th>SIDE</th><th>LOTS</th><th>ENTRY</th><th>MARK</th><th>FLOATING P/L</th></tr></thead>
+          <tbody id="mt4-position-rows"><tr><td colspan="7" style="text-align:center;color:var(--muted)">No connected MT4 positions.</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:14px;line-height:1.6">The Expert Advisor runs in MT4 desktop on Windows or a Windows VPS. MetaTrader Android cannot run EAs. This connection does not place, close, or modify trades.</div>
+    </div>
+</section>
 <section class="section" id="forex">
     <div class="section-head">
       <div><h2>Forex · MetaTrader 4 Layout</h2><div class="sub">Bid / Ask / Spread market watch</div></div>
@@ -336,9 +382,9 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
     <div class="grid two">
       <div class="panel">
-        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MT4-inspired paper account · no MT4 orders are sent</div></div><span class="pill">ACCOUNT VIEW</span></div>
-        <div class="stat-value">$13,790.00</div>
-        <div class="sub">Simulated forex paper balance · not a connected MT4 account</div>
+        <div class="chart-top"><div><b>JustMarkets Account</b><div class="sub">Verified broker balance · demo account connection</div></div><span class="pill">BROKER SYNC</span></div>
+        <div class="stat-value" id="mt4-account-balance-large">NOT CONNECTED</div>
+        <div class="sub" id="mt4-account-equity-large">A verified MT4 demo balance appears here after connection.</div>
         <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
       </div>
       <div class="panel">
@@ -356,8 +402,8 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
           </table>
         </div>
         <div class="trade-card" style="margin-top:15px">
-          <div class="sub">SELECTED INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
-          <div class="sub">Market data is supplied by public price feeds.</div>
+          <div class="sub">SELECTED BROKER INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
+          <div class="sub" id="mt4-chart-source">Public candles until your JustMarkets MT4 demo terminal connects.</div>
         </div>
       </div>
     </div>
@@ -724,6 +770,7 @@ $('cryptoTime').addEventListener('change',e=>{
 })();
 </script>
 <script src="/static/auto-trading.js?v=20261109-1905" defer></script>
+<script src="/static/mt4-bridge.js?v=1.0.0" defer></script>
 <script src="/static/floating-signal.js?v=1.0.2" defer></script>
 </body>
 </html>
