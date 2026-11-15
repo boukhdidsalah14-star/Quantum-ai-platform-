@@ -38,7 +38,7 @@ Olymp Trade's help center says trading robots are allowed subject to conditions,
 ## Olymp Trade signal and paper workflow
 
 The authenticated application API now exposes:
-- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 30). The candle source is not verified by this endpoint.
+- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 50). The candle source is not verified by this endpoint.
 - `GET /api/olymp-trade/paper/trades` for the signed-in customer's isolated paper ledger.
 - `POST /api/olymp-trade/paper/trades` to open a simulated CALL/PUT position using a caller-supplied reference price and required idempotency key.
 - `POST /api/olymp-trade/paper/trades/{trade_id}/settle` to settle a simulation using a supplied exit reference price.
@@ -188,3 +188,8 @@ No live order is placed by this branch, and the production service is not change
 ## Persistent database
 
 The application keeps SQLite as its local-test fallback. Production services use Neon PostgreSQL when `DATABASE_URL` is present. The database adapter translates the existing repository queries to PostgreSQL, keeps customer rows as dictionary-style records, and serializes the existing critical idempotent order paths with a transaction-scoped advisory lock. Do not set `QUANTUM_PERSISTENT_STORAGE=true` until the Neon-backed deployment has passed end-to-end auth, subscription, vault, and trading-ledger tests.
+
+
+## Step 2 — advanced multi-market analysis
+
+The Step 2 analysis engine uses EMA 9/21/50, RSI(14), MACD, ADX(14), ATR(14), Bollinger bands, optional volume confirmation, and conservative WAIT filtering. The canonical watchlists include 10 Forex markets (including XAU/USD), 8 binary-option Forex pairs, and 10 non-stablecoin-base Binance USD-M perpetual futures contracts quoted in USDT. Public market data and signals are read-only; this step does not enable order execution. Crypto futures use Binance USD-M public futures endpoints, not Binance Spot or MEXC Spot. Signals are research only and do not guarantee accuracy or profit.
