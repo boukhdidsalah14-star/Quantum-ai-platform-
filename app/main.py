@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import asyncio
+import hashlib
 from pathlib import Path
 import hmac
 import logging
