@@ -22,6 +22,11 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
+from app.mt4_bridge import (
+    BridgeAuthError, init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge,
+    bridge_status as mt4_bridge_status, sync_snapshot as sync_mt4_snapshot,
+    sync_candles as sync_mt4_candles, get_mt4_candles, delete_bridge as delete_mt4_bridge,
+)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
 from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
@@ -73,6 +78,11 @@ class DerivDemoCredentials(BaseModel):
 class MexcCredentials(BaseModel):
     api_key: str = Field(min_length=1, max_length=256)
     api_secret: str = Field(min_length=1, max_length=512)
+
+
+class MT4BridgeRegistration(BaseModel):
+    account_login: str = Field(min_length=5, max_length=12)
+    account_server: str = Field(min_length=2, max_length=120)
 
 
 class PaperTradeRequest(BaseModel):
@@ -174,6 +184,7 @@ async def _deriv_demo_monitor_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
+    init_mt4_bridge_db()
     init_subscription_db()
     init_paper_db()
     init_olymp_paper_db()
@@ -338,6 +349,101 @@ async def nowpayments_ipn(
     except ValueError as exc:
         logger.warning("NOWPayments notification rejected: %s", str(exc)[:180])
         raise HTTPException(status_code=400, detail="Payment notification did not match a valid subscription order")
+
+
+@app.post("/api/mt4/bridge/register")
+async def register_mt4_bridge_endpoint(payload: MT4BridgeRegistration, request: Request):
+    """Register a customer-bound, JustMarkets demo-only read-only MT4 bridge."""
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not _persistent_credentials_ready():
+        raise HTTPException(
+            status_code=503,
+            detail="Durable storage is required before an MT4 bridge token can be issued. Ask the platform administrator to configure persistent storage and the credentials encryption key.",
+        )
+    init_mt4_bridge_db()
+    try:
+        result = register_mt4_bridge(customer["id"], payload.account_login, payload.account_server)
+        return {
+            **result,
+            "ea_download": "/static/mt4/QuantumAI_JustMarkets_MT4.mq4",
+            "api_base_url": "https://quantum-ai-platform-62cz.onrender.com",
+            "instructions": "Install the read-only EA in a JustMarkets MT4 demo terminal. The token is shown once; copy it securely.",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/bridge/status")
+async def get_mt4_bridge_status(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    init_mt4_bridge_db()
+    return mt4_bridge_status(customer["id"])
+
+
+@app.delete("/api/mt4/bridge")
+async def disconnect_mt4_bridge(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    init_mt4_bridge_db()
+    return {"disconnected": delete_mt4_bridge(customer["id"]), "execution_enabled": False}
+
+
+@app.post("/api/mt4/bridge/sync")
+async def mt4_bridge_sync(payload: dict, authorization: str = Header(default="", alias="Authorization")):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        return sync_mt4_snapshot(token, payload)
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/mt4/bridge/candles")
+async def mt4_bridge_candles(payload: dict, authorization: str = Header(default="", alias="Authorization")):
+    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
+    try:
+        return sync_mt4_candles(token, payload)
+    except BridgeAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/mt4/positions")
+async def get_mt4_positions(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    init_mt4_bridge_db()
+    return {"broker": "justmarkets", "platform": "mt4", **mt4_bridge_status(customer["id"])}
+
+
+@app.get("/api/mt4/candles/{symbol}")
+async def get_customer_mt4_candles(request: Request, symbol: str, timeframe: str = Query(default="15m")):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    init_mt4_bridge_db()
+    try:
+        data = get_mt4_candles(customer["id"], symbol, timeframe)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not data:
+        raise HTTPException(status_code=404, detail="No fresh MT4 broker candles for this symbol/timeframe")
+    return data
 
 
 @app.get("/api/brokers")
