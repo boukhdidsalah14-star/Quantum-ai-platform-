@@ -365,6 +365,13 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
         <button class="secondary" id="mt4-copy-token" type="button" style="margin-top:10px">COPY TOKEN</button>
         <p class="sub" style="margin-top:12px"><a href="/static/mt4/QuantumAI_JustMarkets_MT4.mq4" download>Download QUANTUM AI MT4 Expert Advisor</a></p>
       </div>
+      <div class="trade-card" style="margin-top:14px">
+        <b>Open JustMarkets MT4 positions</b>
+        <div style="overflow-x:auto;margin-top:10px">
+          <table class="table"><thead><tr><th>TICKET</th><th>SYMBOL</th><th>SIDE</th><th>LOTS</th><th>ENTRY</th><th>MARK</th><th>FLOATING P/L</th></tr></thead>
+          <tbody id="mt4-position-rows"><tr><td colspan="7" style="text-align:center;color:var(--muted)">No connected MT4 positions.</td></tr></tbody></table>
+        </div>
+      </div>
       <div class="sub" style="margin-top:14px;line-height:1.6">The Expert Advisor runs in MT4 desktop on Windows or a Windows VPS. MetaTrader Android cannot run EAs. This connection does not place, close, or modify trades.</div>
     </div>
 </section>
@@ -375,9 +382,9 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
     </div>
     <div class="grid two">
       <div class="panel">
-        <div class="chart-top"><div><b>Account Overview</b><div class="sub">MT4-inspired paper account · no MT4 orders are sent</div></div><span class="pill">ACCOUNT VIEW</span></div>
-        <div class="stat-value">$13,790.00</div>
-        <div class="sub">Simulated forex paper balance · not a connected MT4 account</div>
+        <div class="chart-top"><div><b>JustMarkets Account</b><div class="sub">Verified broker balance · demo account connection</div></div><span class="pill">BROKER SYNC</span></div>
+        <div class="stat-value" id="mt4-account-balance-large">NOT CONNECTED</div>
+        <div class="sub" id="mt4-account-equity-large">A verified MT4 demo balance appears here after connection.</div>
         <div class="chart-wrap"><canvas id="forexChart"></canvas></div>
       </div>
       <div class="panel">
@@ -395,8 +402,8 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
           </table>
         </div>
         <div class="trade-card" style="margin-top:15px">
-          <div class="sub">SELECTED INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
-          <div class="sub">Market data is supplied by public price feeds.</div>
+          <div class="sub">SELECTED BROKER INSTRUMENT</div><h2 id="selectedPair" style="margin-top:8px">EUR/USD</h2>
+          <div class="sub" id="mt4-chart-source">Public candles until your JustMarkets MT4 demo terminal connects.</div>
         </div>
       </div>
     </div>
