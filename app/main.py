@@ -15,7 +15,7 @@ from app.market_data import ALLOWED_SYMBOLS, get_order_book
 from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
-from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk)
+from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error)
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
@@ -989,6 +989,62 @@ async def execute_mexc_futures_signal(
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="MEXC market data unavailable; no order was sent")
+
+
+
+@app.get("/api/mexc/futures/auto")
+async def mexc_auto_status(request: Request):
+    init_auth_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"strategy": get_mexc_auto_strategy(customer["id"]),
+            "execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+
+
+@app.post("/api/mexc/futures/auto/start")
+async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
+    _check_same_origin(request)
+    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
+    if not _persistent_credentials_ready():
+        raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
+    init_auth_db()
+    init_subscription_db()
+    init_mexc_vault_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=403, detail="An active QUANTUM AI membership is required")
+    credentials = load_mexc_credentials(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
+    if payload.symbol.upper() not in CRYPTO_FUTURES or payload.timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Unsupported futures symbol or timeframe")
+    try:
+        client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+        await client.verify_account()
+        await client.get_contract(payload.symbol.upper())
+        return {"strategy": start_mexc_auto_strategy(customer["id"], payload.symbol,
+                payload.timeframe, payload.risk_percent, payload.leverage),
+                "execution_enabled": True, "mode": "live"}
+    except (MexcFuturesError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/mexc/futures/auto/stop")
+async def mexc_auto_stop(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"strategy": stop_mexc_auto_strategy(customer["id"]),
+            "note": "New entries stopped. Existing exchange positions remain open with their attached TP/SL orders."}
 
 
 @app.get("/api/deriv/demo/trades")
