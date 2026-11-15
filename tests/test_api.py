@@ -110,7 +110,11 @@ def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     brokers = {item["id"]: item for item in body["brokers"]}
-    assert set(brokers) == {"deriv", "quotex", "expert_option", "olymp_trade", "mexc"}
+    assert set(brokers) == {"justmarkets_mt4", "deriv", "quotex", "expert_option", "olymp_trade", "mexc"}
+    assert brokers["justmarkets_mt4"]["status"] == "read_only_demo_bridge_implemented"
+    assert brokers["justmarkets_mt4"]["connection_verified"] is False
+    assert brokers["justmarkets_mt4"]["execution_enabled"] is False
+    assert brokers["justmarkets_mt4"]["real_execution_enabled"] is False
     assert brokers["deriv"]["connection_verified"] is False
     assert brokers["mexc"]["status"] == "read_only_customer_account_connection_implemented"
     assert brokers["mexc"]["real_execution_enabled"] is False
