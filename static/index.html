@@ -41,8 +41,12 @@
         <p class="sub">Send the exact amount below to the address. Access activates only after NOWPayments confirms the payment.</p>
         <div class="trade-row"><span>Amount</span><strong id="subscription-pay-amount">—</strong></div>
         <div class="trade-row"><span>Network</span><strong>TRON (TRC20)</strong></div>
+        <div class="trade-row"><span>Payment status</span><strong id="subscription-payment-status">WAITING</strong></div>
+        <div class="trade-row"><span>Payment ID</span><strong id="subscription-payment-id" style="overflow-wrap:anywhere">—</strong></div>
+        <div class="trade-row"><span>Order reference</span><strong id="subscription-order-id" style="overflow-wrap:anywhere">—</strong></div>
         <div class="trade-row" style="display:block"><span class="sub">Payment address</span><p id="subscription-pay-address" style="overflow-wrap:anywhere;font-weight:700"></p></div>
         <button class="secondary" id="subscription-copy-address" type="button">COPY ADDRESS</button>
+        <button class="secondary" id="subscription-refresh-payment" type="button" style="margin-top:8px">CHECK PAYMENT STATUS</button>
       </div>
     </div>
     <p id="subscription-message" class="sub" role="status">Sign in to manage your membership. New account creation is available when enabled by the service.</p>
@@ -99,6 +103,20 @@
       el("subscription-checkout").textContent=data.payment_configured?"SUBSCRIBE · $20 USDT / 30 DAYS":"PAYMENTS SETUP PENDING";
       if(!data.payment_configured)message("Payment gateway setup is not complete yet. No payment can be accepted right now.");
       else message("Your membership is ready.");
+      if(data.active){el("subscription-payment").hidden=true;}
+      else{
+        const pendingResponse=await fetch("/api/subscription/order");
+        const pendingData=await pendingResponse.json();
+        const order=pendingResponse.ok?pendingData.order:null;
+        if(order&&order.payment_id){
+          el("subscription-pay-amount").textContent=order.pay_amount+" USDT";
+          el("subscription-pay-address").textContent=order.pay_address||"—";
+          el("subscription-payment-id").textContent=order.payment_id;
+          el("subscription-order-id").textContent=order.order_id;
+          el("subscription-payment-status").textContent=String(order.payment_status||"waiting").toUpperCase();
+          el("subscription-payment").hidden=false;
+        }else{el("subscription-payment").hidden=true;}
+      }
     }catch{
       signedIn=false;el("subscription-auth").hidden=false;el("subscription-account").hidden=true;el("subscription-state").textContent="SIGN IN";
       const config=await fetch("/api/auth/config").then(r=>r.json()).catch(()=>({registration_enabled:false}));
@@ -132,10 +150,30 @@
       const body=await response.json();if(!response.ok)throw new Error(body.detail||"Could not create checkout");
       el("subscription-pay-amount").textContent=body.pay_amount+" USDT";
       el("subscription-pay-address").textContent=body.pay_address;
+      el("subscription-payment-id").textContent=body.payment_id||"—";
+      el("subscription-order-id").textContent=body.order_id||"—";
+      el("subscription-payment-status").textContent=String(body.payment_status||"waiting").toUpperCase();
       el("subscription-payment").hidden=false;
       message("Payment created. Send the exact amount over TRC20. Your account activates automatically after confirmed completion.");
     }catch(error){message(error.message||"Payment could not be created",true)}
-    finally{button.disabled=false;button.textContent="CREATE NEW PAYMENT · $20 USDT"}
+    finally{button.disabled=false;button.textContent="SUBSCRIBE · $20 USDT / 30 DAYS"}
+  });
+  el("subscription-refresh-payment")?.addEventListener("click",async()=>{
+    const button=el("subscription-refresh-payment");button.disabled=true;button.textContent="CHECKING…";
+    try{
+      const response=await fetch("/api/subscription/refresh",{method:"POST"});
+      const body=await response.json();if(!response.ok)throw new Error(body.detail||"Could not verify payment");
+      if(body.subscription&&body.subscription.active){
+        message("Payment confirmed. Your 30-day membership is now active.");
+        await refresh();
+      }else{
+        const status=body.payment?.payment_status||body.result?.status||"pending";
+        el("subscription-payment-status").textContent=String(status).toUpperCase();
+        if(!body.order&&status==="expired")el("subscription-payment").hidden=true;
+        message("Payment status: "+status+". Membership activates only after provider confirmation.");
+      }
+    }catch(error){message(error.message||"Payment status check failed",true)}
+    finally{button.disabled=false;button.textContent="CHECK PAYMENT STATUS"}
   });
   el("subscription-copy-address")?.addEventListener("click",async()=>{
     try{await navigator.clipboard.writeText(el("subscription-pay-address").textContent);message("Payment address copied.")}
