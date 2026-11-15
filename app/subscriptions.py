@@ -15,7 +15,7 @@ from app.database import sqlite3
 
 SUBSCRIPTION_PRICE_USD = Decimal("20.00")
 SUBSCRIPTION_DAYS = 30
-PENDING_PAYMENT_STATUSES = {"creating", "waiting", "confirming", "partially_paid"}
+PENDING_PAYMENT_STATUSES = {"creating", "waiting", "confirming", "confirmed", "partially_paid"}
 
 
 def _db_path() -> Path:
@@ -137,7 +137,7 @@ def pending_order_for_customer(customer_id: str) -> dict[str, Any] | None:
         row = db.execute(
             """SELECT * FROM subscription_orders
                WHERE customer_id=? AND activated_at IS NULL
-               AND payment_status IN ('creating','waiting','confirming','partially_paid')
+               AND payment_status IN ('creating','waiting','confirming','confirmed','partially_paid')
                ORDER BY created_at DESC LIMIT 1""",
             (customer_id,),
         ).fetchone()
