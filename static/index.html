@@ -111,7 +111,7 @@
    <p class="risk-note" id="mt4-chart-note">Market chart preview only. No MT4 account is connected, so no broker position, entry, stop-loss, take-profit or floating P/L is being reported. Connect an MT4 Expert Advisor bridge before enabling execution.</p>
   </section>
   <div class="provider-card">
-   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · ACCOUNT INTEGRATION</span><h2>MEXC Account Link</h2><p>Read-only MEXC USD-M Futures account verification. Live futures execution is not connected or enabled.</p><div class="provider-tags"><span>Futures account read-only</span><span>API keys</span><span>Execution locked</span></div></div><span class="provider-state locked">LOCKED</span>
+   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · ACCOUNT INTEGRATION</span><h2>MEXC Account Link</h2><p>Connect your MEXC USD-M Futures account and opt in to automated entries with exchange-side stop-loss and take-profit.</p><div class="provider-tags"><span>USD-M Futures</span><span>Encrypted API key</span><span>Automatic entries</span></div></div><span class="provider-state pending">CONNECT</span>
    <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
   </div>
   <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
@@ -121,6 +121,11 @@
    <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto futures candlestick chart"></canvas></div>
    <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a futures asset and timeframe.</small></div>
    <div id="crypto-signal-details" class="signal-details" hidden></div>
+    <div class="provider-card mexc-live-connection">
+     <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Connect Futures Account</h2><p>Connect your own MEXC API key with Futures account-read and order permissions. Keys are encrypted server-side and never shown again.</p></div>
+     <div class="chart-toolbar"><input id="mexc-api-key" type="text" maxlength="256" autocomplete="off" placeholder="MEXC API key"><input id="mexc-api-secret" type="password" maxlength="512" autocomplete="new-password" placeholder="MEXC API secret"><button id="mexc-connect" class="solid-btn">VERIFY & SAVE</button></div>
+     <div id="mexc-connection-status" class="signal-details">Not connected</div>
+    </div>
     <div class="chart-toolbar crypto-paper-controls">
      <label for="crypto-paper-balance">PAPER BALANCE (USDT)</label><input id="crypto-paper-balance" type="number" min="1" max="1000000" step="1" value="1000">
      <label for="crypto-paper-risk">RISK %</label><input id="crypto-paper-risk" type="number" min="0.1" max="1" step="0.1" value="0.5">
@@ -128,7 +133,13 @@
      <button id="crypto-paper-entry" class="solid-btn">AUTO PAPER ENTRY</button>
     </div>
     <div id="crypto-paper-result" class="signal-details" hidden></div>
-    <p class="risk-note">MEXC USD-M perpetual futures public market data. USDT is quote/settlement currency, not a tradable asset. Leverage selection applies to simulated paper positions only. Max planned risk is 1%; max paper notional is $500. No MEXC order is sent.</p>
+    <div class="chart-toolbar">
+     <button id="mexc-auto-start" class="solid-btn">START LIVE AUTO TRADING</button>
+     <button id="mexc-auto-stop" class="outline-btn">STOP AUTO TRADING</button>
+    </div>
+    <div id="mexc-auto-status" class="signal-details">Live auto trading is stopped.</div>
+    <div id="mexc-live-positions" class="signal-details">Connect MEXC to view live futures positions.</div>
+    <p class="risk-note">MEXC USD-M perpetual futures only. Auto trading uses your connected Futures wallet, max 1% risk per entry and a $500 maximum notional per order. Exchange-side stop-loss and take-profit are attached to each entry. USDT is settlement currency, not a tradable asset. Live execution requires Futures API order permission and the server safety switch.</p>
   </section>
   <div class="provider-card">
    <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>Binary Options</h2><p>Dedicated CALL / PUT / WAIT analysis for the selected binary pair. Signals appear in the floating window. No binary broker account connection or automatic orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>

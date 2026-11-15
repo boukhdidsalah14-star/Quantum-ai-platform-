@@ -15,9 +15,9 @@ from app.market_data import ALLOWED_SYMBOLS, get_order_book
 from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
-from app.mexc_futures_execution import get_futures_account_info as get_mexc_account_info, MexcFuturesError
+from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
-from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
+from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
 from app.signals import analyze_candles
@@ -90,6 +90,12 @@ class CryptoPaperAutoRequest(BaseModel):
     symbol: str = Field(min_length=5, max_length=12)
     timeframe: str = Field(default="1h", min_length=2, max_length=3)
     account_balance: float = Field(gt=0, le=1000000)
+    risk_percent: float = Field(default=0.5, gt=0, le=1)
+    leverage: int = Field(default=1, ge=1, le=20)
+
+class MexcLiveEntryRequest(BaseModel):
+    symbol: str = Field(min_length=5, max_length=12)
+    timeframe: str = Field(default="1h", min_length=2, max_length=3)
     risk_percent: float = Field(default=0.5, gt=0, le=1)
     leverage: int = Field(default=1, ge=1, le=20)
 
@@ -222,6 +228,95 @@ async def _mt4_auto_monitor_loop():
         await asyncio.sleep(15)
 
 
+async def _mexc_auto_monitor_loop():
+    """Execute at most one high-confidence entry per completed candle and customer."""
+    while True:
+        try:
+            for strategy in list_active_mexc_auto_strategies():
+                customer_id = strategy["customer_id"]
+                external_oid = None
+                try:
+                    if not subscription_for_customer(customer_id).get("active"):
+                        stop_mexc_auto_strategy(customer_id)
+                        continue
+                    credentials = load_mexc_credentials(customer_id)
+                    if not credentials:
+                        stop_mexc_auto_strategy(customer_id)
+                        continue
+                    client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+                    account = await client.verify_account()
+                    usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
+                    balance = float(usdt["available_balance"]) if usdt else 0.0
+                    equity = float(usdt["equity"]) if usdt else 0.0
+                    if balance <= 0 or equity <= 0:
+                        set_mexc_auto_strategy_error(customer_id, "No available USDT futures balance")
+                        continue
+                    daily_guard = mexc_daily_loss_guard(customer_id, equity, 10.0)
+                    if not daily_guard["allowed"]:
+                        continue
+                    symbol = strategy["symbol"]
+                    if await client.get_open_positions(symbol):
+                        set_mexc_auto_strategy_error(customer_id, None)
+                        continue
+                    if await client.get_open_orders(symbol):
+                        set_mexc_auto_strategy_error(customer_id, "Existing pending MEXC order detected; waiting for exchange reconciliation")
+                        continue
+                    candles = await get_candles(symbol, strategy["timeframe"], 100)
+                    completed = candles[:-1]
+                    if len(completed) < 50:
+                        continue
+                    analysis = analyze_candles(completed, strategy["timeframe"])
+                    if str(analysis.get("signal_strength", "")).lower() != "high":
+                        continue
+                    direction = analysis.get("direction")
+                    if direction not in {"CALL", "PUT"}:
+                        continue
+                    candle_time = int(completed[-1]["time"])
+                    quotes = await get_market_overview()
+                    quote = next((x for x in quotes if x["symbol"] == symbol), None)
+                    if not quote or float(quote["price"]) <= 0:
+                        continue
+                    analysis["last_close"] = float(quote["price"])
+                    analysis["trade_bias"] = "LONG" if direction == "CALL" else "SHORT"
+                    risk = float(strategy["risk_percent"])
+                    leverage = int(strategy["leverage"])
+                    plan = build_paper_trade_plan(analysis, account_balance=balance,
+                                                  risk_percent=risk, leverage=leverage)
+                    if plan is None:
+                        continue
+                    contract = await client.get_contract(symbol)
+                    sizing = contracts_for_risk(
+                        symbol=symbol, entry_price=plan["entry_price"],
+                        stop_loss=plan["stop_loss"], account_balance=balance,
+                        risk_percent=risk, contract=contract, leverage=leverage)
+                    external_oid = hashlib.sha256(
+                        f"qai-auto:{customer_id}:{symbol}:{candle_time}".encode()
+                    ).hexdigest()[:32]
+                    if not reserve_mexc_auto_order(customer_id, symbol, candle_time, external_oid):
+                        continue
+                    try:
+                        order = await client.place_market_order(
+                            symbol=symbol, side=plan["side"], volume=sizing["contracts"],
+                            leverage=leverage, stop_loss=plan["stop_loss"],
+                            take_profit=plan["take_profit"], external_oid=external_oid)
+                        update_mexc_auto_order(external_oid, "submitted", order["order_id"])
+                        set_mexc_auto_strategy_error(customer_id, None)
+                        logger.info("MEXC auto order submitted for customer %s symbol %s order %s",
+                                    customer_id, symbol, order["order_id"])
+                    except Exception:
+                        update_mexc_auto_order(external_oid, "unknown")
+                        set_mexc_auto_strategy_error(
+                            customer_id, "Order result uncertain; duplicate entry blocked pending exchange reconciliation")
+                        logger.exception("MEXC order result uncertain for customer %s", customer_id)
+                except Exception as exc:
+                    set_mexc_auto_strategy_error(customer_id, str(exc)[:240])
+                    logger.warning("MEXC auto strategy failed for customer %s: %s",
+                                   customer_id, str(exc)[:180])
+        except Exception:
+            logger.exception("MEXC auto-trader monitor loop failed")
+        await asyncio.sleep(20)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_auth_db()
@@ -231,6 +326,7 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
+    init_mexc_auto_db()
     init_metaapi_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
@@ -238,10 +334,13 @@ async def lifespan(app: FastAPI):
         init_deriv_trading_db()
     monitor_task = None
     mt4_auto_task = None
+    mexc_auto_task = None
     if _demo_execution_enabled():
         monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
     if mt4_demo_execution_enabled():
         mt4_auto_task = asyncio.create_task(_mt4_auto_monitor_loop())
+    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true":
+        mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
     bot = None
     token, token_env_name = _configured_telegram_token()
     if token:
@@ -294,6 +393,12 @@ async def lifespan(app: FastAPI):
             mt4_auto_task.cancel()
             try:
                 await mt4_auto_task
+            except asyncio.CancelledError:
+                pass
+        if mexc_auto_task is not None:
+            mexc_auto_task.cancel()
+            try:
+                await mexc_auto_task
             except asyncio.CancelledError:
                 pass
         if bot is not None:
@@ -897,6 +1002,169 @@ async def remove_mexc_connection(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"deleted": delete_mexc_credentials(customer["id"])}
+
+
+@app.get("/api/mexc/futures/positions")
+async def mexc_futures_positions(request: Request):
+    init_auth_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    credentials = load_mexc_credentials(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="MEXC Futures account is not connected")
+    try:
+        client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+        account = await client.verify_account()
+        positions = await client.get_open_positions()
+        orders = await client.get_open_orders()
+        return {"broker": "mexc", "market": "usdt_margined_perpetual_futures",
+                "assets": account["assets"], "positions": positions, "open_orders": orders}
+    except MexcFuturesError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/mexc/futures/auto-entry")
+async def execute_mexc_futures_signal(
+    payload: MexcLiveEntryRequest,
+    request: Request,
+    idempotency_key: str = Header(default="", alias="Idempotency-Key"),
+):
+    """Execute one customer-requested MEXC USD-M signal with exchange-side TP/SL."""
+    _check_same_origin(request)
+    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
+    if not _persistent_credentials_ready():
+        raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
+    init_auth_db()
+    init_subscription_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=403, detail="An active QUANTUM AI membership is required")
+    symbol = payload.symbol.upper()
+    if symbol not in CRYPTO_FUTURES:
+        raise HTTPException(status_code=400, detail="Unsupported MEXC USD-M perpetual market")
+    if payload.timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Timeframe must be 1h, 4h or 1d")
+    if not idempotency_key or len(idempotency_key) > 100:
+        raise HTTPException(status_code=400, detail="A valid Idempotency-Key header is required")
+    credentials = load_mexc_credentials(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
+    try:
+        client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+        account = await client.verify_account()
+        usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
+        if not usdt:
+            raise HTTPException(status_code=409, detail="No USDT futures wallet was returned by MEXC")
+        available = float(usdt["available_balance"])
+        if available <= 0:
+            raise HTTPException(status_code=409, detail="MEXC Futures available USDT balance is zero")
+        positions = await client.get_open_positions(symbol)
+        if positions:
+            raise HTTPException(status_code=409, detail="An open position already exists for this customer and symbol")
+        candles_data = await get_candles(symbol, payload.timeframe, 100)
+        analysis = analyze_candles(candles_data[:-1], payload.timeframe)
+        quotes = await get_market_overview()
+        quote = next((item for item in quotes if item["symbol"] == symbol), None)
+        if not quote or float(quote["price"]) <= 0:
+            raise HTTPException(status_code=503, detail="No current MEXC futures quote; no order was sent")
+        analysis["last_close"] = float(quote["price"])
+        analysis["trade_bias"] = ("LONG" if analysis["direction"] == "CALL"
+                                  else "SHORT" if analysis["direction"] == "PUT" else "WAIT")
+        plan = build_paper_trade_plan(
+            analysis, account_balance=available,
+            risk_percent=payload.risk_percent, leverage=payload.leverage,
+        )
+        if plan is None:
+            return {"created": False, "reason": "Signal is WAIT or below the high-confidence filter",
+                    "analysis": analysis, "mode": "live", "order_sent": False}
+        contract = await client.get_contract(symbol)
+        sizing = contracts_for_risk(
+            symbol=symbol, entry_price=plan["entry_price"], stop_loss=plan["stop_loss"],
+            account_balance=available, risk_percent=payload.risk_percent,
+            contract=contract, leverage=payload.leverage,
+        )
+        external_oid = hashlib.sha256(
+            (customer["id"] + ":" + idempotency_key).encode()
+        ).hexdigest()[:32]
+        order = await client.place_market_order(
+            symbol=symbol, side=plan["side"], volume=sizing["contracts"],
+            leverage=payload.leverage, stop_loss=plan["stop_loss"],
+            take_profit=plan["take_profit"], external_oid=external_oid,
+        )
+        return {"created": True, "mode": "live", "broker": "mexc",
+                "market": "usdt_margined_perpetual_futures", "order": order,
+                "sizing": sizing, "analysis": analysis,
+                "risk_controls": {"risk_percent": payload.risk_percent,
+                                  "max_notional_usdt": 500, "max_leverage": 20,
+                                  "isolated_margin": True, "exchange_tp_sl_attached": True}}
+    except MexcFuturesError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=503, detail="MEXC market data unavailable; no order was sent")
+
+
+
+@app.get("/api/mexc/futures/auto")
+async def mexc_auto_status(request: Request):
+    init_auth_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"strategy": get_mexc_auto_strategy(customer["id"]),
+            "execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+
+
+@app.post("/api/mexc/futures/auto/start")
+async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
+    _check_same_origin(request)
+    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
+    if not _persistent_credentials_ready():
+        raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
+    init_auth_db()
+    init_subscription_db()
+    init_mexc_vault_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=403, detail="An active QUANTUM AI membership is required")
+    credentials = load_mexc_credentials(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
+    if payload.symbol.upper() not in CRYPTO_FUTURES or payload.timeframe not in {"1h", "4h", "1d"}:
+        raise HTTPException(status_code=400, detail="Unsupported futures symbol or timeframe")
+    try:
+        client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+        await client.verify_account()
+        await client.get_contract(payload.symbol.upper())
+        return {"strategy": start_mexc_auto_strategy(customer["id"], payload.symbol,
+                payload.timeframe, payload.risk_percent, payload.leverage),
+                "execution_enabled": True, "mode": "live"}
+    except (MexcFuturesError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/mexc/futures/auto/stop")
+async def mexc_auto_stop(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_mexc_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"strategy": stop_mexc_auto_strategy(customer["id"]),
+            "note": "New entries stopped. Existing exchange positions remain open with their attached TP/SL orders."}
 
 
 @app.get("/api/deriv/demo/trades")
