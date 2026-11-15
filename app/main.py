@@ -1004,6 +1004,27 @@ async def remove_mexc_connection(request: Request):
     return {"deleted": delete_mexc_credentials(customer["id"])}
 
 
+@app.get("/api/mexc/futures/positions")
+async def mexc_futures_positions(request: Request):
+    init_auth_db()
+    init_mexc_vault_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    credentials = load_mexc_credentials(customer["id"])
+    if not credentials:
+        raise HTTPException(status_code=409, detail="MEXC Futures account is not connected")
+    try:
+        client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
+        account = await client.verify_account()
+        positions = await client.get_open_positions()
+        orders = await client.get_open_orders()
+        return {"broker": "mexc", "market": "usdt_margined_perpetual_futures",
+                "assets": account["assets"], "positions": positions, "open_orders": orders}
+    except MexcFuturesError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
 @app.post("/api/mexc/futures/auto-entry")
 async def execute_mexc_futures_signal(
     payload: MexcLiveEntryRequest,
