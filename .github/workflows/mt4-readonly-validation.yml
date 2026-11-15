@@ -1,0 +1,28 @@
+name: QUANTUM AI MT4 read-only validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [step1-justmarkets-mt4-readonly]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-test.txt
+      - name: Compile application and tests
+        run: python -m compileall -q app tests
+      - name: Run full pytest suite
+        run: python -m pytest -q tests
+      - name: Run Deriv safety suite
+        run: python -m unittest discover -s tests -p 'test_deriv_trading.py' -v
+      - name: Check MT4 bridge JavaScript syntax
+        run: node --check static/mt4-bridge.js
