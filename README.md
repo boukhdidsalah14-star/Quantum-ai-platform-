@@ -61,17 +61,31 @@ Each customer must configure a paper account balance before opening an Olymp Tra
 
 ## Subscription payments (NOWPayments)
 
+The membership price is **exactly $20 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`. The server requests a NOWPayments payment using `pay_currency=usdttrc20`, a unique customer-owned order ID and the public IPN endpoint `POST /api/payments/nowpayments/ipn`. Repeated checkout taps reuse the existing pending payment instead of creating duplicate payment requests.
 
-The subscription checkout is configured for **$20 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`; the server creates a NOWPayments payment with `pay_currency=usdttrc20` and a unique internal order ID. The public callback is `POST /api/payments/nowpayments/ipn`.
+Only a valid HMAC-SHA512 signed NOWPayments IPN, or a server-authenticated payment-status lookup, can update an order. Activation requires the matching internal order ID and payment ID, `payment_status=finished`, `price_amount=20`, `price_currency=usd`, and `pay_currency=usdttrc20`. When NOWPayments supplies `actually_paid`, an amount below the requested crypto amount is rejected. Activation is idempotent; duplicate callbacks never grant extra days. Renewals extend from the later of the current time or the existing expiry.
 
-Only a signed NOWPayments IPN with a matching order ID and payment ID, `payment_status=finished`, `price_amount=20`, `price_currency=usd`, and `pay_currency=usdttrc20` activates access. Activation is idempotent; a repeated successful callback does not grant extra days. A renewal extends from the later of now or the existing expiry. `GET /api/subscription` reports the customer's status.
+Customer endpoints:
+- `GET /api/subscription` — current membership status and whether checkout is configured.
+- `GET /api/subscription/order` — the signed-in customer's pending payment only.
+- `POST /api/subscription/checkout` — create or resume a $20 USDT TRC20 payment.
+- `POST /api/subscription/refresh` — reconcile the customer's pending payment directly with NOWPayments if an IPN is delayed.
+- `POST /api/payments/nowpayments/ipn` — public signed payment notification endpoint.
 
-Configure these private Render environment values before enabling checkout:
+**Durable storage is mandatory before checkout can be enabled.** Set `QUANTUM_PERSISTENT_STORAGE=true` and configure `DATABASE_URL` to the production Neon PostgreSQL database. The payment ledger intentionally refuses to accept funds against ephemeral local SQLite storage. Keep the database URL private in Render.
+
+Configure these private Render environment values:
+- `DATABASE_URL` — Neon PostgreSQL connection string.
+- `QUANTUM_PERSISTENT_STORAGE=true` — confirms that durable storage is ready.
 - `NOWPAYMENTS_API_KEY` — API key from NOWPayments.
 - `NOWPAYMENTS_IPN_SECRET` — IPN secret from NOWPayments.
-- `QUANTUM_PUBLIC_URL` — canonical HTTPS public app URL (for example, `https://quantum-ai-platform-62cz.onrender.com`).
+- `QUANTUM_PUBLIC_URL` — canonical HTTPS public app URL, matching the deployed Render service.
 
-The MEXC USDT TRC20 address is configured in the NOWPayments merchant dashboard, not embedded in application code. The checkout API does not initiate payouts or hold wallet private keys. Confirm the NOWPayments dashboard payout-wallet and IPN settings before accepting customer funds. Do not enable customer registration or advertise checkout as live until the API key and IPN secret are installed and a real low-value end-to-end payment has been verified.
+In the NOWPayments dashboard, add the merchant's payout wallet, generate the API key and IPN secret, and configure the IPN callback URL to `https://YOUR-APP-HOST/api/payments/nowpayments/ipn`. The wallet address is managed by NOWPayments and is not hard-coded in the app. Confirm the payout-wallet and IPN settings before accepting customer funds. The app never asks customers to send money to an address copied from an unverified message, and it does not hold wallet private keys.
+
+The membership panel shows the payment amount, TRC20 network, payment ID, internal order reference and provider status. Customers can copy the address and manually refresh status; the server verifies status with NOWPayments and activates only after confirmed completion. Expired/failed orders do not activate access. The system does not initiate refunds or payouts.
+
+Do not enable customer registration or advertise checkout as live until the Render secrets, Neon persistence, NOWPayments dashboard, IPN delivery and a real low-value end-to-end payment have all been verified. NOWPayments documentation: [API and endpoint description](https://nowpayments.zendesk.com/hc/en-us/articles/21345824322717-API-and-endpoint-description) and [IPN setup](https://nowpayments.zendesk.com/hc/en-us/articles/21395546303389-IPN-and-how-to-setup).
 
 ## Customer authentication API
 
