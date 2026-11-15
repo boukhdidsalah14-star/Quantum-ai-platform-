@@ -368,23 +368,23 @@ main{padding:14px 3% calc(100px + env(safe-area-inset-bottom));max-width:900px}
 <section class="section" id="crypto">
     <div class="section-head">
       <div><h2>Crypto · Binance Layout</h2><div class="sub">Candlestick chart, volume and moving average</div></div>
-      <span class="pill">SPOT STYLE</span>
+      <span class="pill">USD-M PERPETUAL FUTURES</span>
     </div>
     <div class="panel">
       <div class="chart-top">
-        <div><b style="font-size:18px">BTC / USDT</b><div class="sub">67,420.00 USDT · Market quote</div></div>
-        <div class="positive">+1.32%</div>
+        <div><b id="cryptoCurrentPair" style="font-size:18px">BTC / USDT</b><div class="sub" id="cryptoCurrentPrice">Loading Binance USD-M futures quote…</div></div>
+        <div class="positive" id="cryptoChange">—</div>
       </div>
       <div class="controls">
-        <div class="field"><label>PAIR</label><select id="cryptoPair"><option>BTC/USDT</option><option>ETH/USDT</option><option>BNB/USDT</option><option>SOL/USDT</option></select></div>
-        <div class="field"><label>TIMEFRAME</label><select id="cryptoTime"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
+        <div class="field"><label>PAIR</label><select id="cryptoPair"><option value="BTCUSDT">BTC / USDT</option><option value="ETHUSDT">ETH / USDT</option><option value="BNBUSDT">BNB / USDT</option><option value="XRPUSDT">XRP / USDT</option><option value="SOLUSDT">SOL / USDT</option><option value="TRXUSDT">TRX / USDT</option><option value="DOGEUSDT">DOGE / USDT</option><option value="ADAUSDT">ADA / USDT</option><option value="BCHUSDT">BCH / USDT</option><option value="LINKUSDT">LINK / USDT</option></select></div>
+        <div class="field"><label>TIMEFRAME</label><select id="cryptoTime"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
       </div>
       <div class="chart-wrap" style="height:330px"><canvas id="cryptoChart"></canvas></div>
       <div class="market-strip">
-        <div class="market"><b>24H HIGH</b><strong>68,120</strong></div>
-        <div class="market"><b>24H LOW</b><strong>66,180</strong></div>
-        <div class="market"><b>24H VOLUME</b><strong>1.28B</strong></div>
-        <div class="market"><b>MA(20)</b><strong>67,110</strong></div>
+        <div class="market"><b>24H HIGH</b><strong id="cryptoHigh">—</strong></div>
+        <div class="market"><b>24H LOW</b><strong id="cryptoLow">—</strong></div>
+        <div class="market"><b>24H VOLUME</b><strong id="cryptoVolume">—</strong></div>
+        <div class="market"><b>FEED</b><strong id="cryptoFeed">Binance Futures</strong></div>
       </div>
     </div>
   </section>
@@ -598,6 +598,64 @@ $('cryptoTime').addEventListener('change',e=>{
   if(reduceMotion)draw(1200);else requestAnimationFrame(draw);
 })();
 
+</script>
+<script>
+/* Live Binance USD-M futures candles for the existing Binance workspace. */
+(()=>{
+ const byId=id=>document.getElementById(id);
+ const pair=byId("cryptoPair"),tf=byId("cryptoTime"),canvas=byId("cryptoChart");
+ if(!pair||!tf||!canvas)return;
+ const fmt=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:8});
+ let candleRows=[],marketRows=new Map();
+ function draw(){
+  const box=canvas.parentElement,rect=box.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.max(1,Math.floor(rect.width*dpr));canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+  const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="#123657";ctx.lineWidth=1;
+  for(let i=1;i<5;i++){const y=h*i/5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  if(!candleRows.length){ctx.fillStyle="#9bb9d6";ctx.font="13px Arial";ctx.fillText("Waiting for Binance futures candles…",14,h/2);return;}
+  const lo=Math.min(...candleRows.map(x=>x.low)),hi=Math.max(...candleRows.map(x=>x.high)),span=hi-lo||1;
+  const pad={top:14,bottom:18,left:8,right:8},step=(w-pad.left-pad.right)/candleRows.length,body=Math.max(2,step*.58);
+  const y=v=>pad.top+(hi-v)/span*(h-pad.top-pad.bottom);
+  candleRows.forEach((c,i)=>{const x=pad.left+i*step+step/2,up=c.close>=c.open,col=up?"#00ef9a":"#ff456b";
+   ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(c.high));ctx.lineTo(x,y(c.low));ctx.stroke();
+   ctx.fillRect(x-body/2,Math.min(y(c.open),y(c.close)),body,Math.max(2,Math.abs(y(c.open)-y(c.close))));
+  });
+ }
+ async function load(){
+  const symbol=pair.value,interval=tf.value;
+  byId("cryptoCurrentPair").textContent=symbol.replace("USDT"," / USDT");
+  byId("cryptoCurrentPrice").textContent="Loading live futures candles…";
+  try{
+   const response=await fetch("/api/candles/"+encodeURIComponent(symbol)+"?interval="+encodeURIComponent(interval)+"&limit=100");
+   const data=await response.json();if(!response.ok)throw new Error(data.detail||"Futures candles unavailable");
+   candleRows=data.candles||[];draw();
+   const last=candleRows[candleRows.length-1];
+   const market=marketRows.get(symbol);
+   byId("cryptoCurrentPrice").textContent=last?"Last close · "+fmt(last.close)+" USDT":"—";
+   byId("cryptoChange").textContent=market?(Number(market.change_percent)>=0?"+":"")+Number(market.change_percent).toFixed(2)+"%":"—";
+   byId("cryptoHigh").textContent=market?fmt(market.high):"—";
+   byId("cryptoLow").textContent=market?fmt(market.low):"—";
+   byId("cryptoVolume").textContent=market?fmt(market.volume):"—";
+   byId("cryptoFeed").textContent="Binance USD-M";
+  }catch(error){candleRows=[];draw();byId("cryptoCurrentPrice").textContent=error.message;byId("cryptoFeed").textContent="Feed unavailable";}
+ }
+ async function init(){
+  try{
+   const [universeResponse,marketsResponse]=await Promise.all([fetch("/api/market-universe"),fetch("/api/markets")]);
+   const universe=await universeResponse.json(),markets=await marketsResponse.json();
+   if(!universeResponse.ok||!marketsResponse.ok)throw new Error("Market list unavailable");
+   const assets=universe.crypto_futures||[];
+   if(assets.length){pair.innerHTML=assets.map(s=>'<option value="'+s+'">'+s.replace("USDT"," / USDT")+'</option>').join("");}
+   marketRows=new Map((markets.markets||[]).map(x=>[x.symbol,x]));
+   await load();
+  }catch(error){byId("cryptoCurrentPrice").textContent=error.message;}
+ }
+ pair.addEventListener("change",load);tf.addEventListener("change",load);
+ window.addEventListener("resize",draw);
+ init();setInterval(init,30000);
+})();
 </script>
 <script>
 (()=> {
