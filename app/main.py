@@ -43,6 +43,7 @@ from app.auth import (
 from app.subscriptions import (
     init_db as init_subscription_db, payment_configured, create_order as create_subscription_order,
     attach_payment, verify_ipn_signature, apply_finished_payment, subscription_for_customer,
+    pending_order_for_customer, update_payment_status,
 )
 
 load_dotenv()
@@ -341,6 +342,17 @@ async def get_subscription(request: Request):
     }
 
 
+@app.get("/api/subscription/order")
+async def get_subscription_payment_order(request: Request):
+    """Return only the signed-in customer's current pending checkout."""
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"order": pending_order_for_customer(customer["id"])}
+
+
 @app.post("/api/subscription/checkout")
 async def create_subscription_checkout(request: Request):
     _check_same_origin(request)
@@ -349,13 +361,18 @@ async def create_subscription_checkout(request: Request):
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
+    if subscription_for_customer(customer["id"]).get("active"):
+        raise HTTPException(status_code=409, detail="Your membership is already active")
     if not payment_configured():
-        raise HTTPException(status_code=503, detail="NOWPayments is not fully configured on the server")
+        raise HTTPException(status_code=503, detail="Payment setup is pending durable database and NOWPayments credentials")
+    pending = pending_order_for_customer(customer["id"])
+    if pending and pending.get("payment_id"):
+        return pending
     api_key = os.getenv("NOWPAYMENTS_API_KEY", "").strip()
     public_url = os.getenv("QUANTUM_PUBLIC_URL", "").strip().rstrip("/")
     order_id = create_subscription_order(customer["id"])
     body = {
-        "price_amount": 20,
+        "price_amount": "20.00",
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
         "ipn_callback_url": public_url + "/api/payments/nowpayments/ipn",
@@ -372,11 +389,55 @@ async def create_subscription_checkout(request: Request):
             )
             response.raise_for_status()
             payment = response.json()
-        checkout = attach_payment(order_id, payment)
-        return checkout
-    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        return attach_payment(order_id, payment)
+    except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
         logger.warning("NOWPayments checkout creation failed: %s", str(exc)[:180])
         raise HTTPException(status_code=502, detail="NOWPayments could not create the checkout. No subscription was activated.")
+
+
+@app.post("/api/subscription/refresh")
+async def refresh_subscription_payment(request: Request):
+    """Reconcile a pending customer payment directly with NOWPayments if its IPN is delayed."""
+    _check_same_origin(request)
+    init_auth_db()
+    init_subscription_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not payment_configured():
+        raise HTTPException(status_code=503, detail="Payment setup is not configured")
+    pending = pending_order_for_customer(customer["id"])
+    if not pending or not pending.get("payment_id"):
+        return {"order": None, "subscription": subscription_for_customer(customer["id"])}
+    api_key = os.getenv("NOWPAYMENTS_API_KEY", "").strip()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                "https://api.nowpayments.io/v1/payment/" + str(pending["payment_id"]),
+                headers={"x-api-key": api_key},
+            )
+            response.raise_for_status()
+            payment = response.json()
+        if (str(payment.get("payment_id") or "") != str(pending["payment_id"])
+                or str(payment.get("order_id") or "") != str(pending["order_id"])):
+            raise HTTPException(status_code=502, detail="Payment provider returned a mismatched payment record")
+        status = str(payment.get("payment_status") or "").lower()
+        if not status:
+            raise HTTPException(status_code=502, detail="Payment provider returned no payment status")
+        if status == "finished":
+            result = apply_finished_payment(payment)
+        else:
+            update_payment_status(pending["order_id"], pending["payment_id"], status)
+            result = {"accepted": True, "activated": False, "status": status}
+        return {
+            "order": pending_order_for_customer(customer["id"]),
+            "payment": {"payment_status": status, "pay_currency": payment.get("pay_currency")},
+            "result": result,
+            "subscription": subscription_for_customer(customer["id"]),
+        }
+    except httpx.HTTPError as exc:
+        logger.warning("NOWPayments status refresh failed: %s", str(exc)[:180])
+        raise HTTPException(status_code=502, detail="Could not verify payment status with NOWPayments. Try again shortly.")
 
 
 @app.post("/api/payments/nowpayments/ipn")
