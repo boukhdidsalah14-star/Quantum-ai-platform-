@@ -15,6 +15,10 @@ services:
         value: production
       - key: QUANTUM_DB_PATH
         value: /var/data/quantum_ai.sqlite3
+      - key: DATABASE_URL
+        sync: false
+      - key: QUANTUM_PERSISTENT_STORAGE
+        value: "true"
       - key: ALLOW_CUSTOMER_SIGNUP
         value: "false"
       - key: TELEGRAM_BOT_TOKEN
@@ -36,4 +40,4 @@ services:
       - key: NOWPAYMENTS_IPN_SECRET
         sync: false
       - key: QUANTUM_PUBLIC_URL
-        value: https://quantum-ai-platform-62cz.onrender.com
+        value: https://quantum-ai-iqoption-preview.onrender.com
