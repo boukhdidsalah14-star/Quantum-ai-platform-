@@ -43,3 +43,7 @@ services:
         sync: false
       - key: QUANTUM_PUBLIC_URL
         value: https://quantum-ai-iqoption-preview.onrender.com
+      - key: GOOGLE_ADSENSE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_ADSENSE_BOTTOM_SLOT_ID
+        sync: false
