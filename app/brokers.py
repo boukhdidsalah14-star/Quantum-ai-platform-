@@ -22,6 +22,20 @@ def broker_capabilities() -> dict:
     )
     brokers = [
         {
+            "id": "justmarkets_mt4",
+            "name": "JustMarkets",
+            "platform": "MetaTrader 4",
+            "category": "forex",
+            "status": "read_only_demo_bridge_implemented",
+            "connection_verified": False,
+            "supported_scope": ["demo_account_identity_check", "balance_equity_sync",
+                                "open_position_sync", "broker_quotes", "broker_origin_candles"],
+            "execution_enabled": False,
+            "demo_execution_enabled": False,
+            "real_execution_enabled": False,
+            "note": "A customer-bound read-only MT4 Expert Advisor bridge is implemented. Durable storage is required before issuing customer bridge tokens. No broker orders can be placed by this integration.",
+        },
+        {
             "id": "deriv",
             "name": "Deriv",
             "category": "binary_options",
