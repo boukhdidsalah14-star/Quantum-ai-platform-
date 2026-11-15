@@ -282,3 +282,19 @@ def daily_loss_guard(customer_id:str,equity:float,max_daily_loss_percent:float=1
                        ("Daily loss limit reached; automatic entries stopped",now,customer_id))
         return {"allowed":not blocked,"drawdown_percent":float(drawdown),
                 "limit_percent":float(limit)}
+
+
+    async def get_open_orders(self, symbol: str | None = None) -> list[dict]:
+        """Return pending MEXC Futures orders so the strategy won't duplicate entries."""
+        data = await self._request("GET", "/api/v1/private/order/list/open_orders",
+                                   {"page_num": 1, "page_size": 100})
+        if isinstance(data, dict):
+            rows = data.get("resultList") or data.get("list") or data.get("data") or []
+        else:
+            rows = data
+        if not isinstance(rows, list):
+            raise MexcFuturesError("MEXC returned an invalid open-orders response")
+        wanted = _contract_symbol(symbol) if symbol else None
+        return [row for row in rows if isinstance(row, dict)
+                and int(row.get("state", 0)) in {1, 2}
+                and (wanted is None or row.get("symbol") == wanted)]
