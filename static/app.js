@@ -243,7 +243,7 @@ const providerInfo={
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto();refreshMexcAuto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(refreshMexcAuto,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
