@@ -38,7 +38,7 @@ Olymp Trade's help center says trading robots are allowed subject to conditions,
 ## Olymp Trade signal and paper workflow
 
 The authenticated application API now exposes:
-- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 30). The candle source is not verified by this endpoint.
+- `POST /api/olymp-trade/analyze` for indicator analysis of completed candles supplied by the caller (minimum 50). The candle source is not verified by this endpoint.
 - `GET /api/olymp-trade/paper/trades` for the signed-in customer's isolated paper ledger.
 - `POST /api/olymp-trade/paper/trades` to open a simulated CALL/PUT position using a caller-supplied reference price and required idempotency key.
 - `POST /api/olymp-trade/paper/trades/{trade_id}/settle` to settle a simulation using a supplied exit reference price.
