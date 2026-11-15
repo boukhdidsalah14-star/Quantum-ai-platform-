@@ -258,6 +258,9 @@ async def _mexc_auto_monitor_loop():
                     if await client.get_open_positions(symbol):
                         set_mexc_auto_strategy_error(customer_id, None)
                         continue
+                    if await client.get_open_orders(symbol):
+                        set_mexc_auto_strategy_error(customer_id, "Existing pending MEXC order detected; waiting for exchange reconciliation")
+                        continue
                     candles = await get_candles(symbol, strategy["timeframe"], 100)
                     completed = candles[:-1]
                     if len(completed) < 50:
