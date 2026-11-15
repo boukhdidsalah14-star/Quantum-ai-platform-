@@ -247,3 +247,38 @@ def set_auto_strategy_error(customer_id:str,message:str|None):
     with _auto_db() as db:
         db.execute("UPDATE mexc_auto_strategies SET last_error=?,updated_at=? WHERE customer_id=?",
                    ((str(message)[:240] if message else None),int(time.time()),customer_id))
+
+
+def daily_loss_guard(customer_id:str,equity:float,max_daily_loss_percent:float=10.0)->dict:
+    """Persist a UTC-day starting equity and stop new entries at the drawdown cap."""
+    try:
+        current=Decimal(str(equity)); limit=Decimal(str(max_daily_loss_percent))
+    except (InvalidOperation,ValueError,TypeError):
+        raise ValueError("Daily equity and loss limit must be valid numbers")
+    if not current.is_finite() or current<=0 or not limit.is_finite() or not 0<limit<=10:
+        raise ValueError("Daily equity must be positive and loss limit must be from 0 to 10%")
+    day=time.strftime("%Y-%m-%d",time.gmtime())
+    now=int(time.time())
+    with _auto_db() as db:
+        db.execute("""CREATE TABLE IF NOT EXISTS mexc_auto_daily_risk(
+          customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+          day TEXT NOT NULL, starting_equity TEXT NOT NULL,
+          blocked INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL,
+          PRIMARY KEY(customer_id,day)
+        )""")
+        row=db.execute("SELECT * FROM mexc_auto_daily_risk WHERE customer_id=? AND day=?",
+                       (customer_id,day)).fetchone()
+        if not row:
+            db.execute("INSERT INTO mexc_auto_daily_risk VALUES(?,?,?,0,?)",
+                       (customer_id,day,str(current),now))
+            return {"allowed":True,"drawdown_percent":0.0,"limit_percent":float(limit)}
+        start=Decimal(str(row["starting_equity"]))
+        drawdown=max(Decimal("0"),(start-current)/start*Decimal("100"))
+        blocked=bool(row["blocked"]) or drawdown>=limit
+        db.execute("UPDATE mexc_auto_daily_risk SET blocked=?,updated_at=? WHERE customer_id=? AND day=?",
+                   (1 if blocked else 0,now,customer_id,day))
+        if blocked:
+            db.execute("UPDATE mexc_auto_strategies SET status='stopped',last_error=?,updated_at=? WHERE customer_id=?",
+                       ("Daily loss limit reached; automatic entries stopped",now,customer_id))
+        return {"allowed":not blocked,"drawdown_percent":float(drawdown),
+                "limit_percent":float(limit)}
