@@ -845,6 +845,8 @@ async def health(request: Request):
         "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
         "mt4_demo_execution_enabled": mt4_demo_execution_enabled(),
         "mt4_auto_trader_monitor_running": bool(mt4_demo_execution_enabled()),
+        "mexc_futures_execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+        "mexc_auto_trader_monitor_running": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "order_execution": False,
         "trading_enabled": False,
     }
