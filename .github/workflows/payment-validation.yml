@@ -36,3 +36,5 @@ jobs:
         env:
           QUANTUM_PERSISTENT_STORAGE: "false"
         run: python -m pytest tests/test_subscriptions.py -q
+      - name: Run complete regression suite
+        run: PYTHONPATH=. python -m pytest -q
