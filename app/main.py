@@ -411,6 +411,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="QUANTUM AI", version="0.5.0", description="Mobile trading workspace with customer identity foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
+@app.get("/api/ads/config")
+async def public_ads_config():
+    """Expose only public ad placement identifiers; never expose private ad-network credentials."""
+    client_id = os.getenv("GOOGLE_ADSENSE_CLIENT_ID", "").strip()
+    slot_id = os.getenv("GOOGLE_ADSENSE_BOTTOM_SLOT_ID", "").strip()
+    valid_client = client_id.startswith("ca-pub-") and client_id[7:].isdigit()
+    valid_slot = slot_id.isdigit()
+    return {
+        "enabled": bool(valid_client and valid_slot),
+        "client_id": client_id if valid_client and valid_slot else "",
+        "slot_id": slot_id if valid_client and valid_slot else "",
+    }
+
+
+
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(
