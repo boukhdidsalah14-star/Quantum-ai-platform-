@@ -149,3 +149,101 @@ class MexcFuturesClient:
 
 async def get_futures_account_info(api_key:str,api_secret:str)->dict:
     return await MexcFuturesClient(api_key,api_secret).verify_account()
+
+
+# Persistent customer-scoped auto-trading configuration and order idempotency.
+import os
+import secrets
+from pathlib import Path
+from app.database import sqlite3
+
+
+def _auto_db():
+    path=Path(os.getenv("QUANTUM_DB_PATH","data/quantum_ai.sqlite3"))
+    path.parent.mkdir(parents=True,exist_ok=True)
+    db=sqlite3.connect(path,timeout=10)
+    db.row_factory=sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+    return db
+
+
+def init_auto_db():
+    with _auto_db() as db:
+        db.execute("""CREATE TABLE IF NOT EXISTS mexc_auto_strategies(
+          customer_id TEXT PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
+          symbol TEXT NOT NULL, timeframe TEXT NOT NULL,
+          risk_percent REAL NOT NULL, leverage INTEGER NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('active','stopped')),
+          last_error TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+        )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS mexc_auto_order_intents(
+          id TEXT PRIMARY KEY, customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+          symbol TEXT NOT NULL, candle_time INTEGER NOT NULL, external_oid TEXT NOT NULL UNIQUE,
+          order_id TEXT, status TEXT NOT NULL, created_at INTEGER NOT NULL,
+          UNIQUE(customer_id,symbol,candle_time)
+        )""")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_mexc_auto_status ON mexc_auto_strategies(status,updated_at)")
+
+
+def start_auto_strategy(customer_id:str,symbol:str,timeframe:str,risk_percent:float,leverage:int)->dict:
+    _contract_symbol(symbol)
+    if timeframe not in {"1h","4h","1d"}: raise ValueError("Timeframe must be 1h, 4h or 1d")
+    if not 0 < float(risk_percent) <= 1: raise ValueError("Risk must be greater than 0 and no more than 1%")
+    if isinstance(leverage,bool) or int(leverage)!=leverage or not 1<=int(leverage)<=MAX_LEVERAGE:
+        raise ValueError("Leverage must be a whole number from 1x to 20x")
+    now=int(time.time())
+    with _auto_db() as db:
+        db.execute("""INSERT INTO mexc_auto_strategies
+          (customer_id,symbol,timeframe,risk_percent,leverage,status,last_error,created_at,updated_at)
+          VALUES(?,?,?,?,?,'active',NULL,?,?)
+          ON CONFLICT(customer_id) DO UPDATE SET symbol=excluded.symbol,timeframe=excluded.timeframe,
+          risk_percent=excluded.risk_percent,leverage=excluded.leverage,status='active',
+          last_error=NULL,updated_at=excluded.updated_at""",
+          (customer_id,symbol.upper(),timeframe,float(risk_percent),int(leverage),now,now))
+    return get_auto_strategy(customer_id)
+
+
+def stop_auto_strategy(customer_id:str)->dict:
+    now=int(time.time())
+    with _auto_db() as db:
+        db.execute("UPDATE mexc_auto_strategies SET status='stopped',updated_at=? WHERE customer_id=?",(now,customer_id))
+    return get_auto_strategy(customer_id)
+
+
+def get_auto_strategy(customer_id:str)->dict:
+    with _auto_db() as db:
+        row=db.execute("SELECT * FROM mexc_auto_strategies WHERE customer_id=?",(customer_id,)).fetchone()
+    return dict(row) if row else {"status":"not_configured"}
+
+
+def list_active_auto_strategies()->list[dict]:
+    with _auto_db() as db:
+        rows=db.execute("SELECT * FROM mexc_auto_strategies WHERE status='active' ORDER BY updated_at").fetchall()
+    return [dict(row) for row in rows]
+
+
+def reserve_auto_order(customer_id:str,symbol:str,candle_time:int,external_oid:str)->bool:
+    now=int(time.time())
+    try:
+        with _auto_db() as db:
+            db.execute("""INSERT INTO mexc_auto_order_intents
+              (id,customer_id,symbol,candle_time,external_oid,status,created_at)
+              VALUES(?,?,?,?,?,'submitting',?)""",
+              (secrets.token_urlsafe(18),customer_id,symbol.upper(),int(candle_time),external_oid,now))
+        return True
+    except Exception as exc:
+        # Unique constraint is the cross-worker/restart duplicate-entry guard.
+        if "unique" in str(exc).lower() or "duplicate" in str(exc).lower(): return False
+        raise
+
+
+def update_auto_order(external_oid:str,status:str,order_id:str|None=None):
+    with _auto_db() as db:
+        db.execute("UPDATE mexc_auto_order_intents SET status=?,order_id=? WHERE external_oid=?",
+                   (status,order_id,external_oid))
+
+
+def set_auto_strategy_error(customer_id:str,message:str|None):
+    with _auto_db() as db:
+        db.execute("UPDATE mexc_auto_strategies SET last_error=?,updated_at=? WHERE customer_id=?",
+                   ((str(message)[:240] if message else None),int(time.time()),customer_id))
