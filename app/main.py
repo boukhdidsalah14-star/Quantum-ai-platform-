@@ -247,8 +247,12 @@ async def _mexc_auto_monitor_loop():
                     account = await client.verify_account()
                     usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
                     balance = float(usdt["available_balance"]) if usdt else 0.0
-                    if balance <= 0:
+                    equity = float(usdt["equity"]) if usdt else 0.0
+                    if balance <= 0 or equity <= 0:
                         set_mexc_auto_strategy_error(customer_id, "No available USDT futures balance")
+                        continue
+                    daily_guard = mexc_daily_loss_guard(customer_id, equity, 10.0)
+                    if not daily_guard["allowed"]:
                         continue
                     symbol = strategy["symbol"]
                     if await client.get_open_positions(symbol):
