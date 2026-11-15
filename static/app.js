@@ -126,7 +126,62 @@ async function runCryptoPaperEntry(){
  }catch(error){output.textContent="PAPER ENTRY FAILED · "+error.message;toast(error.message);}
  finally{button.disabled=false;button.textContent="AUTO PAPER ENTRY";}
 }
+
 $("crypto-paper-entry").addEventListener("click",runCryptoPaperEntry);
+
+async function refreshMexcAuto(){
+ try{
+  const [connection,strategy]=await Promise.all([
+   fetch("/api/connections/mexc"),fetch("/api/mexc/futures/auto")
+  ]);
+  if(connection.ok){const c=await connection.json();$("mexc-connection-status").textContent=c.connected?"MEXC account connected · encrypted credentials stored":"MEXC account not connected";}
+  if(strategy.ok){const d=await strategy.json(),v=d.strategy||{};$("mexc-auto-status").textContent=
+   v.status==="active"?"AUTO TRADING ACTIVE · "+v.symbol+" · "+v.timeframe+" · "+v.risk_percent+"% risk · "+v.leverage+"×":
+   v.status==="stopped"?"AUTO TRADING STOPPED"+(v.last_error?" · "+v.last_error:""):"AUTO TRADING NOT STARTED";}
+ }catch(e){$("mexc-auto-status").textContent="MEXC status unavailable";}
+}
+async function connectMexcAccount(){
+ if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
+ const apiKey=$("mexc-api-key").value.trim(),apiSecret=$("mexc-api-secret").value;
+ if(!apiKey||!apiSecret){toast("Enter both MEXC API credentials");return;}
+ const button=$("mexc-connect");button.disabled=true;button.textContent="VERIFYING…";
+ try{
+  const r=await fetch("/api/connections/mexc/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({api_key:apiKey,api_secret:apiSecret})});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||"MEXC verification failed");
+  $("mexc-connection-status").textContent=d.credential_saved?"MEXC Futures account verified · credentials encrypted":"Account verified, but secure persistent storage is not ready";
+  $("mexc-api-key").value="";$("mexc-api-secret").value="";toast("MEXC account verified");
+ }catch(e){$("mexc-connection-status").textContent="CONNECTION FAILED · "+e.message;toast(e.message);}
+ finally{button.disabled=false;button.textContent="VERIFY & SAVE";}
+}
+async function startMexcAuto(){
+ if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
+ const button=$("mexc-auto-start"),output=$("mexc-auto-status");
+ button.disabled=true;button.textContent="STARTING…";
+ try{
+  const r=await fetch("/api/mexc/futures/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+   symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,
+   risk_percent:Number($("crypto-paper-risk").value),leverage:Number($("crypto-paper-leverage").value)
+  })});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not start MEXC auto trading");
+  output.textContent="AUTO TRADING ACTIVE · "+d.strategy.symbol+" · "+d.strategy.timeframe;
+  toast("MEXC futures auto trading started");
+ }catch(e){output.textContent="AUTO TRADING NOT STARTED · "+e.message;toast(e.message);}
+ finally{button.disabled=false;button.textContent="START LIVE AUTO TRADING";await refreshMexcAuto();}
+}
+async function stopMexcAuto(){
+ const button=$("mexc-auto-stop");button.disabled=true;
+ try{
+  const r=await fetch("/api/mexc/futures/auto/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not stop auto trading");
+  $("mexc-auto-status").textContent="AUTO TRADING STOPPED · Existing exchange positions remain protected by their TP/SL";
+  toast("New MEXC auto entries stopped");
+ }catch(e){toast(e.message);}
+ finally{button.disabled=false;await refreshMexcAuto();}
+}
+$("mexc-connect").addEventListener("click",connectMexcAccount);
+$("mexc-auto-start").addEventListener("click",startMexcAuto);
+$("mexc-auto-stop").addEventListener("click",stopMexcAuto);
+
 async function loadChart(){try{let tf=$("home-timeframe").value;let gran={"5m":300,"15m":900,"1h":3600,"4h":14400,"1d":86400}[tf];let r=await fetch("/api/deriv/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+gran+"&count=80");if(!r.ok)throw Error("Chart unavailable");let d=await r.json();chartCandles=d.candles||[];let last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();}catch(e){chartCandles=[];drawChart();$("current-price").textContent="—";}}
 function drawChart(){let c=$("price-chart"),box=c.parentElement,w=box.clientWidth,h=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;let x=c.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle="#0b3153";x.lineWidth=1;for(let i=1;i<5;i++){let y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!chartCandles.length){x.fillStyle="#7998b7";x.font="12px Inter";x.fillText("Waiting for live candle data…",16,h/2);return}let lo=Math.min(...chartCandles.map(v=>+v.low)),hi=Math.max(...chartCandles.map(v=>+v.high)),span=hi-lo||1,step=w/chartCandles.length,bw=Math.max(2,step*.52);chartCandles.forEach((v,i)=>{let cx=i*step+step/2,yo=h-(v.open-lo)/span*h*.86-h*.07,yc=h-(v.close-lo)/span*h*.86-h*.07,yh=h-(v.high-lo)/span*h*.86-h*.07,yl=h-(v.low-lo)/span*h*.86-h*.07,up=v.close>=v.open;x.strokeStyle=up?"#00e99a":"#ff456b";x.fillStyle=x.strokeStyle;x.beginPath();x.moveTo(cx,yh);x.lineTo(cx,yl);x.stroke();x.fillRect(cx-bw/2,Math.min(yo,yc),bw,Math.max(2,Math.abs(yc-yo)));});}
 window.addEventListener("resize",drawChart);
@@ -182,7 +237,7 @@ $("floating-open").addEventListener("click",()=>$("floating-window").hidden=fals
 let drag=null;$("floating-head").addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,left:$("floating-window").offsetLeft,top:$("floating-window").offsetTop};$("floating-head").setPointerCapture(e.pointerId)});$("floating-head").addEventListener("pointermove",e=>{if(!drag)return;let el=$("floating-window");el.style.left=Math.max(4,drag.left+e.clientX-drag.x)+"px";el.style.top=Math.max(75,drag.top+e.clientY-drag.y)+"px";el.style.right="auto";el.style.bottom="auto"});$("floating-head").addEventListener("pointerup",()=>drag=null);
 const providerInfo={
  mt4:["JustMarkets MT4 bridge","A demo-only MQL4 Expert Advisor is available for your JustMarkets desktop MT4 terminal. Register your demo login and exact server in the MT4 panel, copy the one-time bridge token into the EA inputs, then enable WebRequest for this app's HTTPS domain. Android MT4 cannot run Expert Advisors. Real-account execution is disabled; demo order execution also stays locked until durable storage and the server-side demo switch are configured."],
- mexc:["MEXC account integration (locked)","The current public MEXC market-data adapter is spot-only. MEXC futures order execution is not connected to customer accounts. API-key verification, encrypted storage, order reconciliation, independent risk checks and an emergency stop must be completed before any live integration."],
+ mexc:["MEXC USD-M Futures account","Connect your own MEXC Futures API key. QUANTUM AI can verify account access, store credentials encrypted and run the selected futures strategy when the live-trading safety switch is enabled. Each entry is capped at 1% risk and $500 notional with exchange-side stop-loss and take-profit."],
  deriv:["Deriv binary options","The app has public Forex candles and signal analysis. Deriv demo execution exists in the backend behind separate storage and kill-switch gates. Connect and verify your own VRTC demo account only after the service is configured; real-account execution remains disabled."]
 };
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
