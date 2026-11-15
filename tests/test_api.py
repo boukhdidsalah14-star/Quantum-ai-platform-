@@ -326,7 +326,7 @@ def test_deriv_public_candles_endpoint(monkeypatch):
         assert (symbol, granularity, count) == ("frxEURUSD", 900, 40)
         return [{"time": i, "open": 1.1 + i * 0.0001, "high": 1.101 + i * 0.0001,
                  "low": 1.099 + i * 0.0001, "close": 1.1005 + i * 0.0001}
-                for i in range(40)]
+                for i in range(60)]
     monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
     response = client.get("/api/deriv/candles/frxEURUSD?granularity=900&count=40")
     assert response.status_code == 200
@@ -356,7 +356,7 @@ def test_deriv_signal_endpoint_returns_indicator_only(monkeypatch):
     async def fake_markets(category):
         return [{"symbol": "frxEURUSD", "market": "forex"}]
     async def fake_candles(symbol, granularity, count):
-        return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 40
+        return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 60
     monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
     monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
     response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=15m")
@@ -446,7 +446,7 @@ def test_crypto_signal_endpoint_is_read_only(monkeypatch):
 
 
 def test_crypto_signal_rejects_binary_timeframe():
-    response = client.get("/api/signals/crypto/BTCUSDT?timeframe=15m")
+    response = client.get("/api/signals/crypto/BTCUSDT?timeframe=2m")
     assert response.status_code == 400
 
 
