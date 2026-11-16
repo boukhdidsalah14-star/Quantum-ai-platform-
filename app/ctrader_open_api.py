@@ -9,6 +9,7 @@ import asyncio
 import json
 import os
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,10 @@ RECONCILE_REQ = 2124
 RECONCILE_RES = 2125
 GET_ACCOUNTS_REQ = 2149
 GET_ACCOUNTS_RES = 2150
+SYMBOLS_LIST_REQ = 2114
+SYMBOLS_LIST_RES = 2115
+GET_TRENDBARS_REQ = 2137
+GET_TRENDBARS_RES = 2138
 ERROR_RES = 2142
 
 
@@ -266,3 +271,119 @@ def saved_snapshot(customer_id: str) -> dict | None:
 def clear_snapshot(customer_id: str) -> None:
     with _db() as db:
         db.execute("DELETE FROM ctrader_account_snapshots WHERE customer_id=?", (customer_id,))
+
+TIMEFRAMES = {
+    "1m": (1, 60),
+    "5m": (5, 300),
+    "15m": (7, 900),
+    "30m": (8, 1800),
+    "1h": (9, 3600),
+    "4h": (10, 14400),
+    "1d": (12, 86400),
+}
+
+
+async def _open_selected_demo(customer_id: str):
+    snapshot = saved_snapshot(customer_id)
+    if not snapshot or snapshot.get("environment") != "demo":
+        raise CTraderOpenAPIError("Connect and sync an IC Markets demo account first")
+    tokens = await refresh_access_token(customer_id)
+    ws, payload = await _open_demo_session(tokens["access_token"])
+    try:
+        selected = next((a for a in _account_rows(payload)
+                         if a["account_id"] == str(snapshot["account_id"])), None)
+        if not selected or selected["is_live"] or not _broker_is_ic_markets(selected["broker"]):
+            raise CTraderOpenAPIError("The saved IC Markets demo account is no longer available")
+        await _request(ws, ACCOUNT_AUTH_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "accessToken": tokens["access_token"],
+        }, ACCOUNT_AUTH_RES)
+        return ws, selected
+    except Exception:
+        await ws.close()
+        raise
+
+
+def _normalize_symbol(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
+
+async def discover_demo_symbols(customer_id: str) -> list[dict]:
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        response = await _request(ws, SYMBOLS_LIST_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "includeArchivedSymbols": False,
+        }, SYMBOLS_LIST_RES)
+        symbols = response.get("symbol") or []
+        if not isinstance(symbols, list):
+            raise CTraderOpenAPIError("cTrader returned an invalid symbol list")
+        return sorted([{
+            "symbol_id": str(item.get("symbolId")),
+            "symbol": str(item.get("symbolName") or ""),
+            "enabled": bool(item.get("enabled", True)),
+        } for item in symbols if isinstance(item, dict)
+          and item.get("symbolId") is not None
+          and item.get("symbolName")
+          and bool(item.get("enabled", True))],
+          key=lambda item: item["symbol"])
+    finally:
+        await ws.close()
+
+
+async def get_demo_candles(customer_id: str, symbol: str,
+                           timeframe: str = "15m", count: int = 80) -> dict:
+    if timeframe not in TIMEFRAMES:
+        raise ValueError("Unsupported cTrader chart timeframe")
+    if not 20 <= int(count) <= 200:
+        raise ValueError("Candle count must be between 20 and 200")
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        symbols_response = await _request(ws, SYMBOLS_LIST_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "includeArchivedSymbols": False,
+        }, SYMBOLS_LIST_RES)
+        symbols = symbols_response.get("symbol") or []
+        wanted = _normalize_symbol(symbol)
+        match = next((item for item in symbols if isinstance(item, dict)
+                      and _normalize_symbol(item.get("symbolName", "")) == wanted
+                      and bool(item.get("enabled", True))), None)
+        if not match:
+            raise ValueError("This symbol is not available on the selected IC Markets demo account")
+        period, seconds = TIMEFRAMES[timeframe]
+        to_ms = int(time.time() * 1000)
+        from_ms = to_ms - (seconds * int(count) * 1000)
+        response = await _request(ws, GET_TRENDBARS_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "fromTimestamp": from_ms,
+            "toTimestamp": to_ms,
+            "period": period,
+            "symbolId": int(match["symbolId"]),
+            "count": int(count),
+        }, GET_TRENDBARS_RES)
+        bars = response.get("trendbar") or []
+        candles = []
+        for bar in bars:
+            if not isinstance(bar, dict) or bar.get("low") is None:
+                continue
+            low_raw = int(bar["low"])
+            scale = 100000.0
+            low = low_raw / scale
+            candles.append({
+                "time": int(bar.get("utcTimestampInMinutes") or 0) * 60,
+                "open": (low_raw + int(bar.get("deltaOpen") or 0)) / scale,
+                "high": (low_raw + int(bar.get("deltaHigh") or 0)) / scale,
+                "low": low,
+                "close": (low_raw + int(bar.get("deltaClose") or 0)) / scale,
+                "volume": int(bar.get("volume") or 0),
+            })
+        candles.sort(key=lambda item: item["time"])
+        return {
+            "symbol": str(match.get("symbolName") or symbol),
+            "timeframe": timeframe,
+            "source": "IC Markets cTrader demo market data",
+            "candles": candles,
+            "execution_enabled": False,
+        }
+    finally:
+        await ws.close()
