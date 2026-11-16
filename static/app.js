@@ -380,51 +380,53 @@ $("mt4-demo-order-form").addEventListener("submit",async e=>{
 });
 setInterval(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()},10000);
 
-async function refreshMetaTraderConnection(){
- const platform=$("mt-cloud-platform").value;
- const state=$("mt-cloud-state"),note=$("mt-cloud-note"),result=$("mt-cloud-result");
+async function refreshCTraderStatus(){
+ const state=$("ctrader-state"),note=$("ctrader-note"),connect=$("ctrader-connect"),disconnect=$("ctrader-disconnect");
+ if(!state||!note||!connect)return;
  try{
-  const response=await fetch("/api/connections/metatrader/"+encodeURIComponent(platform));
+  const response=await fetch("/api/connections/ctrader/status");
   const data=await response.json();
+  if(response.status===401){state.textContent="SIGN IN REQUIRED";note.textContent="Sign in to QUANTUM AI before connecting your broker account.";connect.disabled=false;connect.textContent="SIGN IN TO CONNECT";disconnect.hidden=true;return;}
   if(!response.ok)throw Error(data.detail||"Connection status unavailable");
-  state.textContent=data.connected?"CONNECTED":(data.state||"NOT CONNECTED");
-  note.textContent=data.connected
-   ? "Cloud terminal connected. Trading remains locked until the demo execution tests and account risk controls are completed."
-   : "Cloud account status: "+(data.state||"not configured")+" · "+(data.connection_status||"waiting for secure account setup");
-  if(result.hidden===false&&!data.connected) result.hidden=false;
+  state.textContent=data.authorized?"AUTHORISED · ACCOUNT SYNC PENDING":(data.configured?"NOT CONNECTED":"SETUP PENDING");
+  note.textContent=data.note||(data.configured
+   ?"Authorize your IC Markets cTrader account. Demo trading will be tested before any live-trading option is enabled."
+   :"QUANTUM AI is waiting for its Spotware application credentials and approval. The connection button will become available after setup.");
+  connect.disabled=!data.configured;
+  connect.textContent=data.authorized?"ACCOUNT AUTHORIZED":"CONNECT IC MARKETS CTRADER";
+  disconnect.hidden=!data.authorized;
  }catch(error){state.textContent="STATUS UNAVAILABLE";note.textContent=error.message;}
 }
-$("mt-cloud-form")?.addEventListener("submit",async event=>{
- event.preventDefault();
- const button=$("mt-cloud-connect"),result=$("mt-cloud-result"),state=$("mt-cloud-state");
- const payload={platform:$("mt-cloud-platform").value,broker:$("mt-cloud-broker").value.trim(),server:$("mt-cloud-server").value.trim()};
- button.disabled=true;button.textContent="CREATING CLOUD CONNECTION…";
+$("ctrader-connect")?.addEventListener("click",async()=>{
+ if(!signed){nav("account");toast("Sign in to connect your cTrader account");return;}
+ const button=$("ctrader-connect"),result=$("ctrader-result");
+ button.disabled=true;button.textContent="PREPARING SECURE CONNECTION…";
  try{
-  const response=await fetch("/api/connections/metatrader",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const response=await fetch("/api/connections/ctrader/start",{method:"POST",headers:{"Content-Type":"application/json"}});
   const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Could not create cloud connection");
-  result.hidden=false;
-  result.replaceChildren();
-  const heading=document.createElement("b");heading.textContent=payload.platform.toUpperCase()+" CLOUD ACCOUNT CREATED";result.appendChild(heading);
-  const status=document.createElement("p");status.textContent="State: "+(data.state||"DRAFT")+". Complete the secure broker login on MetaApi.";result.appendChild(status);
-  const link=document.createElement("a");link.href=data.configuration_link;link.target="_blank";link.rel="noopener noreferrer";link.textContent="OPEN SECURE META TRADER ACCOUNT SETUP";result.appendChild(link);
-  const detail=document.createElement("small");detail.textContent="This one-time setup link expires in 24 hours. QUANTUM AI does not receive or store your MetaTrader password.";result.appendChild(detail);
-  state.textContent="SETUP REQUIRED";toast("Cloud account created. Finish secure setup.");
- }catch(error){result.hidden=false;result.textContent=error.message;state.textContent="NOT CONNECTED";toast(error.message);}
- finally{button.disabled=false;button.textContent="CREATE SECURE CLOUD CONNECTION";}
+  if(!response.ok)throw Error(data.detail||"cTrader connection is not ready");
+  window.location.assign(data.authorization_url);
+ }catch(error){
+  result.hidden=false;result.textContent=error.message;toast(error.message);
+  button.disabled=false;button.textContent="CONNECT IC MARKETS CTRADER";
+ }
 });
-$("mt-cloud-refresh")?.addEventListener("click",refreshMetaTraderConnection);
-$("mt-cloud-platform")?.addEventListener("change",refreshMetaTraderConnection);
-$("mt-cloud-disconnect")?.addEventListener("click",async()=>{
- const platform=$("mt-cloud-platform").value;
- if(!window.confirm("Disconnect the "+platform.toUpperCase()+" cloud account?"))return;
+$("ctrader-refresh")?.addEventListener("click",refreshCTraderStatus);
+$("ctrader-disconnect")?.addEventListener("click",async()=>{
+ if(!window.confirm("Disconnect your cTrader authorization from QUANTUM AI?"))return;
  try{
-  const response=await fetch("/api/connections/metatrader/"+encodeURIComponent(platform),{method:"DELETE"});
+  const response=await fetch("/api/connections/ctrader",{method:"DELETE"});
   const data=await response.json();if(!response.ok)throw Error(data.detail||"Disconnect failed");
-  $("mt-cloud-result").hidden=true;$("mt-cloud-state").textContent="DISCONNECTED";$("mt-cloud-note").textContent="Cloud account disconnected.";
-  toast(data.deleted?"Account disconnected":"No account was registered");
+  $("ctrader-state").textContent="DISCONNECTED";$("ctrader-note").textContent="Your cTrader authorization has been removed from QUANTUM AI.";
+  $("ctrader-disconnect").hidden=true;$("ctrader-connect").disabled=false;$("ctrader-connect").textContent="CONNECT IC MARKETS CTRADER";
+  toast(data.deleted?"cTrader disconnected":"No cTrader authorization was saved");
  }catch(error){toast(error.message);}
 });
+refreshCTraderStatus();
+const ctraderReturn=new URLSearchParams(window.location.search).get("ctrader");
+if(ctraderReturn==="authorized"){toast("cTrader authorization received. Account sync is the next step.");}
+if(ctraderReturn==="error"){toast("cTrader authorization was not completed. Please try again.");}
+if(ctraderReturn){const cleanUrl=window.location.pathname+window.location.hash;window.history.replaceState({},document.title,cleanUrl);}
 
 async function loadBottomAd(){
  const slot=$("quantum-bottom-ad"),fallback=$("ad-fallback");
