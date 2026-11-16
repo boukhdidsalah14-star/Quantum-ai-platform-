@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#020b1b"><title>QUANTUM AI — Trading Terminal</title>
-<link rel="stylesheet" href="/static/styles.css?v=20261116-ctrader-icmarkets-v1">
+<link rel="stylesheet" href="/static/styles.css?v=20261116-ctrader-demo-sync-v1">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -61,6 +61,15 @@
    <button id="ctrader-connect" class="solid-btn wide-btn" type="button">CONNECT IC MARKETS CTRADER</button>
    <div class="chart-toolbar"><button id="ctrader-refresh" class="outline-btn" type="button">REFRESH CONNECTION</button><button id="ctrader-disconnect" class="outline-btn" type="button" hidden>DISCONNECT</button></div>
    <div id="ctrader-result" class="payment-box" hidden></div>
+   <div id="ctrader-account-sync" class="account-panel" hidden>
+    <p class="risk-note">Choose your IC Markets demo account. QUANTUM AI will read its balance and open positions. Live accounts and order execution remain locked.</p>
+    <div class="chart-toolbar">
+     <button id="ctrader-discover" class="outline-btn" type="button">FIND DEMO ACCOUNTS</button>
+     <select id="ctrader-account-select" class="outline-btn" aria-label="IC Markets demo account"><option value="">Choose demo account</option></select>
+     <button id="ctrader-select-account" class="solid-btn" type="button">SYNC ACCOUNT</button>
+    </div>
+    <div id="ctrader-account-snapshot" class="payment-box" hidden></div>
+   </div>
    <p id="ctrader-note" class="risk-note">The cTrader application must be approved by Spotware and configured before customers can authorize accounts. Trading stays disabled until account discovery and demo-order tests pass.</p>
   </section>
   <section class="panel" id="metatrader-cloud-panel">
