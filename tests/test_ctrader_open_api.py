@@ -21,16 +21,19 @@ class FakeWebSocket:
     async def send(self, raw):
         message = json.loads(raw)
         kind = message["payloadType"]
-        replies = {
-            api.APP_AUTH_REQ: (api.APP_AUTH_RES, {}),
-            api.GET_ACCOUNTS_REQ: (api.GET_ACCOUNTS_RES, {
+        if kind == api.APP_AUTH_REQ:
+            response_type, payload = api.APP_AUTH_RES, {}
+        elif kind == api.GET_ACCOUNTS_REQ:
+            response_type, payload = api.GET_ACCOUNTS_RES, {
                 "permissionScope": 1,
                 "ctidTraderAccount": self.accounts,
-            }),
-            api.ACCOUNT_AUTH_REQ: (api.ACCOUNT_AUTH_RES, {
+            }
+        elif kind == api.ACCOUNT_AUTH_REQ:
+            response_type, payload = api.ACCOUNT_AUTH_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
-            }),
-            api.TRADER_REQ: (api.TRADER_RES, {
+            }
+        elif kind == api.TRADER_REQ:
+            response_type, payload = api.TRADER_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
                 "trader": {
                     "balance": 12345,
@@ -38,8 +41,9 @@ class FakeWebSocket:
                     "depositAssetId": 1,
                     "leverageInCents": 10000,
                 },
-            }),
-            api.RECONCILE_REQ: (api.RECONCILE_RES, {
+            }
+        elif kind == api.RECONCILE_REQ:
+            response_type, payload = api.RECONCILE_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
                 "position": [{
                     "positionId": "77",
@@ -48,9 +52,9 @@ class FakeWebSocket:
                     "takeProfit": 1.12,
                 }],
                 "order": [],
-            }),
-        }
-        response_type, payload = replies[kind]
+            }
+        else:
+            raise AssertionError("Unexpected cTrader request type: " + str(kind))
         self._reply = json.dumps({
             "clientMsgId": message["clientMsgId"],
             "payloadType": response_type,
