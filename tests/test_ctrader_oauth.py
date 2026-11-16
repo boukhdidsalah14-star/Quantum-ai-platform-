@@ -98,9 +98,30 @@ def test_authorization_code_is_exchanged_and_tokens_are_encrypted(monkeypatch, t
 def test_authorization_state_cannot_be_reused(monkeypatch, tmp_path):
     customer = setup_ctrader(monkeypatch, tmp_path)
     state, _ = create_authorization(customer["id"])
+
+    class RejectedResponse:
+        status_code = 400
+
+    class RejectedClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return RejectedResponse()
+
+    monkeypatch.setattr("app.ctrader_oauth.httpx.AsyncClient", RejectedClient)
+    with pytest.raises(CTraderOAuthError, match="rejected"):
+        asyncio.run(complete_authorization("temporary-code", state))
+
     monkeypatch.setattr(
         "app.ctrader_oauth.httpx.AsyncClient",
-        lambda *args, **kwargs: pytest.fail("Expired state must be rejected before token exchange"),
+        lambda *args, **kwargs: pytest.fail("A reused state must be rejected before token exchange"),
     )
     with pytest.raises(CTraderOAuthError, match="expired"):
         asyncio.run(complete_authorization("temporary-code", state))
