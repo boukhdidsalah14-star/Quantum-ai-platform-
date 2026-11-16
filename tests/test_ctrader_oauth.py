@@ -116,7 +116,7 @@ def test_authorization_state_cannot_be_reused(monkeypatch, tmp_path):
             return RejectedResponse()
 
     monkeypatch.setattr("app.ctrader_oauth.httpx.AsyncClient", RejectedClient)
-    with pytest.raises(CTraderOAuthError, match="rejected"):
+    with pytest.raises(CTraderOAuthError, match="could not complete"):
         asyncio.run(complete_authorization("temporary-code", state))
 
     monkeypatch.setattr(
