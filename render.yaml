@@ -41,6 +41,12 @@ services:
         sync: false
       - key: NOWPAYMENTS_IPN_SECRET
         sync: false
+      - key: CTRADER_CLIENT_ID
+        sync: false
+      - key: CTRADER_CLIENT_SECRET
+        sync: false
+      - key: CTRADER_REDIRECT_URI
+        value: https://quantum-ai-iqoption-preview.onrender.com/api/connections/ctrader/callback
       - key: QUANTUM_PUBLIC_URL
         value: https://quantum-ai-iqoption-preview.onrender.com
       - key: GOOGLE_ADSENSE_CLIENT_ID

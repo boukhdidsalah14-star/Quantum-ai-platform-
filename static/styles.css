@@ -41,3 +41,7 @@ main{width:min(1180px,100%);margin:0 auto;padding:20px clamp(12px,3vw,28px)}.pag
 
 /* Responsive bottom advertising slot */
 .ad-inner{min-height:56px;position:relative}.ad-fallback{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;text-align:center}.ad-fallback b{font-size:10px;color:#9fdcff}.ad-fallback small{font-size:8px;color:#7e9bb7}.ad-label{flex:0 0 auto}.ad-inner .adsbygoogle{flex:1 1 320px;min-width:0;max-width:900px;min-height:50px}@media(max-width:600px){.ad-inner{min-height:48px}.ad-fallback{gap:4px}.ad-fallback small{display:none}.ad-inner .adsbygoogle{flex-basis:250px}}
+
+
+/* Keep retired MT4/MT5 connection and EA screens hidden during cTrader migration. */
+#metatrader-cloud-panel, #mt4-provider-card, #mt4-bridge-panel, #mt4-live-chart { display: none !important; }
