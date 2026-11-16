@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 
 import pytest
 from cryptography.fernet import Fernet
@@ -52,6 +53,29 @@ class FakeWebSocket:
                     "takeProfit": 1.12,
                 }],
                 "order": [],
+            }
+        elif kind == api.SYMBOLS_LIST_REQ:
+            response_type, payload = api.SYMBOLS_LIST_RES, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "symbol": [
+                    {"symbolId": "10", "symbolName": "EUR/USD", "enabled": True},
+                    {"symbolId": "11", "symbolName": "XAU/USD", "enabled": True},
+                    {"symbolId": "12", "symbolName": "OLD/USD", "enabled": False},
+                ],
+            }
+        elif kind == api.GET_TRENDBARS_REQ:
+            response_type, payload = api.GET_TRENDBARS_RES, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "symbolId": message["payload"]["symbolId"],
+                "period": message["payload"]["period"],
+                "trendbar": [{
+                    "low": 107000,
+                    "deltaOpen": 100,
+                    "deltaHigh": 500,
+                    "deltaClose": 200,
+                    "utcTimestampInMinutes": int(time.time() // 60) - 5,
+                    "volume": 123,
+                }],
             }
         else:
             raise AssertionError("Unexpected cTrader request type: " + str(kind))
@@ -165,3 +189,35 @@ def test_account_discovery_requires_trade_permission(monkeypatch, tmp_path):
     monkeypatch.setattr(api.websockets, "connect", fake_connect)
     with pytest.raises(api.CTraderOpenAPIError, match="trading permission"):
         asyncio.run(api.discover_demo_accounts(customer["id"]))
+
+
+def test_demo_symbol_discovery_returns_enabled_broker_symbols(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    symbols = asyncio.run(api.discover_demo_symbols(customer["id"]))
+    assert [item["symbol"] for item in symbols] == ["EUR/USD", "XAU/USD"]
+    assert all(item["enabled"] for item in symbols)
+
+
+def test_demo_candles_transform_ctrader_relative_ohlc(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    result = asyncio.run(api.get_demo_candles(customer["id"], "EURUSD", "15m", 80))
+    assert result["symbol"] == "EUR/USD"
+    assert result["source"] == "IC Markets cTrader demo market data"
+    assert result["execution_enabled"] is False
+    candle = result["candles"][0]
+    assert candle["low"] == 1.07
+    assert candle["open"] == 1.071
+    assert candle["high"] == 1.075
+    assert candle["close"] == 1.072
+    assert candle["volume"] == 123
+
+
+def test_demo_candles_reject_unknown_symbol_and_timeframe(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    with pytest.raises(ValueError, match="not available"):
+        asyncio.run(api.get_demo_candles(customer["id"], "NOTREAL", "15m", 80))
+    with pytest.raises(ValueError, match="timeframe"):
+        asyncio.run(api.get_demo_candles(customer["id"], "EURUSD", "2h", 80))
