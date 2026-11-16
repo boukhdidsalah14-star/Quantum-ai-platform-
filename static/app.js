@@ -388,15 +388,75 @@ async function refreshCTraderStatus(){
   const data=await response.json();
   if(response.status===401){state.textContent="SIGN IN REQUIRED";note.textContent="Sign in to QUANTUM AI before connecting your broker account.";connect.disabled=false;connect.textContent="SIGN IN TO CONNECT";disconnect.hidden=true;return;}
   if(!response.ok)throw Error(data.detail||"Connection status unavailable");
-  state.textContent=data.authorized?"AUTHORISED · ACCOUNT SYNC PENDING":(data.configured?"NOT CONNECTED":"SETUP PENDING");
-  note.textContent=data.note||(data.configured
-   ?"Authorize your IC Markets cTrader account. Demo trading will be tested before any live-trading option is enabled."
-   :"QUANTUM AI is waiting for its Spotware application credentials and approval. The connection button will become available after setup.");
+  const snapshot=data.account_snapshot;
+  state.textContent=snapshot?"DEMO ACCOUNT SYNCED":(data.authorized?"AUTHORISED · DEMO ACCOUNT REQUIRED":(data.configured?"NOT CONNECTED":"SETUP PENDING"));
+  note.textContent=snapshot
+   ?"IC Markets demo account is connected. Balance and open positions are read from cTrader. Order execution is still disabled."
+   :(data.authorized
+    ?"Authorization is saved. Tap FIND DEMO ACCOUNTS, choose your IC Markets demo account, then sync it."
+    :(data.configured
+     ?"Authorize your IC Markets cTrader account. QUANTUM AI will sync a demo account before any trading feature is enabled."
+     :"QUANTUM AI is waiting for its Spotware application credentials and approval."));
   connect.disabled=!data.configured;
-  connect.textContent=data.authorized?"ACCOUNT AUTHORIZED":"CONNECT IC MARKETS CTRADER";
+  connect.textContent=data.authorized?"RECONNECT CTRADER":"CONNECT IC MARKETS CTRADER";
   disconnect.hidden=!data.authorized;
+  const syncPanel=$("ctrader-account-sync");
+  if(syncPanel)syncPanel.hidden=!data.authorized;
+  if(snapshot)renderCTraderSnapshot(snapshot);
  }catch(error){state.textContent="STATUS UNAVAILABLE";note.textContent=error.message;}
 }
+function renderCTraderSnapshot(snapshot){
+ const box=$("ctrader-account-snapshot");
+ if(!box||!snapshot)return;
+ const positions=Array.isArray(snapshot.open_positions)?snapshot.open_positions:[];
+ box.hidden=false;
+ box.innerHTML="<b>IC MARKETS · DEMO ACCOUNT</b><br>Login: "+safe(snapshot.trader_login||"—")+
+  "<br>Balance: <b>"+(Number.isFinite(Number(snapshot.balance))?Number(snapshot.balance).toFixed(2):"—")+"</b>"+
+  "<br>Open positions: "+positions.length+" · Pending orders: "+safe(snapshot.pending_orders_count??0)+
+  "<br><small>Read-only sync · "+safe(new Date((snapshot.synced_at||0)*1000).toLocaleString())+"</small>"+
+  (positions.length?"<hr>"+positions.map(p=>safe(p.side)+" · Symbol ID "+safe(p.symbol_id)+" · Volume "+safe(p.volume_units)+" · SL "+safe(p.stop_loss??"—")+" · TP "+safe(p.take_profit??"—")).join("<br>"):"<br><small>No open positions on this account.</small>")+
+  "<br><small>Order execution remains disabled.</small>";
+}
+async function discoverCTraderAccounts(){
+ const button=$("ctrader-discover"),select=$("ctrader-account-select"),result=$("ctrader-result");
+ if(!button||!select)return;
+ button.disabled=true;button.textContent="SEARCHING…";
+ try{
+  const response=await fetch("/api/connections/ctrader/accounts");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not discover cTrader demo accounts");
+  const accounts=data.accounts||[];
+  select.innerHTML='<option value="">Choose IC Markets demo account</option>'+accounts.map(a=>'<option value="'+safe(a.account_id)+'">'+safe(a.broker)+" · Login "+safe(a.trader_login||"—")+" · DEMO</option>").join("");
+  if(result){result.hidden=false;result.textContent=accounts.length?accounts.length+" IC Markets demo account(s) found. Select one and tap SYNC ACCOUNT.":"No IC Markets demo accounts were found under this authorization.";}
+ }catch(error){if(result){result.hidden=false;result.textContent=error.message;}toast(error.message);}
+ finally{button.disabled=false;button.textContent="FIND DEMO ACCOUNTS";}
+}
+async function selectCTraderDemoAccount(){
+ const select=$("ctrader-account-select"),button=$("ctrader-select-account"),result=$("ctrader-result");
+ if(!select?.value){toast("Choose an IC Markets demo account first");return;}
+ button.disabled=true;button.textContent="SYNCING…";
+ try{
+  const response=await fetch("/api/connections/ctrader/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_id:select.value})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Demo account sync failed");
+  renderCTraderSnapshot(data);
+  $("ctrader-state").textContent="DEMO ACCOUNT SYNCED";
+  $("ctrader-note").textContent="IC Markets demo account is connected. Balance and open positions are read from cTrader. Order execution is still disabled.";
+  if(result){result.hidden=false;result.textContent="Demo account synchronized successfully.";}
+  toast("IC Markets demo account synchronized");
+ }catch(error){if(result){result.hidden=false;result.textContent=error.message;}toast(error.message);}
+ finally{button.disabled=false;button.textContent="SYNC ACCOUNT";}
+}
+async function refreshCTraderSnapshot(){
+ try{
+  const response=await fetch("/api/connections/ctrader/snapshot");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Account refresh failed");
+  renderCTraderSnapshot(data);
+ }catch(error){toast(error.message);}
+}
+$("ctrader-discover")?.addEventListener("click",discoverCTraderAccounts);
+$("ctrader-select-account")?.addEventListener("click",selectCTraderDemoAccount);
 $("ctrader-connect")?.addEventListener("click",async()=>{
  if(!signed){nav("account");toast("Sign in to connect your cTrader account");return;}
  const button=$("ctrader-connect"),result=$("ctrader-result");
@@ -411,13 +471,13 @@ $("ctrader-connect")?.addEventListener("click",async()=>{
   button.disabled=false;button.textContent="CONNECT IC MARKETS CTRADER";
  }
 });
-$("ctrader-refresh")?.addEventListener("click",refreshCTraderStatus);
+$("ctrader-refresh")?.addEventListener("click",async()=>{await refreshCTraderStatus();if($("ctrader-account-snapshot")&&!$("ctrader-account-snapshot").hidden)await refreshCTraderSnapshot();});
 $("ctrader-disconnect")?.addEventListener("click",async()=>{
  if(!window.confirm("Disconnect your cTrader authorization from QUANTUM AI?"))return;
  try{
   const response=await fetch("/api/connections/ctrader",{method:"DELETE"});
   const data=await response.json();if(!response.ok)throw Error(data.detail||"Disconnect failed");
-  $("ctrader-state").textContent="DISCONNECTED";$("ctrader-note").textContent="Your cTrader authorization has been removed from QUANTUM AI.";
+  $("ctrader-state").textContent="DISCONNECTED";$("ctrader-note").textContent="Your cTrader authorization has been removed from QUANTUM AI.";$("ctrader-account-sync").hidden=true;$("ctrader-account-snapshot").hidden=true;
   $("ctrader-disconnect").hidden=true;$("ctrader-connect").disabled=false;$("ctrader-connect").textContent="CONNECT IC MARKETS CTRADER";
   toast(data.deleted?"cTrader disconnected":"No cTrader authorization was saved");
  }catch(error){toast(error.message);}
