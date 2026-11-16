@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_order_book
@@ -18,6 +18,7 @@ from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
+from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
@@ -56,6 +57,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 SESSION_COOKIE = "quantum_session"
+CTRADER_OAUTH_COOKIE = "quantum_ctrader_oauth_state"
 TELEGRAM_TOKEN_ENV_NAMES = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN")
 
 
@@ -329,6 +331,7 @@ async def lifespan(app: FastAPI):
     init_mexc_vault_db()
     init_mexc_auto_db()
     init_metaapi_db()
+    init_ctrader_oauth_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
     if _persistent_credentials_ready():
@@ -588,6 +591,65 @@ async def nowpayments_ipn(
 async def brokers():
     """Return verified implementation scope; this endpoint never claims a live account."""
     return broker_capabilities()
+
+
+@app.get("/api/connections/ctrader/status")
+async def ctrader_connection_status(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return ctrader_authorization_status(customer["id"])
+
+
+@app.post("/api/connections/ctrader/start")
+async def start_ctrader_authorization(request: Request, response: Response):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        state, authorization_url = create_ctrader_authorization(customer["id"], "trading")
+    except CTraderOAuthError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    response.set_cookie(
+        CTRADER_OAUTH_COOKIE, state, max_age=600, httponly=True,
+        secure=os.getenv("ENVIRONMENT", "development").lower() == "production",
+        samesite="lax", path="/api/connections/ctrader",
+    )
+    return {"authorization_url": authorization_url, "expires_in": 600}
+
+
+@app.get("/api/connections/ctrader/callback")
+async def ctrader_authorization_callback(request: Request, code: str = "", error: str = ""):
+    state = request.cookies.get(CTRADER_OAUTH_COOKIE, "")
+    try:
+        if error:
+            raise CTraderOAuthError("cTrader authorization was cancelled or declined")
+        if not state:
+            raise CTraderOAuthError("The secure connection session expired. Please try again.")
+        await complete_ctrader_authorization(code, state)
+        destination = "/?ctrader=authorized"
+    except CTraderOAuthError:
+        logger.warning("cTrader OAuth callback could not be completed")
+        destination = "/?ctrader=error"
+    response = RedirectResponse(destination, status_code=303)
+    response.delete_cookie(CTRADER_OAUTH_COOKIE, path="/api/connections/ctrader")
+    return response
+
+
+@app.delete("/api/connections/ctrader")
+async def disconnect_ctrader_account(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"deleted": delete_ctrader_authorization(customer["id"])}
 
 
 @app.get("/api/connections/metatrader")
@@ -857,6 +919,8 @@ async def health(request: Request):
         "customer_auth": "available",
         "credential_storage_ready": _persistent_credentials_ready(),
         "metatrader_cloud_provider_configured": bool(os.getenv("METAAPI_TOKEN", "").strip()),
+        "ctrader_oauth_configured": ctrader_oauth_configured(),
+        "ctrader_account_execution_enabled": False,
         "deriv_demo_execution_enabled": _demo_execution_enabled(),
         "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
         "mt4_demo_execution_enabled": mt4_demo_execution_enabled(),
