@@ -13,7 +13,7 @@ from typing import Any
 
 from app.database import sqlite3
 
-SUBSCRIPTION_PRICE_USD = Decimal("20.00")
+SUBSCRIPTION_PRICE_USD = Decimal("30.00")
 SUBSCRIPTION_DAYS = 30
 
 
@@ -175,7 +175,7 @@ def verify_ipn_signature(payload: dict[str, Any], signature: str, secret: str) -
 
 
 def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
-    """Idempotently activate 30 days only for a matching finished $20 USDT-TRC20 order."""
+    """Idempotently activate 30 days only for a matching finished $30 USDT-TRC20 order."""
     order_id = str(payload.get("order_id") or "")
     payment_id = str(payload.get("payment_id") or "")
     status = str(payload.get("payment_status") or "").lower()
@@ -217,13 +217,13 @@ def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("Stored order configuration does not match subscription policy")
         try:
             expected_pay_amount = Decimal(str(order["pay_amount"]))
+            if payload.get("actually_paid") is None:
+                raise ValueError("Finished payment is missing the actual amount paid")
             actually_paid = Decimal(str(payload.get("actually_paid")))
         except (InvalidOperation, TypeError):
-            expected_pay_amount = Decimal("0")
-            actually_paid = expected_pay_amount
-        if expected_pay_amount > 0 and payload.get("actually_paid") is not None:
-            if actually_paid < expected_pay_amount:
-                raise ValueError("The finished payment reports an amount below the checkout amount")
+            raise ValueError("Finished payment contains an invalid actual amount paid")
+        if expected_pay_amount <= 0 or actually_paid < expected_pay_amount:
+            raise ValueError("The finished payment reports an amount below the checkout amount")
 
         existing = db.execute(
             "SELECT starts_at, expires_at FROM customer_subscriptions WHERE customer_id=?",
