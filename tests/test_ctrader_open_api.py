@@ -221,3 +221,9 @@ def test_demo_candles_reject_unknown_symbol_and_timeframe(monkeypatch, tmp_path)
         asyncio.run(api.get_demo_candles(customer["id"], "NOTREAL", "15m", 80))
     with pytest.raises(ValueError, match="timeframe"):
         asyncio.run(api.get_demo_candles(customer["id"], "EURUSD", "2h", 80))
+
+
+def test_normalize_deriv_forex_symbols_for_ctrader():
+    assert api._normalize_symbol("frxEURUSD") == "EURUSD"
+    assert api._normalize_symbol("frxXAUUSD") == "XAUUSD"
+    assert api._normalize_symbol("EUR/USD") == "EURUSD"
