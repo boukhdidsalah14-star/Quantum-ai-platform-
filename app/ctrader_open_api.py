@@ -18,6 +18,10 @@ import websockets
 
 from app.database import sqlite3
 from app.ctrader_oauth import CTraderOAuthError, refresh_access_token
+from app.ctrader_risk import (
+    init_db as init_risk_db, record_account_sync, reserve_entry as reserve_risk_entry,
+    release_entry as release_risk_entry,
+)
 
 # Spotware JSON protocol WebSocket endpoints (port 5036).
 # Environment is resolved from broker account metadata, never a client URL.
@@ -69,6 +73,7 @@ def init_db() -> None:
           snapshot_json TEXT NOT NULL,
           synced_at INTEGER NOT NULL
         )""")
+    init_risk_db()
 
 
 def _broker_is_ic_markets(name: str) -> bool:
@@ -276,6 +281,7 @@ async def sync_demo_account(customer_id: str, account_id: str) -> dict:
         }
         import time
         synced_at = int(time.time())
+        record_account_sync(customer_id, str(account_id), snapshot["balance"] or 0)
         with _db() as db:
             db.execute("""
             INSERT INTO ctrader_account_snapshots
@@ -354,10 +360,19 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
     if sl == tp:
         raise ValueError("Stop-loss and take-profit must be different prices")
     ws, selected = await _open_selected_demo(customer_id)
+    reservation_id = None
     try:
         account_id = selected["account_id"]
-        await _ensure_demo_trade_access(ws, account_id)
+        trader = await _ensure_demo_trade_access(ws, account_id)
+        balance = _scaled(trader.get("balance"), trader.get("moneyDigits", 2))
+        reconcile = await _request(ws, RECONCILE_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "returnProtectionOrders": False,
+        }, RECONCILE_RES)
+        positions = reconcile.get("position") or []
+        open_count = len([item for item in positions if isinstance(item, dict)])
         symbol_id, symbol_name = await _demo_symbol_id(ws, account_id, symbol)
+        reservation_id = reserve_risk_entry(customer_id, account_id, balance or 0, open_count, lot_size)
         client_order_id = uuid.uuid4().hex[:32]
         event = await _request(ws, NEW_ORDER_REQ, {
             "ctidTraderAccountId": int(account_id),
@@ -389,8 +404,10 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
             "order_id": str(order.get("orderId") or ""),
             "client_order_id": client_order_id,
             "broker_confirmed": True,
+            "risk_controls": "passed",
         }
     finally:
+        release_risk_entry(reservation_id)
         await ws.close()
 
 
