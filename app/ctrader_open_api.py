@@ -19,7 +19,10 @@ import websockets
 from app.database import sqlite3
 from app.ctrader_oauth import CTraderOAuthError, refresh_access_token
 
+# Spotware JSON protocol WebSocket endpoints (port 5036).
+# Environment is resolved from broker account metadata, never a client URL.
 DEMO_WS_URL = "wss://demo.ctraderapi.com:5036"
+LIVE_WS_URL = "wss://live.ctraderapi.com:5036"
 APP_AUTH_REQ = 2100
 APP_AUTH_RES = 2101
 ACCOUNT_AUTH_REQ = 2102
@@ -108,10 +111,35 @@ async def _request(ws, payload_type: int, payload: dict[str, Any],
         return response_payload
 
 
-async def _open_demo_session(access_token: str):
+def _ctrader_ws_url(environment: str) -> str:
+    """Resolve a cTrader gateway from a verified environment label."""
+    normalized = str(environment or "").strip().lower()
+    if normalized == "demo":
+        return DEMO_WS_URL
+    if normalized == "live":
+        return LIVE_WS_URL
+    raise ValueError("cTrader environment must be demo or live")
+
+
+async def _open_ctrader_session(access_token: str, environment: str = "demo"):
+    """Open and app-authenticate the official Spotware JSON WebSocket session.
+
+    Transport/session infrastructure only: this function does not submit
+    orders. Live sessions remain locked until the later authorization step.
+    """
+    if not access_token:
+        raise CTraderOpenAPIError("No valid cTrader access token is available")
+    normalized = str(environment or "").strip().lower()
+    if normalized == "live" and os.getenv(
+        "QUANTUM_CTRADER_LIVE_SESSION_ENABLED", ""
+    ).strip().lower() != "true":
+        raise CTraderOpenAPIError(
+            "Live cTrader sessions are locked until customer live authorization is enabled"
+        )
+    ws_url = _ctrader_ws_url(normalized)
     try:
         ws = await websockets.connect(
-            DEMO_WS_URL,
+            ws_url,
             open_timeout=10,
             close_timeout=3,
             ping_interval=20,
@@ -119,7 +147,9 @@ async def _open_demo_session(access_token: str):
             max_size=2_000_000,
         )
     except Exception as exc:
-        raise CTraderOpenAPIError("Could not connect to the cTrader demo gateway") from exc
+        raise CTraderOpenAPIError(
+            "Could not connect to the cTrader " + normalized + " gateway"
+        ) from exc
     try:
         await _request(ws, APP_AUTH_REQ, {
             "clientId": os.getenv("CTRADER_CLIENT_ID", "").strip(),
@@ -130,12 +160,18 @@ async def _open_demo_session(access_token: str):
         }, GET_ACCOUNTS_RES)
         permission = accounts.get("permissionScope")
         if permission not in (1, "1", "SCOPE_TRADE"):
-            raise CTraderOpenAPIError("The cTrader authorization does not include trading permission")
+            raise CTraderOpenAPIError(
+                "The cTrader authorization does not include trading permission"
+            )
         return ws, accounts
     except Exception:
         await ws.close()
         raise
 
+
+async def _open_demo_session(access_token: str):
+    """Backward-compatible demo-only session wrapper."""
+    return await _open_ctrader_session(access_token, "demo")
 
 def _account_rows(payload: dict) -> list[dict]:
     rows = payload.get("ctidTraderAccount") or payload.get("ctidTraderAccounts") or []
