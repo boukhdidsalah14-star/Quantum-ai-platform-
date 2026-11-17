@@ -501,7 +501,7 @@ async def get_subscription(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     return {
         **subscription_for_customer(customer["id"]),
-        "price_usd": 20,
+        "price_usd": 30,
         "duration_days": 30,
         "payment_currency": "usdttrc20",
         "payment_configured": payment_configured(),
@@ -538,7 +538,7 @@ async def create_subscription_checkout(request: Request):
     public_url = os.getenv("QUANTUM_PUBLIC_URL", "").strip().rstrip("/")
     order_id = create_subscription_order(customer["id"])
     body = {
-        "price_amount": "20.00",
+        "price_amount": "30.00",
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
         "ipn_callback_url": public_url + "/api/payments/nowpayments/ipn",
@@ -553,7 +553,10 @@ async def create_subscription_checkout(request: Request):
                 headers={"x-api-key": api_key, "Content-Type": "application/json"},
                 json=body,
             )
-            response.raise_for_status()
+            if response.is_error:
+                # Safe diagnostic: provider response only; never log the API key.
+                logger.warning("NOWPayments checkout rejected: HTTP %s; response=%s", response.status_code, response.text[:400])
+                response.raise_for_status()
             payment = response.json()
         return attach_payment(order_id, payment)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
