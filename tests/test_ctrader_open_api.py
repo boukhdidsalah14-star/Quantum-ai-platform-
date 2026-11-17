@@ -41,7 +41,27 @@ class FakeWebSocket:
                     "moneyDigits": 2,
                     "depositAssetId": 1,
                     "leverageInCents": 10000,
+                    "accessRights": 0,
                 },
+            }
+        elif kind == api.NEW_ORDER_REQ:
+            response_type, payload = api.EXECUTION_EVENT, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "executionType": 3,
+                "position": {"positionId": "78"},
+                "order": {"orderId": "88"},
+            }
+        elif kind == api.AMEND_POSITION_SLTP_REQ:
+            response_type, payload = api.EXECUTION_EVENT, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "executionType": 2,
+                "position": {"positionId": message["payload"]["positionId"]},
+            }
+        elif kind == api.CLOSE_POSITION_REQ:
+            response_type, payload = api.EXECUTION_EVENT, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "executionType": 3,
+                "position": {"positionId": message["payload"]["positionId"]},
             }
         elif kind == api.RECONCILE_REQ:
             response_type, payload = api.RECONCILE_RES, {
@@ -168,28 +188,10 @@ def test_sync_rejects_other_broker_and_invalid_account_id(monkeypatch, tmp_path)
         asyncio.run(api.sync_demo_account(customer["id"], "not-an-id"))
 
 
-def test_account_discovery_requires_trade_permission(monkeypatch, tmp_path):
+def test_account_discovery_does_not_expect_permission_scope_in_accounts_payload(monkeypatch, tmp_path):
     customer, _ = setup(monkeypatch, tmp_path)
-    async def fake_connect(*args, **kwargs):
-        class ReadOnlyWS(FakeWebSocket):
-            async def send(self, raw):
-                message = json.loads(raw)
-                if message["payloadType"] == api.APP_AUTH_REQ:
-                    payload = {}
-                    kind = api.APP_AUTH_RES
-                else:
-                    payload = {"permissionScope": 0, "ctidTraderAccount": []}
-                    kind = api.GET_ACCOUNTS_RES
-                self._reply = json.dumps({
-                    "clientMsgId": message["clientMsgId"],
-                    "payloadType": kind,
-                    "payload": payload,
-                })
-        return ReadOnlyWS()
-    monkeypatch.setattr(api.websockets, "connect", fake_connect)
-    with pytest.raises(api.CTraderOpenAPIError, match="trading permission"):
-        asyncio.run(api.discover_demo_accounts(customer["id"]))
-
+    result = asyncio.run(api.discover_demo_accounts(customer["id"]))
+    assert result[0]["account_id"] == "123456"
 
 def test_demo_symbol_discovery_returns_enabled_broker_symbols(monkeypatch, tmp_path):
     customer, _ = setup(monkeypatch, tmp_path)
@@ -241,3 +243,51 @@ def test_live_ctrader_session_is_locked_by_default(monkeypatch):
     monkeypatch.delenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", raising=False)
     with pytest.raises(api.CTraderOpenAPIError, match="Live cTrader sessions are locked"):
         asyncio.run(api._open_ctrader_session("access-token", "live"))
+
+
+def test_demo_order_open_uses_broker_execution_event(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    result = asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
+    assert result["broker_confirmed"] is True
+    assert result["position_id"] == "78"
+    assert result["order_id"] == "88"
+
+
+def test_demo_order_rejects_oversize_and_invalid_side(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    with pytest.raises(ValueError, match="no more than"):
+        asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.02, 1.0, 2.0))
+    with pytest.raises(ValueError, match="BUY or SELL"):
+        asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "LONG", 0.01, 1.0, 2.0))
+
+
+def test_demo_position_protection_and_close_require_existing_position(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    amended = asyncio.run(api.amend_demo_position(customer["id"], "77", 1.06, 1.13))
+    assert amended["broker_confirmed"] is True
+    closed = asyncio.run(api.close_demo_position(customer["id"], "77"))
+    assert closed["broker_confirmed"] is True
+    assert closed["position_id"] == "77"
+    with pytest.raises(api.CTraderOpenAPIError, match="not open"):
+        asyncio.run(api.close_demo_position(customer["id"], "999"))
+
+
+def test_demo_open_rejects_account_without_full_trade_rights(monkeypatch, tmp_path):
+    customer, fake = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    original_send = fake.send
+    async def restricted_send(raw):
+        message = json.loads(raw)
+        if message["payloadType"] == api.TRADER_REQ:
+            fake._reply = json.dumps({
+                "clientMsgId": message["clientMsgId"],
+                "payloadType": api.TRADER_RES,
+                "payload": {"trader": {"accessRights": 2}},
+            })
+            return
+        await original_send(raw)
+    fake.send = restricted_send
+    with pytest.raises(api.CTraderOpenAPIError, match="does not have permission"):
+        asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
