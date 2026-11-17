@@ -763,6 +763,9 @@ async def ctrader_demo_candles(
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_snapshot(customer["id"])
+    if not snapshot or snapshot.get("environment") != "demo":
+        raise HTTPException(status_code=409, detail="Connect and sync your IC Markets demo account to use broker candles")
     try:
         return await get_ctrader_demo_candles(customer["id"], symbol, timeframe, count)
     except ValueError as exc:
