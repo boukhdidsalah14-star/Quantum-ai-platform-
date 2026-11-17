@@ -194,7 +194,7 @@ def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
         return {"accepted": True, "activated": False, "status": status or "unknown"}
 
     if currency != "usdttrc20" or price_currency != "usd" or price_amount != SUBSCRIPTION_PRICE_USD:
-        raise ValueError("Payment does not match the $20 USDT TRC20 subscription")
+        raise ValueError("Payment does not match the $30 USDT TRC20 subscription")
 
     now = int(time.time())
     with _connect() as db:
