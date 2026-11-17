@@ -189,8 +189,34 @@ $("mexc-connect").addEventListener("click",connectMexcAccount);
 $("mexc-auto-start").addEventListener("click",startMexcAuto);
 $("mexc-auto-stop").addEventListener("click",stopMexcAuto);
 
-let chartEmptyMessage="Connect an IC Markets demo account to load broker candles.";
-async function loadChart(){try{let tf=$("home-timeframe").value;let r=await fetch("/api/connections/ctrader/candles/"+encodeURIComponent(selected.symbol)+"?timeframe="+encodeURIComponent(tf)+"&count=80");let d=await r.json();if(!r.ok)throw Error(d.detail||"IC Markets chart unavailable");chartCandles=d.candles||[];chartEmptyMessage=chartCandles.length?"No recent candles were returned by cTrader.":"No recent candles were returned by cTrader.";let last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();}catch(e){chartCandles=[];chartEmptyMessage="Connect IC Markets cTrader and sync a demo account to view its broker chart.";drawChart();$("current-price").textContent="—";}}
+let chartEmptyMessage="Market candles are temporarily unavailable.";
+async function loadChart(){
+ const tf=$("home-timeframe").value;
+ const source=$("chart-source");
+ try{
+  const r=await fetch("/api/connections/ctrader/candles/"+encodeURIComponent(selected.symbol)+"?timeframe="+encodeURIComponent(tf)+"&count=80");
+  const d=await r.json();
+  if(!r.ok)throw Error(d.detail||"IC Markets cTrader chart unavailable");
+  if(!Array.isArray(d.candles)||!d.candles.length)throw Error("cTrader returned no candles");
+  chartCandles=d.candles;chartEmptyMessage="No recent candles were returned by cTrader.";
+  if(source)source.textContent="IC MARKETS · cTRADER";
+ }catch(ctraderError){
+  try{
+   const granularity={"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400}[tf]||900;
+   const r=await fetch("/api/deriv/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+granularity+"&count=80");
+   const d=await r.json();
+   if(!r.ok)throw Error(d.detail||"Public market fallback unavailable");
+   chartCandles=Array.isArray(d.candles)?d.candles:[];
+   if(!chartCandles.length)throw Error("No fallback candles returned");
+   chartEmptyMessage="Market candles are temporarily unavailable.";
+   if(source)source.textContent="PUBLIC DERIV FALLBACK · NOT IC MARKETS";
+  }catch(fallbackError){
+   chartCandles=[];chartEmptyMessage="Chart unavailable. Reconnect IC Markets cTrader or try again later.";
+   if(source)source.textContent="MARKET DATA UNAVAILABLE";
+  }
+ }
+ const last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();
+}
 function drawChart(){let c=$("price-chart"),box=c.parentElement,w=box.clientWidth,h=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;let x=c.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle="#0b3153";x.lineWidth=1;for(let i=1;i<5;i++){let y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!chartCandles.length){x.fillStyle="#7998b7";x.font="12px Inter";x.fillText(chartEmptyMessage,16,h/2);return}let lo=Math.min(...chartCandles.map(v=>+v.low)),hi=Math.max(...chartCandles.map(v=>+v.high)),span=hi-lo||1,step=w/chartCandles.length,bw=Math.max(2,step*.52);chartCandles.forEach((v,i)=>{let cx=i*step+step/2,yo=h-(v.open-lo)/span*h*.86-h*.07,yc=h-(v.close-lo)/span*h*.86-h*.07,yh=h-(v.high-lo)/span*h*.86-h*.07,yl=h-(v.low-lo)/span*h*.86-h*.07,up=v.close>=v.open;x.strokeStyle=up?"#00e99a":"#ff456b";x.fillStyle=x.strokeStyle;x.beginPath();x.moveTo(cx,yh);x.lineTo(cx,yl);x.stroke();x.fillRect(cx-bw/2,Math.min(yo,yc),bw,Math.max(2,Math.abs(yc-yo)));});}
 window.addEventListener("resize",drawChart);
 $("home-pair").innerHTML=pairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");$("floating-pair").innerHTML=binaryPairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");
