@@ -62,15 +62,31 @@
    <div class="chart-toolbar"><button id="ctrader-refresh" class="outline-btn" type="button">REFRESH CONNECTION</button><button id="ctrader-disconnect" class="outline-btn" type="button" hidden>DISCONNECT</button></div>
    <div id="ctrader-result" class="payment-box" hidden></div>
    <div id="ctrader-account-sync" class="account-panel" hidden>
-    <p class="risk-note">Choose your IC Markets demo account. QUANTUM AI will read its balance and open positions. Live accounts and order execution remain locked.</p>
+    <p class="risk-note">Choose your IC Markets demo account. QUANTUM AI reads its balance and positions. Demo manual orders are capped at 0.01 lots and require stop-loss and take-profit. Live trading remains locked.</p>
     <div class="chart-toolbar">
      <button id="ctrader-discover" class="outline-btn" type="button">FIND DEMO ACCOUNTS</button>
      <select id="ctrader-account-select" class="outline-btn" aria-label="IC Markets demo account"><option value="">Choose demo account</option></select>
      <button id="ctrader-select-account" class="solid-btn" type="button">SYNC ACCOUNT</button>
     </div>
     <div id="ctrader-account-snapshot" class="payment-box" hidden></div>
+    <div id="ctrader-demo-trade" class="account-panel" hidden>
+     <h3>DEMO MANUAL EXECUTION</h3>
+     <form id="ctrader-demo-order-form" class="auth-form">
+      <label>TRADING SYMBOL<select id="ctrader-order-symbol" required><option value="">Load demo symbols first</option></select></label>
+      <div class="form-grid">
+       <label>TRADE SIDE<select id="ctrader-order-side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></label>
+       <label>SIZE (LOTS)<input id="ctrader-order-lots" type="number" min="0.001" max="0.01" step="0.001" value="0.01" required></label>
+      </div>
+      <div class="form-grid">
+       <label>STOP-LOSS PRICE<input id="ctrader-order-sl" type="number" min="0.00001" step="any" placeholder="Required" required></label>
+       <label>TAKE-PROFIT PRICE<input id="ctrader-order-tp" type="number" min="0.00001" step="any" placeholder="Required" required></label>
+      </div>
+      <button id="ctrader-open-demo" class="solid-btn wide-btn" type="submit">PLACE DEMO ORDER</button>
+     </form>
+     <p class="risk-note">Demo only · Maximum 0.01 lots per order · Broker must confirm execution. This is not automated trading.</p>
+    </div>
    </div>
-   <p id="ctrader-note" class="risk-note">The cTrader application must be approved by Spotware and configured before customers can authorize accounts. Trading stays disabled until account discovery and demo-order tests pass.</p>
+   <p id="ctrader-note" class="risk-note">The cTrader application must be approved by Spotware before customers can authorize accounts. Demo execution remains available only after a customer connects and selects an IC Markets demo account. Live trading stays locked.</p>
   </section>
   <section class="panel" id="metatrader-cloud-panel">
    <div class="section-title"><div><span class="eyebrow">CLOUD BROKER CONNECTION</span><h2>Connect MetaTrader</h2></div><span id="mt-cloud-state" class="live-badge">NOT CONNECTED</span></div>
