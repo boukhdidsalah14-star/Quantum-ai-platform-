@@ -432,6 +432,61 @@ async function refreshCTraderStatus(){
   if(snapshot)renderCTraderSnapshot(snapshot);
  }catch(error){state.textContent="STATUS UNAVAILABLE";note.textContent=error.message;}
 }
+async function loadCTraderRiskSettings(){
+ const status=$("ctrader-risk-status");
+ if(!status)return;
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/risk");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Risk settings unavailable");
+  renderCTraderRiskStatus(data);
+ }catch(error){status.textContent=error.message;}
+}
+function renderCTraderRiskStatus(data){
+ const status=$("ctrader-risk-status");
+ if(status){
+  const loss=data.daily_loss_pct===null||data.daily_loss_pct===undefined?"Awaiting first daily balance snapshot":Number(data.daily_loss_pct).toFixed(2)+"% of starting balance";
+  status.innerHTML="<b>SERVER RISK STATUS</b><br>Daily loss: "+safe(loss)+
+   "<br>Daily starting balance: "+(data.daily_start_balance===null?"—":safe(Number(data.daily_start_balance).toFixed(2)))+
+   "<br>Maximum size: "+safe(data.max_lots)+" lots · Max open positions: "+safe(data.max_open_positions)+
+   "<br>Emergency stop: <b>"+(data.emergency_stop?"ACTIVE":"OFF")+"</b>"+
+   "<br><small>Loss tracking: realized balance only · Limits enforced server-side</small>";
+ }
+ if($("ctrader-risk-loss"))$("ctrader-risk-loss").value=data.max_daily_loss_pct;
+ if($("ctrader-risk-lots"))$("ctrader-risk-lots").value=data.max_lots;
+ if($("ctrader-risk-positions"))$("ctrader-risk-positions").value=String(data.max_open_positions);
+ const stop=$("ctrader-emergency-stop");
+ if(stop){stop.dataset.active=data.emergency_stop?"true":"false";stop.textContent=data.emergency_stop?"RELEASE EMERGENCY STOP":"ACTIVATE EMERGENCY STOP";}
+}
+async function saveCTraderRiskSettings(){
+ const button=$("ctrader-risk-save");
+ button.disabled=true;button.textContent="SAVING…";
+ try{
+  const payload={
+   max_daily_loss_pct:Number($("ctrader-risk-loss").value),
+   max_lots:Number($("ctrader-risk-lots").value),
+   max_open_positions:Number($("ctrader-risk-positions").value)
+  };
+  const response=await fetch("/api/connections/ctrader/demo/risk",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not save risk settings");
+  renderCTraderRiskStatus(data);toast("Risk limits saved and enforced by the server");
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;button.textContent="SAVE RISK LIMITS";}
+}
+async function toggleCTraderEmergencyStop(){
+ const button=$("ctrader-emergency-stop");
+ const enabled=button.dataset.active!=="true";
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/risk/emergency-stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not change emergency stop");
+  renderCTraderRiskStatus(data);
+  toast(enabled?"Emergency stop active: new entries blocked":"Emergency stop released");
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+}
 function renderCTraderSnapshot(snapshot){
  const box=$("ctrader-account-snapshot");
  if(!box||!snapshot)return;
@@ -446,6 +501,7 @@ function renderCTraderSnapshot(snapshot){
  const tradePanel=$("ctrader-demo-trade");
  if(tradePanel)tradePanel.hidden=false;
  loadCTraderDemoSymbols();
+ loadCTraderRiskSettings();
 }
 async function loadCTraderDemoSymbols(){
  const select=$("ctrader-order-symbol");
@@ -545,6 +601,8 @@ async function refreshCTraderSnapshot(){
  }catch(error){toast(error.message);}
 }
 $("ctrader-demo-order-form")?.addEventListener("submit",submitCTraderDemoOrder);
+$("ctrader-risk-save")?.addEventListener("click",saveCTraderRiskSettings);
+$("ctrader-emergency-stop")?.addEventListener("click",toggleCTraderEmergencyStop);
 $("ctrader-account-snapshot")?.addEventListener("click",handleCTraderPositionAction);
 $("ctrader-discover")?.addEventListener("click",discoverCTraderAccounts);
 $("ctrader-select-account")?.addEventListener("click",selectCTraderDemoAccount);
