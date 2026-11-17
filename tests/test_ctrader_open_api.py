@@ -227,3 +227,17 @@ def test_normalize_deriv_forex_symbols_for_ctrader():
     assert api._normalize_symbol("frxEURUSD") == "EURUSD"
     assert api._normalize_symbol("frxXAUUSD") == "XAUUSD"
     assert api._normalize_symbol("EUR/USD") == "EURUSD"
+
+
+
+def test_ctrader_environment_routes_to_official_gateways():
+    assert api._ctrader_ws_url("demo") == "wss://demo.ctraderapi.com:5036"
+    assert api._ctrader_ws_url("live") == "wss://live.ctraderapi.com:5036"
+    with pytest.raises(ValueError, match="environment"):
+        api._ctrader_ws_url("paper")
+
+
+def test_live_ctrader_session_is_locked_by_default(monkeypatch):
+    monkeypatch.delenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", raising=False)
+    with pytest.raises(api.CTraderOpenAPIError, match="Live cTrader sessions are locked"):
+        asyncio.run(api._open_ctrader_session("access-token", "live"))
