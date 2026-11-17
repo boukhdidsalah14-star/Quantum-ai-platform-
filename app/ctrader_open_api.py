@@ -20,7 +20,8 @@ from app.database import sqlite3
 from app.ctrader_oauth import CTraderOAuthError, refresh_access_token
 from app.ctrader_risk import (
     init_db as init_risk_db, record_account_sync, reserve_entry as reserve_risk_entry,
-    release_entry as release_risk_entry,
+    release_entry as release_risk_entry, sync_open_positions as sync_risk_positions,
+    record_open_position as record_risk_open_position,
 )
 
 # Spotware JSON protocol WebSocket endpoints (port 5036).
@@ -370,7 +371,11 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
             "returnProtectionOrders": False,
         }, RECONCILE_RES)
         positions = reconcile.get("position") or []
-        open_count = len([item for item in positions if isinstance(item, dict)])
+        open_positions = [item for item in positions if isinstance(item, dict)]
+        open_count = len(open_positions)
+        sync_risk_positions(customer_id, account_id, [
+            item.get("positionId") for item in open_positions if item.get("positionId") is not None
+        ])
         symbol_id, symbol_name = await _demo_symbol_id(ws, account_id, symbol)
         reservation_id = reserve_risk_entry(customer_id, account_id, balance or 0, open_count, lot_size)
         client_order_id = uuid.uuid4().hex[:32]
@@ -390,6 +395,8 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
             raise CTraderOpenAPIError("The cTrader demo broker rejected the order")
         position = event.get("position") or {}
         order = event.get("order") or {}
+        if position.get("positionId") is not None:
+            record_risk_open_position(customer_id, account_id, position.get("positionId"))
         return {
             "accepted": execution_type in (2, 3, 11),
             "execution_type": execution_type,
