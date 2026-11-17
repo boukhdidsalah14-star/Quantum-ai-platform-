@@ -23,6 +23,8 @@ from app.ctrader_risk import (
     release_entry as release_risk_entry, sync_open_positions as sync_risk_positions,
     record_open_position as record_risk_open_position,
 )
+from app.ctrader_permissions import require_demo_permission
+
 
 # Spotware JSON protocol WebSocket endpoints (port 5036).
 # Environment is resolved from broker account metadata, never a client URL.
@@ -364,6 +366,7 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
     reservation_id = None
     try:
         account_id = selected["account_id"]
+        require_demo_permission(customer_id, account_id)
         trader = await _ensure_demo_trade_access(ws, account_id)
         balance = _scaled(trader.get("balance"), trader.get("moneyDigits", 2))
         reconcile = await _request(ws, RECONCILE_REQ, {
