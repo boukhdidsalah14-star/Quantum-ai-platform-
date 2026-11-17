@@ -69,6 +69,13 @@
      <button id="ctrader-select-account" class="solid-btn" type="button">SYNC ACCOUNT</button>
     </div>
     <div id="ctrader-account-snapshot" class="payment-box" hidden></div>
+    <div id="ctrader-customer-authorization" class="risk-control-panel" hidden>
+     <h3>YOUR TRADING AUTHORIZATION</h3>
+     <div id="ctrader-authorization-status" class="payment-box">Checking your permission…</div>
+     <label class="consent-row"><input id="ctrader-demo-risk-ack" type="checkbox"> I authorize QUANTUM AI to send manual orders to my selected IC Markets demo account. I understand demo orders can lose money, and I remain responsible for monitoring the account.</label>
+     <button id="ctrader-demo-auth-toggle" class="solid-btn wide-btn" type="button">AUTHORIZE DEMO TRADING</button>
+     <p class="risk-note">This permission applies only to your selected demo account and can be revoked at any time. Real-account trading is not available and cannot be enabled here.</p>
+    </div>
     <div id="ctrader-demo-trade" class="account-panel" hidden>
      <h3>DEMO MANUAL EXECUTION</h3>
      <div class="risk-control-panel" id="ctrader-risk-controls">
