@@ -19,6 +19,12 @@ class FakeWebSocket:
             "isLive": False,
         }]
         self.closed = False
+        self.positions = [{
+            "positionId": "77",
+            "tradeData": {"symbolId": "1", "volume": 1000, "tradeSide": 1},
+            "stopLoss": 1.08,
+            "takeProfit": 1.12,
+        }]
 
     async def send(self, raw):
         message = json.loads(raw)
@@ -67,12 +73,7 @@ class FakeWebSocket:
         elif kind == api.RECONCILE_REQ:
             response_type, payload = api.RECONCILE_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
-                "position": [{
-                    "positionId": "77",
-                    "tradeData": {"symbolId": "1", "volume": 1000, "tradeSide": 1},
-                    "stopLoss": 1.08,
-                    "takeProfit": 1.12,
-                }],
+                "position": self.positions,
                 "order": [],
             }
         elif kind == api.SYMBOLS_LIST_REQ:
@@ -100,6 +101,21 @@ class FakeWebSocket:
             }
         else:
             raise AssertionError("Unexpected cTrader request type: " + str(kind))
+        if kind == api.NEW_ORDER_REQ:
+            self.positions.append({
+                "positionId": "78",
+                "tradeData": {"symbolId": "10", "volume": message["payload"]["volume"], "tradeSide": message["payload"]["tradeSide"]},
+                "stopLoss": message["payload"].get("stopLoss"),
+                "takeProfit": message["payload"].get("takeProfit"),
+            })
+        elif kind == api.AMEND_POSITION_SLTP_REQ:
+            for position in self.positions:
+                if str(position["positionId"]) == str(message["payload"]["positionId"]):
+                    position["stopLoss"] = message["payload"]["stopLoss"]
+                    position["takeProfit"] = message["payload"]["takeProfit"]
+        elif kind == api.CLOSE_POSITION_REQ:
+            self.positions = [position for position in self.positions
+                              if str(position["positionId"]) != str(message["payload"]["positionId"])]
         self._reply = json.dumps({
             "clientMsgId": message["clientMsgId"],
             "payloadType": response_type,
@@ -269,6 +285,39 @@ def test_demo_order_rejects_oversize_and_invalid_side(monkeypatch, tmp_path):
         asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.02, 1.0, 2.0))
     with pytest.raises(ValueError, match="BUY or SELL"):
         asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "LONG", 0.01, 1.0, 2.0))
+
+
+def test_demo_order_full_lifecycle_open_monitor_amend_close(monkeypatch, tmp_path):
+    customer, fake = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    set_demo_permission(customer["id"], "123456", True, True)
+
+    opened = asyncio.run(api.open_demo_trade(
+        customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12
+    ))
+    assert opened["broker_confirmed"] is True
+    position_id = opened["position_id"]
+    assert position_id == "78"
+
+    monitored = asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    current = next(p for p in monitored["open_positions"] if p["position_id"] == position_id)
+    assert current["stop_loss"] == 1.07
+    assert current["take_profit"] == 1.12
+
+    amended = asyncio.run(api.amend_demo_position(
+        customer["id"], position_id, 1.075, 1.125
+    ))
+    assert amended["broker_confirmed"] is True
+    refreshed = asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    updated = next(p for p in refreshed["open_positions"] if p["position_id"] == position_id)
+    assert updated["stop_loss"] == 1.075
+    assert updated["take_profit"] == 1.125
+
+    closed = asyncio.run(api.close_demo_position(customer["id"], position_id))
+    assert closed["broker_confirmed"] is True
+    after_close = asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    assert all(p["position_id"] != position_id for p in after_close["open_positions"])
+    assert fake.closed is True
 
 
 def test_demo_position_protection_and_close_require_existing_position(monkeypatch, tmp_path):
