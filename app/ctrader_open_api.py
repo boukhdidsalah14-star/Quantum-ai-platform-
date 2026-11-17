@@ -31,6 +31,11 @@ TRADER_REQ = 2121
 TRADER_RES = 2122
 RECONCILE_REQ = 2124
 RECONCILE_RES = 2125
+EXECUTION_EVENT = 2126
+NEW_ORDER_REQ = 2106
+AMEND_POSITION_SLTP_REQ = 2110
+CLOSE_POSITION_REQ = 2111
+ORDER_ERROR_EVENT = 2132
 GET_ACCOUNTS_REQ = 2149
 GET_ACCOUNTS_RES = 2150
 SYMBOLS_LIST_REQ = 2114
@@ -95,7 +100,7 @@ async def _request(ws, payload_type: int, payload: dict[str, Any],
             continue
         response_type = message.get("payloadType")
         response_payload = message.get("payload") or {}
-        if response_type == ERROR_RES or response_type == 50:
+        if response_type in (ERROR_RES, ORDER_ERROR_EVENT, 50):
             code = str(response_payload.get("errorCode") or "OPEN_API_ERROR")
             description = str(response_payload.get("description") or response_payload.get("message") or "")
             detail = re.sub(r"[^A-Za-z0-9 _.-]", "", description)[:120]
@@ -158,11 +163,8 @@ async def _open_ctrader_session(access_token: str, environment: str = "demo"):
         accounts = await _request(ws, GET_ACCOUNTS_REQ, {
             "accessToken": access_token,
         }, GET_ACCOUNTS_RES)
-        permission = accounts.get("permissionScope")
-        if permission not in (1, "1", "SCOPE_TRADE"):
-            raise CTraderOpenAPIError(
-                "The cTrader authorization does not include trading permission"
-            )
+        # GET_ACCOUNTS_RES contains account identity/environment metadata.
+        # Trading scope is requested in OAuth and enforced by account/order auth.
         return ws, accounts
     except Exception:
         await ws.close()
@@ -268,7 +270,7 @@ async def sync_demo_account(customer_id: str, account_id: str) -> dict:
             "leverage": trader.get("leverageInCents"),
             "open_positions": [_position_summary(p) for p in positions if isinstance(p, dict)],
             "pending_orders_count": len(orders) if isinstance(orders, list) else 0,
-            "trading_permission": "trade",
+            "trading_permission": "oauth_trading_scope_requested",
             "trading_enabled": False,
             "source": "cTrader Open API",
         }
@@ -288,6 +290,178 @@ async def sync_demo_account(customer_id: str, account_id: str) -> dict:
             """, (customer_id, str(account_id), selected["broker"],
                   selected["trader_login"], json.dumps(snapshot, separators=(",", ":")), synced_at))
         return {**snapshot, "synced_at": synced_at, "connected": True}
+    finally:
+        await ws.close()
+
+
+
+# Step 2 demo execution. Keep the initial demo order cap deliberately small;
+# server-side account/customer risk policy is expanded in Step 3.
+MAX_DEMO_LOTS = 0.01
+VOLUME_CENTS_PER_LOT = 10_000_000
+
+
+def _valid_positive_price(value: Any, field: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{field} must be a valid positive price") from exc
+    if not (number > 0 and number < 1_000_000_000):
+        raise ValueError(f"{field} must be a valid positive price")
+    return number
+
+
+async def _ensure_demo_trade_access(ws, account_id: str, allow_close_only: bool = False) -> dict:
+    response = await _request(ws, TRADER_REQ, {
+        "ctidTraderAccountId": int(account_id),
+    }, TRADER_RES)
+    trader = response.get("trader") or {}
+    # ProtoOAAccessRights: FULL_ACCESS=0, CLOSE_ONLY=1, NO_TRADING=2, NO_LOGIN=3.
+    rights = int(trader.get("accessRights", 0))
+    if rights != 0 and not (allow_close_only and rights == 1):
+        raise CTraderOpenAPIError("This demo account does not have permission for that trading action")
+    return trader
+
+
+async def _demo_symbol_id(ws, account_id: str, symbol: str) -> tuple[int, str]:
+    response = await _request(ws, SYMBOLS_LIST_REQ, {
+        "ctidTraderAccountId": int(account_id),
+        "includeArchivedSymbols": False,
+    }, SYMBOLS_LIST_RES)
+    rows = response.get("symbol") or []
+    wanted = _normalize_symbol(symbol)
+    match = next((item for item in rows if isinstance(item, dict)
+                  and _normalize_symbol(item.get("symbolName", "")) == wanted
+                  and bool(item.get("enabled", True))), None)
+    if not match:
+        raise ValueError("This symbol is not available on the selected IC Markets demo account")
+    return int(match["symbolId"]), str(match.get("symbolName") or symbol)
+
+
+async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
+                          stop_loss: float, take_profit: float) -> dict:
+    normalized_side = str(side or "").strip().upper()
+    if normalized_side not in ("BUY", "SELL"):
+        raise ValueError("Trade side must be BUY or SELL")
+    try:
+        lot_size = float(lots)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Trade size must be valid") from exc
+    if not (0 < lot_size <= MAX_DEMO_LOTS):
+        raise ValueError(f"Demo trade size must be greater than zero and no more than {MAX_DEMO_LOTS} lots")
+    sl = _valid_positive_price(stop_loss, "Stop-loss")
+    tp = _valid_positive_price(take_profit, "Take-profit")
+    if sl == tp:
+        raise ValueError("Stop-loss and take-profit must be different prices")
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        account_id = selected["account_id"]
+        await _ensure_demo_trade_access(ws, account_id)
+        symbol_id, symbol_name = await _demo_symbol_id(ws, account_id, symbol)
+        client_order_id = uuid.uuid4().hex[:32]
+        event = await _request(ws, NEW_ORDER_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "symbolId": symbol_id,
+            "orderType": 1,
+            "tradeSide": 1 if normalized_side == "BUY" else 2,
+            "volume": int(round(lot_size * VOLUME_CENTS_PER_LOT)),
+            "stopLoss": sl,
+            "takeProfit": tp,
+            "clientOrderId": client_order_id,
+            "label": "QUANTUM_AI_DEMO",
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type == 7:
+            raise CTraderOpenAPIError("The cTrader demo broker rejected the order")
+        position = event.get("position") or {}
+        order = event.get("order") or {}
+        return {
+            "accepted": execution_type in (2, 3, 11),
+            "execution_type": execution_type,
+            "account_id": account_id,
+            "environment": "demo",
+            "symbol": symbol_name,
+            "side": normalized_side,
+            "lots": lot_size,
+            "stop_loss": sl,
+            "take_profit": tp,
+            "position_id": str(position.get("positionId") or ""),
+            "order_id": str(order.get("orderId") or ""),
+            "client_order_id": client_order_id,
+            "broker_confirmed": True,
+        }
+    finally:
+        await ws.close()
+
+
+async def _find_demo_position(ws, account_id: str, position_id: str) -> dict:
+    if not str(position_id).isdigit():
+        raise ValueError("Choose a valid position")
+    response = await _request(ws, RECONCILE_REQ, {
+        "ctidTraderAccountId": int(account_id),
+        "returnProtectionOrders": False,
+    }, RECONCILE_RES)
+    positions = response.get("position") or []
+    match = next((item for item in positions if isinstance(item, dict)
+                  and str(item.get("positionId")) == str(position_id)), None)
+    if not match:
+        raise CTraderOpenAPIError("That position is not open on your selected demo account")
+    return match
+
+
+async def amend_demo_position(customer_id: str, position_id: str,
+                              stop_loss: float, take_profit: float) -> dict:
+    sl = _valid_positive_price(stop_loss, "Stop-loss")
+    tp = _valid_positive_price(take_profit, "Take-profit")
+    if sl == tp:
+        raise ValueError("Stop-loss and take-profit must be different prices")
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        account_id = selected["account_id"]
+        await _ensure_demo_trade_access(ws, account_id)
+        await _find_demo_position(ws, account_id, position_id)
+        event = await _request(ws, AMEND_POSITION_SLTP_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "positionId": int(position_id),
+            "stopLoss": sl,
+            "takeProfit": tp,
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type not in (2, 3, 4, 13, 14):
+            raise CTraderOpenAPIError("cTrader did not confirm the protection update")
+        return {
+            "updated": True, "broker_confirmed": True,
+            "account_id": account_id, "environment": "demo",
+            "position_id": str(position_id), "stop_loss": sl, "take_profit": tp,
+            "execution_type": execution_type,
+        }
+    finally:
+        await ws.close()
+
+
+async def close_demo_position(customer_id: str, position_id: str) -> dict:
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        account_id = selected["account_id"]
+        await _ensure_demo_trade_access(ws, account_id, allow_close_only=True)
+        position = await _find_demo_position(ws, account_id, position_id)
+        trade = position.get("tradeData") or {}
+        volume = int(trade.get("volume") or 0)
+        if volume <= 0:
+            raise CTraderOpenAPIError("cTrader returned an invalid position volume")
+        event = await _request(ws, CLOSE_POSITION_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "positionId": int(position_id),
+            "volume": volume,
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type not in (2, 3, 11):
+            raise CTraderOpenAPIError("cTrader did not confirm the position close")
+        return {
+            "closed_or_closing": True, "broker_confirmed": True,
+            "account_id": account_id, "environment": "demo",
+            "position_id": str(position_id), "execution_type": execution_type,
+        }
     finally:
         await ws.close()
 
