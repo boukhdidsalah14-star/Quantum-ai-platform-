@@ -167,3 +167,27 @@ def test_underpaid_finished_callback_cannot_activate(tmp_path, monkeypatch):
             "actually_paid": "19.5",
         })
     assert subscriptions.subscription_for_customer("customer-underpaid")["active"] is False
+
+
+def test_small_underpayment_within_tolerance_activates(tmp_path, monkeypatch):
+    monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "quantum.sqlite3"))
+    subscriptions.init_db()
+    order_id = subscriptions.create_order("customer-small-underpayment")
+    subscriptions.attach_payment(order_id, {
+        "payment_id": "payment-small-underpayment",
+        "pay_address": "TExampleAddress",
+        "pay_amount": "30",
+        "pay_currency": "usdttrc20",
+        "payment_status": "waiting",
+    })
+    result = subscriptions.apply_finished_payment({
+        "order_id": order_id,
+        "payment_id": "payment-small-underpayment",
+        "payment_status": "finished",
+        "price_amount": 30,
+        "price_currency": "usd",
+        "pay_currency": "usdttrc20",
+        "actually_paid": "29.98",
+    })
+    assert result["activated"] is True
+    assert subscriptions.subscription_for_customer("customer-small-underpayment")["active"] is True
