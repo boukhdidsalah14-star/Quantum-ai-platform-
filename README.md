@@ -64,14 +64,14 @@ Each customer must configure a paper account balance before opening an Olymp Tra
 
 ## Subscription payments (NOWPayments)
 
-The membership price is **exactly $20 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`. The server requests a NOWPayments payment using `pay_currency=usdttrc20`, a unique customer-owned order ID and the public IPN endpoint `POST /api/payments/nowpayments/ipn`. Repeated checkout taps reuse the existing pending payment instead of creating duplicate payment requests.
+The membership price is **exactly $30 USD equivalent in USDT TRC20 for 30 days**. Authenticated customers create a payment through `POST /api/subscription/checkout`. The server requests a NOWPayments payment using `pay_currency=usdttrc20`, a unique customer-owned order ID and the public IPN endpoint `POST /api/payments/nowpayments/ipn`. Repeated checkout taps reuse the existing pending payment instead of creating duplicate payment requests.
 
-Only a valid HMAC-SHA512 signed NOWPayments IPN, or a server-authenticated payment-status lookup, can update an order. Activation requires the matching internal order ID and payment ID, `payment_status=finished`, `price_amount=20`, `price_currency=usd`, and `pay_currency=usdttrc20`. When NOWPayments supplies `actually_paid`, an amount below the requested crypto amount is rejected. Activation is idempotent; duplicate callbacks never grant extra days. Renewals extend from the later of the current time or the existing expiry.
+Only a valid HMAC-SHA512 signed NOWPayments IPN, or a server-authenticated payment-status lookup, can update an order. Activation requires the matching internal order ID and payment ID, `payment_status=finished`, `price_amount=30`, `price_currency=usd`, and `pay_currency=usdttrc20`. When NOWPayments supplies `actually_paid`, an amount below the requested crypto amount is rejected. Activation is idempotent; duplicate callbacks never grant extra days. Renewals extend from the later of the current time or the existing expiry.
 
 Customer endpoints:
 - `GET /api/subscription` — current membership status and whether checkout is configured.
 - `GET /api/subscription/order` — the signed-in customer's pending payment only.
-- `POST /api/subscription/checkout` — create or resume a $20 USDT TRC20 payment.
+- `POST /api/subscription/checkout` — create or resume a $30 USDT TRC20 payment.
 - `POST /api/subscription/refresh` — reconcile the customer's pending payment directly with NOWPayments if an IPN is delayed.
 - `POST /api/payments/nowpayments/ipn` — public signed payment notification endpoint.
 
