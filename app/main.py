@@ -19,6 +19,7 @@ from app.mexc_market_data import get_market_overview as get_mexc_market_overview
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
+from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
@@ -152,6 +153,16 @@ class CTraderDemoProtectionRequest(BaseModel):
 
 class CTraderDemoCloseRequest(BaseModel):
     position_id: str = Field(min_length=1, max_length=32)
+
+
+class CTraderRiskSettingsRequest(BaseModel):
+    max_daily_loss_pct: float = Field(ge=1, le=10)
+    max_lots: float = Field(ge=0.001, le=0.01)
+    max_open_positions: int = Field(ge=1, le=3)
+
+
+class CTraderEmergencyStopRequest(BaseModel):
+    enabled: bool
 
 
 class OlympSignalRequest(BaseModel):
@@ -356,6 +367,7 @@ async def lifespan(app: FastAPI):
     init_metaapi_db()
     init_ctrader_oauth_db()
     init_ctrader_sync_db()
+    init_ctrader_risk_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
     if _persistent_credentials_ready():
@@ -809,6 +821,47 @@ async def close_ctrader_demo_position(payload: CTraderDemoCloseRequest, request:
         raise HTTPException(status_code=400, detail=str(exc))
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/demo/risk")
+async def get_ctrader_demo_risk(request: Request):
+    init_auth_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
+
+
+@app.put("/api/connections/ctrader/demo/risk")
+async def update_ctrader_demo_risk(payload: CTraderRiskSettingsRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        update_ctrader_risk_settings(customer["id"], payload.max_daily_loss_pct,
+                                     payload.max_lots, payload.max_open_positions)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    snapshot = get_ctrader_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
+
+
+@app.post("/api/connections/ctrader/demo/risk/emergency-stop")
+async def set_ctrader_demo_emergency_stop(payload: CTraderEmergencyStopRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    set_ctrader_emergency_stop(customer["id"], payload.enabled)
+    snapshot = get_ctrader_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
 
 
 @app.delete("/api/connections/ctrader")
