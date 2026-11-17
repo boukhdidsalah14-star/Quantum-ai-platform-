@@ -22,7 +22,7 @@ def test_finished_payment_activates_once_and_extends_subscription(tmp_path, monk
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-123",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -30,9 +30,10 @@ def test_finished_payment_activates_once_and_extends_subscription(tmp_path, monk
         "order_id": order_id,
         "payment_id": "payment-123",
         "payment_status": "finished",
-        "price_amount": 20,
+        "price_amount": 30,
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
+        "actually_paid": "30",
     }
     result = subscriptions.apply_finished_payment(payload)
     assert result["activated"] is True
@@ -49,7 +50,7 @@ def test_non_finished_payment_does_not_activate(tmp_path, monkeypatch):
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-456",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -57,7 +58,7 @@ def test_non_finished_payment_does_not_activate(tmp_path, monkeypatch):
         "order_id": order_id,
         "payment_id": "payment-456",
         "payment_status": "confirming",
-        "price_amount": 20,
+        "price_amount": 30,
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
     })
@@ -72,7 +73,7 @@ def test_wrong_network_is_rejected(tmp_path, monkeypatch):
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-789",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -80,7 +81,7 @@ def test_wrong_network_is_rejected(tmp_path, monkeypatch):
         "order_id": order_id,
         "payment_id": "payment-789",
         "payment_status": "finished",
-        "price_amount": 20,
+        "price_amount": 30,
         "price_currency": "usd",
         "pay_currency": "usdt",
     }
@@ -108,7 +109,7 @@ def test_pending_order_is_customer_isolated_and_status_can_be_refreshed(tmp_path
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-a",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -126,7 +127,7 @@ def test_expired_ipn_updates_order_without_activating(tmp_path, monkeypatch):
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-expired",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -134,7 +135,7 @@ def test_expired_ipn_updates_order_without_activating(tmp_path, monkeypatch):
         "order_id": order_id,
         "payment_id": "payment-expired",
         "payment_status": "expired",
-        "price_amount": 20,
+        "price_amount": 30,
         "price_currency": "usd",
         "pay_currency": "usdttrc20",
     })
@@ -151,7 +152,7 @@ def test_underpaid_finished_callback_cannot_activate(tmp_path, monkeypatch):
     subscriptions.attach_payment(order_id, {
         "payment_id": "payment-underpaid",
         "pay_address": "TExampleAddress",
-        "pay_amount": "20",
+        "pay_amount": "30",
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
@@ -160,7 +161,7 @@ def test_underpaid_finished_callback_cannot_activate(tmp_path, monkeypatch):
             "order_id": order_id,
             "payment_id": "payment-underpaid",
             "payment_status": "finished",
-            "price_amount": 20,
+            "price_amount": 30,
             "price_currency": "usd",
             "pay_currency": "usdttrc20",
             "actually_paid": "19.5",
