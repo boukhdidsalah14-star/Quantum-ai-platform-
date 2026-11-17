@@ -7,7 +7,7 @@ from cryptography.fernet import Fernet
 
 from app.auth import create_customer, init_auth_db
 from app import ctrader_open_api as api
-from app.ctrader_permissions import set_demo_permission
+from app.ctrader_permissions import set_demo_permission, CTraderPermissionError
 
 
 class FakeWebSocket:
@@ -249,7 +249,7 @@ def test_live_ctrader_session_is_locked_by_default(monkeypatch):
 def test_demo_order_is_blocked_without_customer_authorization(monkeypatch, tmp_path):
     customer, _ = setup(monkeypatch, tmp_path)
     asyncio.run(api.sync_demo_account(customer["id"], "123456"))
-    with pytest.raises(api.CTraderPermissionError, match="not authorized"):
+    with pytest.raises(CTraderPermissionError, match="not authorized"):
         asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
 
 
