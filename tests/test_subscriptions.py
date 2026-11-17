@@ -156,7 +156,7 @@ def test_underpaid_finished_callback_cannot_activate(tmp_path, monkeypatch):
         "pay_currency": "usdttrc20",
         "payment_status": "waiting",
     })
-    with pytest.raises(ValueError, match="below the checkout amount"):
+    with pytest.raises(ValueError, match="below the allowed payment tolerance"):
         subscriptions.apply_finished_payment({
             "order_id": order_id,
             "payment_id": "payment-underpaid",
