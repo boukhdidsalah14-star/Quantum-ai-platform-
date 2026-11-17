@@ -45,3 +45,7 @@ main{width:min(1180px,100%);margin:0 auto;padding:20px clamp(12px,3vw,28px)}.pag
 
 /* Keep retired MT4/MT5 connection and EA screens hidden during cTrader migration. */
 #metatrader-cloud-panel, #mt4-provider-card, #mt4-bridge-panel, #mt4-live-chart { display: none !important; }
+
+/* HypeLab publisher banner slot */
+.ad-inner hype-banner{display:block;flex:1 1 320px;min-width:0;max-width:900px;min-height:50px;width:100%}
+@media(max-width:600px){.ad-inner hype-banner{flex-basis:250px;min-height:44px}}
