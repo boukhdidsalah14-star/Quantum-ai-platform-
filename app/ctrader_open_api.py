@@ -1,7 +1,7 @@
-"""Read-only cTrader Open API account discovery and demo-account reconciliation.
+"""cTrader Open API account discovery, demo reconciliation, and demo execution.
 
-This adapter intentionally supports demo account discovery and read-only
-account snapshots only. It does not submit, amend, or close orders.
+Live sessions and live order execution remain locked pending Spotware approval
+and later customer-level risk authorization.
 """
 from __future__ import annotations
 
