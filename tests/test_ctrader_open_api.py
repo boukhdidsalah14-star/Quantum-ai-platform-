@@ -246,6 +246,13 @@ def test_live_ctrader_session_is_locked_by_default(monkeypatch):
         asyncio.run(api._open_ctrader_session("access-token", "live"))
 
 
+def test_demo_order_is_blocked_without_customer_authorization(monkeypatch, tmp_path):
+    customer, _ = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    with pytest.raises(api.CTraderPermissionError, match="not authorized"):
+        asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
+
+
 def test_demo_order_open_uses_broker_execution_event(monkeypatch, tmp_path):
     customer, _ = setup(monkeypatch, tmp_path)
     asyncio.run(api.sync_demo_account(customer["id"], "123456"))
