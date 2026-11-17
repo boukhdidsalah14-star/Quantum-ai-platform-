@@ -19,7 +19,7 @@ from app.mexc_market_data import get_market_overview as get_mexc_market_overview
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
-from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, CTraderOpenAPIError)
+from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as close_ctrader_demo_position, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
 from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
@@ -134,6 +134,24 @@ class MT4AutoStartRequest(BaseModel):
 
 class CTraderAccountSelection(BaseModel):
     account_id: str = Field(min_length=1, max_length=32)
+
+
+class CTraderDemoOrderRequest(BaseModel):
+    symbol: str = Field(min_length=3, max_length=32)
+    side: str
+    lots: float = Field(gt=0, le=0.01)
+    stop_loss: float = Field(gt=0)
+    take_profit: float = Field(gt=0)
+
+
+class CTraderDemoProtectionRequest(BaseModel):
+    position_id: str = Field(min_length=1, max_length=32)
+    stop_loss: float = Field(gt=0)
+    take_profit: float = Field(gt=0)
+
+
+class CTraderDemoCloseRequest(BaseModel):
+    position_id: str = Field(min_length=1, max_length=32)
 
 
 class OlympSignalRequest(BaseModel):
@@ -729,6 +747,64 @@ async def ctrader_demo_candles(
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
         return await get_ctrader_demo_candles(customer["id"], symbol, timeframe, count)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/demo/orders")
+async def open_ctrader_demo_order(payload: CTraderDemoOrderRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader and select a demo account first")
+    try:
+        return await open_ctrader_demo_trade(
+            customer["id"], payload.symbol, payload.side, payload.lots,
+            payload.stop_loss, payload.take_profit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.patch("/api/connections/ctrader/demo/positions/protection")
+async def amend_ctrader_demo_protection(payload: CTraderDemoProtectionRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await amend_ctrader_demo_position(
+            customer["id"], payload.position_id, payload.stop_loss, payload.take_profit
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/demo/positions/close")
+async def close_ctrader_demo_position(payload: CTraderDemoCloseRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await close_ctrader_demo_position(customer["id"], payload.position_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except CTraderOpenAPIError as exc:
