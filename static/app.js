@@ -418,7 +418,7 @@ async function refreshCTraderStatus(){
   const snapshot=data.account_snapshot;
   state.textContent=snapshot?"DEMO ACCOUNT SYNCED":(data.authorized?"AUTHORISED · DEMO ACCOUNT REQUIRED":(data.configured?"NOT CONNECTED":"SETUP PENDING"));
   note.textContent=snapshot
-   ?"IC Markets demo account is connected. Balance and open positions are read from cTrader. Order execution is still disabled."
+   ?"IC Markets demo account is connected. You can place small manual demo orders with mandatory stop-loss and take-profit."
    :(data.authorized
     ?"Authorization is saved. Tap FIND DEMO ACCOUNTS, choose your IC Markets demo account, then sync it."
     :(data.configured
@@ -440,9 +440,70 @@ function renderCTraderSnapshot(snapshot){
  box.innerHTML="<b>IC MARKETS · DEMO ACCOUNT</b><br>Login: "+safe(snapshot.trader_login||"—")+
   "<br>Balance: <b>"+(Number.isFinite(Number(snapshot.balance))?Number(snapshot.balance).toFixed(2):"—")+"</b>"+
   "<br>Open positions: "+positions.length+" · Pending orders: "+safe(snapshot.pending_orders_count??0)+
-  "<br><small>Read-only sync · "+safe(new Date((snapshot.synced_at||0)*1000).toLocaleString())+"</small>"+
-  (positions.length?"<hr>"+positions.map(p=>safe(p.side)+" · Symbol ID "+safe(p.symbol_id)+" · Volume "+safe(p.volume_units)+" · SL "+safe(p.stop_loss??"—")+" · TP "+safe(p.take_profit??"—")).join("<br>"):"<br><small>No open positions on this account.</small>")+
-  "<br><small>Order execution remains disabled.</small>";
+  "<br><small>Broker sync · "+safe(new Date((snapshot.synced_at||0)*1000).toLocaleString())+"</small>"+
+  (positions.length?"<hr>"+positions.map(p=>"<div class='ctrader-position-row'><b>"+safe(p.side)+"</b> · "+safe(p.symbol_id)+" · "+safe(p.volume_units)+" units · SL "+safe(p.stop_loss??"—")+" · TP "+safe(p.take_profit??"—")+"<br><small>Position #"+safe(p.position_id)+"</small><div class='chart-toolbar'><button type='button' class='outline-btn' data-ctrader-action='amend' data-position-id='"+safe(p.position_id)+"'>EDIT SL / TP</button><button type='button' class='outline-btn' data-ctrader-action='close' data-position-id='"+safe(p.position_id)+"'>CLOSE POSITION</button></div></div>").join(""):"<br><small>No open positions on this account.</small>")+
+  "<br><small>Manual demo execution only · Max 0.01 lots per order.</small>";
+ const tradePanel=$("ctrader-demo-trade");
+ if(tradePanel)tradePanel.hidden=false;
+ loadCTraderDemoSymbols();
+}
+async function loadCTraderDemoSymbols(){
+ const select=$("ctrader-order-symbol");
+ if(!select)return;
+ try{
+  const response=await fetch("/api/connections/ctrader/markets");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not load IC Markets demo symbols");
+  const symbols=Array.isArray(data.markets)?data.markets.filter(x=>x.enabled):[];
+  select.innerHTML='<option value="">Choose symbol</option>'+symbols.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+'</option>').join("");
+ }catch(error){select.innerHTML='<option value="">Demo symbols unavailable</option>';toast(error.message);}
+}
+async function submitCTraderDemoOrder(event){
+ event.preventDefault();
+ const button=$("ctrader-open-demo");
+ const payload={
+  symbol:$("ctrader-order-symbol").value,
+  side:$("ctrader-order-side").value,
+  lots:Number($("ctrader-order-lots").value),
+  stop_loss:Number($("ctrader-order-sl").value),
+  take_profit:Number($("ctrader-order-tp").value)
+ };
+ button.disabled=true;button.textContent="SENDING TO BROKER…";
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"cTrader demo order failed");
+  if(!data.broker_confirmed)throw Error("No broker confirmation received");
+  toast("cTrader confirmed the demo order request.");
+  $("ctrader-order-sl").value="";$("ctrader-order-tp").value="";
+  await refreshCTraderSnapshot();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;button.textContent="PLACE DEMO ORDER";}
+}
+async function handleCTraderPositionAction(event){
+ const button=event.target.closest("[data-ctrader-action]");
+ if(!button)return;
+ const positionId=button.dataset.positionId;
+ if(button.dataset.ctraderAction==="close"){
+  if(!window.confirm("Close this entire cTrader demo position?"))return;
+  button.disabled=true;
+  try{
+   const response=await fetch("/api/connections/ctrader/demo/positions/close",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({position_id:positionId})});
+   const data=await response.json();if(!response.ok)throw Error(data.detail||"Position close failed");
+   toast("Broker confirmed the close request.");await refreshCTraderSnapshot();
+  }catch(error){toast(error.message);}finally{button.disabled=false;}
+ }else if(button.dataset.ctraderAction==="amend"){
+  const sl=window.prompt("New stop-loss price:");
+  if(sl===null)return;
+  const tp=window.prompt("New take-profit price:");
+  if(tp===null)return;
+  button.disabled=true;
+  try{
+   const response=await fetch("/api/connections/ctrader/demo/positions/protection",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({position_id:positionId,stop_loss:Number(sl),take_profit:Number(tp)})});
+   const data=await response.json();if(!response.ok)throw Error(data.detail||"Protection update failed");
+   toast("Broker confirmed the SL/TP update.");await refreshCTraderSnapshot();
+  }catch(error){toast(error.message);}finally{button.disabled=false;}
+ }
 }
 async function discoverCTraderAccounts(){
  const button=$("ctrader-discover"),select=$("ctrader-account-select"),result=$("ctrader-result");
@@ -483,6 +544,8 @@ async function refreshCTraderSnapshot(){
   renderCTraderSnapshot(data);
  }catch(error){toast(error.message);}
 }
+$("ctrader-demo-order-form")?.addEventListener("submit",submitCTraderDemoOrder);
+$("ctrader-account-snapshot")?.addEventListener("click",handleCTraderPositionAction);
 $("ctrader-discover")?.addEventListener("click",discoverCTraderAccounts);
 $("ctrader-select-account")?.addEventListener("click",selectCTraderDemoAccount);
 $("ctrader-connect")?.addEventListener("click",async()=>{
