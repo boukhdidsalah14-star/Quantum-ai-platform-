@@ -94,7 +94,10 @@ async def _request(ws, payload_type: int, payload: dict[str, Any],
         response_payload = message.get("payload") or {}
         if response_type == ERROR_RES or response_type == 50:
             code = str(response_payload.get("errorCode") or "OPEN_API_ERROR")
-            raise CTraderOpenAPIError("cTrader rejected the account request (" + code + ")")
+            description = str(response_payload.get("description") or response_payload.get("message") or "")
+            detail = re.sub(r"[^A-Za-z0-9 _.-]", "", description)[:120]
+            suffix = f": {detail}" if detail else ""
+            raise CTraderOpenAPIError("cTrader rejected the account request (" + code + ")" + suffix)
         if message.get("clientMsgId") != message_id:
             # Heartbeats and asynchronous account events are not request replies.
             continue
@@ -305,7 +308,11 @@ async def _open_selected_demo(customer_id: str):
 
 
 def _normalize_symbol(value: str) -> str:
-    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+    normalized = re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+    # QUANTUM uses Deriv-style frxEURUSD IDs; cTrader lists EURUSD.
+    if normalized.startswith("FRX") and len(normalized) == 9:
+        normalized = normalized[3:]
+    return normalized
 
 
 async def discover_demo_symbols(customer_id: str) -> list[dict]:
