@@ -41,6 +41,10 @@ def init_db():
           reservation_id TEXT PRIMARY KEY,
           customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
           account_id TEXT NOT NULL, created_at INTEGER NOT NULL)""")
+        db.execute("""CREATE TABLE IF NOT EXISTS ctrader_risk_positions (
+          customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+          account_id TEXT NOT NULL, position_id TEXT NOT NULL, updated_at INTEGER NOT NULL,
+          PRIMARY KEY(customer_id, account_id, position_id))""")
 
 def _ensure_settings(db, customer_id):
     db.execute("INSERT OR IGNORE INTO ctrader_risk_settings (customer_id, updated_at) VALUES (?, ?)",
@@ -91,6 +95,26 @@ def record_account_sync(customer_id, account_id, balance):
           latest_balance=excluded.latest_balance,updated_at=excluded.updated_at""",
           (customer_id, str(account_id), _today(), value, value, int(time.time())))
 
+def sync_open_positions(customer_id, account_id, position_ids):
+    ids = [str(value) for value in position_ids if str(value).isdigit()]
+    with _db() as db:
+        db.execute("DELETE FROM ctrader_risk_positions WHERE customer_id=? AND account_id=?",
+                   (customer_id, str(account_id)))
+        for position_id in ids:
+            db.execute("""INSERT OR IGNORE INTO ctrader_risk_positions
+              (customer_id,account_id,position_id,updated_at) VALUES (?,?,?,?)""",
+              (customer_id,str(account_id),position_id,int(time.time())))
+
+
+def record_open_position(customer_id, account_id, position_id):
+    if not str(position_id or "").isdigit():
+        return
+    with _db() as db:
+        db.execute("""INSERT OR IGNORE INTO ctrader_risk_positions
+          (customer_id,account_id,position_id,updated_at) VALUES (?,?,?,?)""",
+          (customer_id,str(account_id),str(position_id),int(time.time())))
+
+
 def reserve_entry(customer_id, account_id, balance, open_positions_count, lots):
     value, size = float(balance or 0), float(lots)
     if value <= 0:
@@ -118,9 +142,11 @@ def reserve_entry(customer_id, account_id, balance, open_positions_count, lots):
         if loss >= limit:
             raise CTraderRiskBlocked(f"Daily loss limit reached ({loss:.2f}% of the day's starting balance); new entries are blocked")
         db.execute("DELETE FROM ctrader_risk_reservations WHERE created_at < ?", (now-120,))
+        tracked = db.execute("""SELECT COUNT(*) AS total FROM ctrader_risk_positions
+          WHERE customer_id=? AND account_id=?""", (customer_id,str(account_id))).fetchone()
         pending = db.execute("""SELECT COUNT(*) AS total FROM ctrader_risk_reservations
           WHERE customer_id=? AND account_id=?""", (customer_id,str(account_id))).fetchone()
-        occupied = int(open_positions_count) + int(pending["total"])
+        occupied = max(int(open_positions_count), int(tracked["total"])) + int(pending["total"])
         maximum = int(settings["max_open_positions"])
         if occupied >= maximum:
             raise CTraderRiskBlocked(f"Maximum of {maximum} open positions reached")
