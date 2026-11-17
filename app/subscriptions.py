@@ -15,6 +15,7 @@ from app.database import sqlite3
 
 SUBSCRIPTION_PRICE_USD = Decimal("30.00")
 SUBSCRIPTION_DAYS = 30
+UNDERPAYMENT_TOLERANCE_USDT = Decimal("0.05")
 
 
 def _db_path() -> Path:
@@ -222,8 +223,8 @@ def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
             actually_paid = Decimal(str(payload.get("actually_paid")))
         except (InvalidOperation, TypeError):
             raise ValueError("Finished payment contains an invalid actual amount paid")
-        if expected_pay_amount <= 0 or actually_paid < expected_pay_amount:
-            raise ValueError("The finished payment reports an amount below the checkout amount")
+        if expected_pay_amount <= 0 or actually_paid < expected_pay_amount - UNDERPAYMENT_TOLERANCE_USDT:
+            raise ValueError("The finished payment reports an amount below the allowed payment tolerance")
 
         existing = db.execute(
             "SELECT starts_at, expires_at FROM customer_subscriptions WHERE customer_id=?",
