@@ -20,6 +20,7 @@ from app.mexc_futures_execution import (get_futures_account_info as get_mexc_acc
 from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
+from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, CTraderPermissionError)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
@@ -163,6 +164,10 @@ class CTraderRiskSettingsRequest(BaseModel):
 
 class CTraderEmergencyStopRequest(BaseModel):
     enabled: bool
+
+class CTraderDemoAuthorizationRequest(BaseModel):
+    enabled: bool
+    acknowledge_risk: bool = False
 
 
 class OlympSignalRequest(BaseModel):
@@ -368,6 +373,7 @@ async def lifespan(app: FastAPI):
     init_ctrader_oauth_db()
     init_ctrader_sync_db()
     init_ctrader_risk_db()
+    init_ctrader_permissions_db()
     init_mt4_bridge_db()
     init_mt4_auto_db()
     if _persistent_credentials_ready():
@@ -781,6 +787,8 @@ async def open_ctrader_demo_order(payload: CTraderDemoOrderRequest, request: Req
             customer["id"], payload.symbol, payload.side, payload.lots,
             payload.stop_loss, payload.take_profit,
         )
+    except CTraderPermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     except CTraderRiskBlocked as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except ValueError as exc:
@@ -823,6 +831,44 @@ async def close_ctrader_demo_position(payload: CTraderDemoCloseRequest, request:
         raise HTTPException(status_code=400, detail=str(exc))
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/demo/authorization")
+async def get_ctrader_demo_authorization(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    init_ctrader_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_snapshot(customer["id"])
+    account_id = snapshot.get("account_id") if snapshot and snapshot.get("environment") == "demo" else None
+    return {**get_ctrader_permission(customer["id"], account_id),
+            "customer_authorized": bool(ctrader_authorization_status(customer["id"]).get("authorized")),
+            "account_selected": bool(account_id), "live_trading_available": False}
+
+
+@app.put("/api/connections/ctrader/demo/authorization")
+async def update_ctrader_demo_authorization(payload: CTraderDemoAuthorizationRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    init_ctrader_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_snapshot(customer["id"])
+    if not snapshot or snapshot.get("environment") != "demo":
+        raise HTTPException(status_code=409, detail="Connect and sync your own IC Markets demo account first")
+    try:
+        permission = set_ctrader_demo_permission(customer["id"], snapshot["account_id"],
+                                                 payload.enabled, payload.acknowledge_risk)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {**permission, "customer_authorized": True, "account_selected": True,
+            "live_trading_available": False}
 
 
 @app.get("/api/connections/ctrader/demo/risk")
