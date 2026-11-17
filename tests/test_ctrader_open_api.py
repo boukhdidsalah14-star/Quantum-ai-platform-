@@ -7,6 +7,7 @@ from cryptography.fernet import Fernet
 
 from app.auth import create_customer, init_auth_db
 from app import ctrader_open_api as api
+from app.ctrader_permissions import set_demo_permission
 
 
 class FakeWebSocket:
@@ -248,6 +249,7 @@ def test_live_ctrader_session_is_locked_by_default(monkeypatch):
 def test_demo_order_open_uses_broker_execution_event(monkeypatch, tmp_path):
     customer, _ = setup(monkeypatch, tmp_path)
     asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    set_demo_permission(customer["id"], "123456", True, True)
     result = asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
     assert result["broker_confirmed"] is True
     assert result["position_id"] == "78"
@@ -277,6 +279,7 @@ def test_demo_position_protection_and_close_require_existing_position(monkeypatc
 def test_demo_open_rejects_account_without_full_trade_rights(monkeypatch, tmp_path):
     customer, fake = setup(monkeypatch, tmp_path)
     asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    set_demo_permission(customer["id"], "123456", True, True)
     original_send = fake.send
     async def restricted_send(raw):
         message = json.loads(raw)
