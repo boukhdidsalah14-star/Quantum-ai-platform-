@@ -487,6 +487,49 @@ async function toggleCTraderEmergencyStop(){
  }catch(error){toast(error.message);}
  finally{button.disabled=false;}
 }
+async function loadCTraderCustomerAuthorization(){
+ const panel=$("ctrader-customer-authorization");
+ const status=$("ctrader-authorization-status");
+ const form=$("ctrader-demo-order-form");
+ if(!panel||!status)return;
+ panel.hidden=false;
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/authorization");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Authorization status unavailable");
+  const enabled=Boolean(data.demo_trading_authorized);
+  status.innerHTML="<b>DEMO TRADING: "+(enabled?"AUTHORIZED":"NOT AUTHORIZED")+"</b>"+
+   "<br>Selected account: "+(data.account_id?"#"+safe(data.account_id):"None")+
+   "<br>Live trading: <b>LOCKED</b>";
+  const button=$("ctrader-demo-auth-toggle");
+  if(button)button.textContent=enabled?"REVOKE DEMO TRADING AUTHORIZATION":"AUTHORIZE DEMO TRADING";
+  if(form)form.hidden=!enabled;
+  if($("ctrader-demo-risk-ack"))$("ctrader-demo-risk-ack").checked=false;
+ }catch(error){
+  status.textContent=error.message;
+  if(form)form.hidden=true;
+ }
+}
+async function toggleCTraderCustomerAuthorization(){
+ const button=$("ctrader-demo-auth-toggle");
+ const currentlyEnabled=button.textContent.includes("REVOKE");
+ const acknowledgement=$("ctrader-demo-risk-ack");
+ if(!currentlyEnabled&&!acknowledgement?.checked){
+  toast("Please confirm the demo-trading risk acknowledgement first");
+  return;
+ }
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/authorization",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+   enabled:!currentlyEnabled,acknowledge_risk:!currentlyEnabled&&Boolean(acknowledgement?.checked)
+  })});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not update trading authorization");
+  toast(data.demo_trading_authorized?"Demo trading authorization enabled for this account":"Demo trading authorization revoked");
+  await loadCTraderCustomerAuthorization();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+}
 function renderCTraderSnapshot(snapshot){
  const box=$("ctrader-account-snapshot");
  if(!box||!snapshot)return;
@@ -502,6 +545,7 @@ function renderCTraderSnapshot(snapshot){
  if(tradePanel)tradePanel.hidden=false;
  loadCTraderDemoSymbols();
  loadCTraderRiskSettings();
+ loadCTraderCustomerAuthorization();
 }
 async function loadCTraderDemoSymbols(){
  const select=$("ctrader-order-symbol");
@@ -603,6 +647,7 @@ async function refreshCTraderSnapshot(){
 $("ctrader-demo-order-form")?.addEventListener("submit",submitCTraderDemoOrder);
 $("ctrader-risk-save")?.addEventListener("click",saveCTraderRiskSettings);
 $("ctrader-emergency-stop")?.addEventListener("click",toggleCTraderEmergencyStop);
+$("ctrader-demo-auth-toggle")?.addEventListener("click",toggleCTraderCustomerAuthorization);
 $("ctrader-account-snapshot")?.addEventListener("click",handleCTraderPositionAction);
 $("ctrader-discover")?.addEventListener("click",discoverCTraderAccounts);
 $("ctrader-select-account")?.addEventListener("click",selectCTraderDemoAccount);
