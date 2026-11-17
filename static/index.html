@@ -71,6 +71,20 @@
     <div id="ctrader-account-snapshot" class="payment-box" hidden></div>
     <div id="ctrader-demo-trade" class="account-panel" hidden>
      <h3>DEMO MANUAL EXECUTION</h3>
+     <div class="risk-control-panel" id="ctrader-risk-controls">
+      <h3>ACCOUNT RISK PROTECTION</h3>
+      <p class="risk-note">These limits are checked by the server before every new cTrader demo order. Daily loss is calculated from account balance; floating profit/loss is not included yet.</p>
+      <div id="ctrader-risk-status" class="payment-box">Loading risk status…</div>
+      <div class="form-grid">
+       <label>DAILY LOSS LIMIT (%)<input id="ctrader-risk-loss" type="number" min="1" max="10" step="0.5" value="10"></label>
+       <label>MAXIMUM TRADE SIZE (LOTS)<input id="ctrader-risk-lots" type="number" min="0.001" max="0.01" step="0.001" value="0.01"></label>
+      </div>
+      <label>MAXIMUM OPEN POSITIONS<select id="ctrader-risk-positions"><option value="1">1 position</option><option value="2">2 positions</option><option value="3" selected>3 positions</option></select></label>
+      <button id="ctrader-risk-save" class="outline-btn wide-btn" type="button">SAVE RISK LIMITS</button>
+      <button id="ctrader-emergency-stop" class="outline-btn wide-btn" type="button" data-active="false">ACTIVATE EMERGENCY STOP</button>
+      <p class="risk-note">Emergency stop blocks new entries. It does not automatically close positions already open at the broker.</p>
+     </div>
+
      <form id="ctrader-demo-order-form" class="auth-form">
       <label>TRADING SYMBOL<select id="ctrader-order-symbol" required><option value="">Load demo symbols first</option></select></label>
       <div class="form-grid">
