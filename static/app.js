@@ -560,30 +560,6 @@ if(ctraderReturn==="authorized"){toast("cTrader authorization received. Account 
 if(ctraderReturn==="error"){toast("cTrader authorization was not completed. Please try again.");}
 if(ctraderReturn){const cleanUrl=window.location.pathname+window.location.hash;window.history.replaceState({},document.title,cleanUrl);}
 
-async function loadBottomAd(){
- const slot=$("quantum-bottom-ad"),fallback=$("ad-fallback");
- if(!slot||slot.dataset.initialized==="true")return;
- try{
-  const response=await fetch("/api/ads/config",{headers:{"Accept":"application/json"}});
-  if(!response.ok)return;
-  const config=await response.json();
-  if(!config.enabled||!/^ca-pub-\d+$/.test(config.client_id||"")||!/^\d+$/.test(config.slot_id||""))return;
-  slot.setAttribute("data-ad-client",config.client_id);
-  slot.setAttribute("data-ad-slot",config.slot_id);
-  slot.style.display="block";
-  slot.dataset.initialized="true";
-  if(fallback)fallback.hidden=true;
-  const scriptId="google-adsense-loader";
-  const renderAd=()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({});}catch(error){slot.style.display="none";if(fallback)fallback.hidden=false;}};
-  if(document.getElementById(scriptId)){renderAd();return;}
-  const script=document.createElement("script");
-  script.id=scriptId;script.async=true;script.crossOrigin="anonymous";
-  script.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client="+encodeURIComponent(config.client_id);
-  script.onload=renderAd;
-  script.onerror=()=>{slot.style.display="none";if(fallback)fallback.hidden=false;};
-  document.head.appendChild(script);
- }catch(error){/* Ads are optional; never block the trading terminal. */}
-}
-loadBottomAd();
+
 
 })();
