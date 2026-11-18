@@ -34,6 +34,13 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
     assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
 
 
+def test_removed_deriv_and_metatrader_routes_are_not_exposed():
+    assert client.get("/api/deriv/markets").status_code == 404
+    assert client.get("/api/deriv/demo/status").status_code == 404
+    assert client.get("/api/mt4/bridge/status").status_code == 404
+    assert client.get("/api/connections/metatrader").status_code == 404
+
+
 def test_registration_is_closed_by_default(monkeypatch):
     monkeypatch.delenv("ALLOW_CUSTOMER_SIGNUP", raising=False)
     response = client.post("/api/auth/register", json={
