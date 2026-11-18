@@ -31,7 +31,6 @@ from app.crypto_futures_paper import build_paper_trade_plan
 
 from app.virtual_platforms import init_db as init_virtual_db, snapshot as virtual_snapshot, positions as virtual_positions, open_position as open_virtual_position, settle as settle_virtual_position
 
-from app.olymp_paper import (init_db as init_olymp_paper_db, open_trade as open_olymp_paper_trade, list_trades as list_olymp_paper_trades, settle_trade as settle_olymp_paper_trade, set_account_balance as set_olymp_paper_balance, get_risk_snapshot as olymp_paper_risk_snapshot)
 
 from app.auth import (
     authenticate_customer, create_customer, create_session,
@@ -128,29 +127,6 @@ class CTraderEmergencyStopRequest(BaseModel):
 class CTraderDemoAuthorizationRequest(BaseModel):
     enabled: bool
     acknowledge_risk: bool = False
-
-
-class OlympSignalRequest(BaseModel):
-    candles: list[dict] = Field(min_length=50, max_length=500)
-    timeframe: str = Field(min_length=2, max_length=3)
-
-
-class OlympPaperTradeRequest(BaseModel):
-    symbol: str = Field(min_length=2, max_length=30)
-    direction: str
-    stake: float = Field(gt=0, le=1000000000)
-    expiry_minutes: int = Field(ge=1, le=60)
-    reference_price: float = Field(gt=0)
-    price_source: str = Field(min_length=3, max_length=80)
-
-
-class OlympPaperBalanceRequest(BaseModel):
-    account_balance: float = Field(gt=0, le=1000000000)
-
-
-class OlympPaperSettlementRequest(BaseModel):
-    exit_price: float = Field(gt=0)
-    payout_rate: float = Field(gt=0, le=1, default=0.82)
 
 
 def _check_same_origin(request: Request) -> None:
@@ -277,7 +253,6 @@ async def lifespan(app: FastAPI):
     init_auth_db()
     init_subscription_db()
     init_paper_db()
-    init_olymp_paper_db()
     init_virtual_db()
     init_mexc_vault_db()
     init_mexc_auto_db()
@@ -1108,96 +1083,6 @@ async def mexc_auto_stop(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"strategy": stop_mexc_auto_strategy(customer["id"]),
             "note": "New entries stopped. Existing exchange positions remain open with their attached TP/SL orders."}
-
-
-@app.post("/api/olymp-trade/analyze")
-async def analyze_olymp_trade_signal(payload: OlympSignalRequest, request: Request):
-    """Analyze caller-supplied completed candles; no broker connection is made."""
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    from app.olymp_trade import analyze_signal
-    try:
-        result = analyze_signal(payload.candles, payload.timeframe)
-        result["customer_visible_data_note"] = "Candles were supplied by the caller and have not been verified against Olymp Trade."
-        return result
-    except (ValueError, KeyError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/olymp-trade/paper/settings")
-async def get_olymp_paper_settings(request: Request):
-    init_auth_db()
-    init_olymp_paper_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"broker": "olymp_trade", "mode": "paper",
-            "risk": olymp_paper_risk_snapshot(customer["id"])}
-
-
-@app.put("/api/olymp-trade/paper/settings")
-async def update_olymp_paper_settings(payload: OlympPaperBalanceRequest, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_olymp_paper_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        return {"broker": "olymp_trade", "mode": "paper",
-                "risk": set_olymp_paper_balance(customer["id"], payload.account_balance)}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/olymp-trade/paper/trades")
-async def olymp_trade_paper_trades(request: Request):
-    init_auth_db()
-    init_olymp_paper_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"broker": "olymp_trade", "mode": "paper", "execution": "simulated_only",
-            "trades": list_olymp_paper_trades(customer["id"])}
-
-
-@app.post("/api/olymp-trade/paper/trades")
-async def create_olymp_trade_paper_trade(payload: OlympPaperTradeRequest, request: Request,
-                                         idempotency_key: str = Header(default="", alias="Idempotency-Key")):
-    _check_same_origin(request)
-    init_auth_db()
-    init_olymp_paper_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        trade = open_olymp_paper_trade(customer["id"], payload.symbol, payload.direction,
-            payload.stake, payload.expiry_minutes, payload.reference_price, idempotency_key, payload.price_source)
-        return {"broker": "olymp_trade", "mode": "paper", "execution": "simulated_only",
-                "broker_order_sent": False, "trade": trade}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/olymp-trade/paper/trades/{trade_id}/settle")
-async def settle_olymp_trade_paper_trade(trade_id: str, payload: OlympPaperSettlementRequest,
-                                         request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_olymp_paper_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        trade = settle_olymp_paper_trade(customer["id"], trade_id, payload.exit_price, payload.payout_rate)
-        if not trade:
-            raise HTTPException(status_code=404, detail="Open Olymp Trade paper position not found")
-        return {"broker": "olymp_trade", "mode": "paper", "execution": "simulated_only",
-                "broker_order_sent": False, "trade": trade}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get("/api/paper/trades")
