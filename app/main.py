@@ -14,27 +14,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_order_book
 from app.mexc_futures_market_data import get_candles, get_market_overview
-from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
+from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES\nfrom app.forex_market_data import get_candles as get_forex_candles, get_market_overview as get_forex_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
-from app.metaapi_cloud import (init_db as init_metaapi_db, metadata as metaapi_metadata, connect_customer_account as create_metaapi_account, account_status as get_metaapi_account_status, disconnect_customer_account as delete_metaapi_account, MetaApiError)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
 from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, CTraderPermissionError)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
-from app.deriv_demo import DerivConfigError, DerivConnectionError, get_demo_status, get_demo_status_for_credentials
-from app.deriv_market_data import DerivMarketDataError, get_active_markets as get_deriv_markets, get_candles as get_deriv_candles, get_available_contracts as get_deriv_contracts, get_contract_proposal as get_deriv_proposal, get_tick_quotes as get_deriv_tick_quotes
 from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
-from app.mt4_bridge import (init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge, bridge_status as mt4_bridge_status, delete_bridge as delete_mt4_bridge, sync_snapshot as sync_mt4_snapshot, pending_commands as mt4_pending_commands, command_result as mt4_command_result, enqueue_demo_order as enqueue_mt4_demo_order, order_status as mt4_order_status, sync_candles as sync_mt4_candles, get_mt4_candles, BridgeAuthError)
-from app.mt4_autotrader import (init_db as init_mt4_auto_db, demo_execution_enabled as mt4_demo_execution_enabled, get_settings as mt4_auto_status, start_auto_trader, stop_auto_trader, process_active_auto_traders)
 from app.paper_trading import (init_paper_db, open_paper_trade, list_paper_trades, close_paper_trade)
 from app.crypto_futures_paper import build_paper_trade_plan
-from app.credential_vault import (init_vault_db, save_demo, load_demo, metadata as demo_credential_metadata, delete_demo, VaultError)
-from app.deriv_trading import (init_deriv_trading_db, reserve_trade, mark_trade_failed, mark_trade_open, list_customer_trades, list_open_trades, risk_snapshot, execute_demo_binary_trade, get_demo_contract_status, apply_contract_update, DerivExecutionError)
 
 from app.virtual_platforms import init_db as init_virtual_db, snapshot as virtual_snapshot, positions as virtual_positions, open_position as open_virtual_position, settle as settle_virtual_position
 
@@ -77,11 +70,6 @@ class Credentials(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
-class DerivDemoCredentials(BaseModel):
-    account_id: str = Field(min_length=4, max_length=64)
-    token: str = Field(min_length=1, max_length=4096)
-
-
 class MexcCredentials(BaseModel):
     api_key: str = Field(min_length=1, max_length=256)
     api_secret: str = Field(min_length=1, max_length=512)
@@ -104,34 +92,6 @@ class MexcLiveEntryRequest(BaseModel):
     timeframe: str = Field(default="1h", min_length=2, max_length=3)
     risk_percent: float = Field(default=0.5, gt=0, le=1)
     leverage: int = Field(default=1, ge=1, le=20)
-
-
-class MetaTraderCloudConnectRequest(BaseModel):
-    platform: str = Field(min_length=3, max_length=3)
-    broker: str = Field(default="JustMarkets", min_length=2, max_length=80)
-    server: str = Field(min_length=2, max_length=120)
-
-
-class MT4BridgeRegistration(BaseModel):
-    account_login: str = Field(min_length=5, max_length=12)
-    account_server: str = Field(min_length=2, max_length=120)
-
-
-class MT4DemoOrderRequest(BaseModel):
-    symbol: str = Field(min_length=3, max_length=12)
-    side: str
-    lots: float = Field(gt=0, le=0.10)
-    stop_loss: float = Field(gt=0)
-    take_profit: float = Field(gt=0)
-
-
-class MT4AutoStartRequest(BaseModel):
-    symbol: str = Field(min_length=3, max_length=12)
-    timeframe: str = Field(min_length=2, max_length=3)
-    lots: float = Field(gt=0, le=0.10)
-    stop_atr: float = Field(ge=0.5, le=5, default=1.5)
-    target_atr: float = Field(ge=0.5, le=8, default=2.0)
-    max_drawdown_pct: float = Field(ge=1, le=10, default=10.0)
 
 
 class CTraderAccountSelection(BaseModel):
@@ -193,13 +153,6 @@ class OlympPaperSettlementRequest(BaseModel):
     payout_rate: float = Field(gt=0, le=1, default=0.82)
 
 
-class DerivDemoTradeRequest(BaseModel):
-    symbol: str = Field(min_length=2, max_length=30)
-    contract_type: str = Field(min_length=3, max_length=4)
-    stake: float = Field(gt=0, le=2)
-    duration_minutes: int = Field(ge=1, le=60)
-
-
 def _check_same_origin(request: Request) -> None:
     origin = request.headers.get("origin")
     if not origin:
@@ -222,52 +175,12 @@ def _persistent_credentials_ready() -> bool:
     )
 
 
-def _demo_execution_enabled() -> bool:
-    return (
-        _persistent_credentials_ready()
-        and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
-    )
-
-
 def _session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE, token, max_age=7 * 24 * 60 * 60,
         httponly=True, secure=os.getenv("ENVIRONMENT", "development").lower() == "production",
         samesite="lax", path="/",
     )
-
-
-async def _deriv_demo_monitor_loop():
-    """Refresh open customer demo contracts while the service is running."""
-    while True:
-        try:
-            for trade in list_open_trades():
-                if trade.get("status") != "open" or not trade.get("contract_id"):
-                    continue
-                credentials = load_demo(trade["customer_id"])
-                if not credentials:
-                    continue
-                try:
-                    contract = await get_demo_contract_status(
-                        credentials["token"], credentials["account_id"],
-                        os.getenv("DERIV_APP_ID", "").strip(), trade["contract_id"],
-                    )
-                    apply_contract_update(trade["customer_id"], trade["id"], contract)
-                except Exception as exc:
-                    logger.warning("Deriv demo contract refresh failed for trade %s: %s", trade["id"], str(exc)[:180])
-        except Exception:
-            logger.exception("Deriv demo monitor loop failed")
-        await asyncio.sleep(15)
-
-
-async def _mt4_auto_monitor_loop():
-    """Run customer-isolated MT4 auto strategies against completed broker candles."""
-    while True:
-        try:
-            await asyncio.to_thread(process_active_auto_traders)
-        except Exception:
-            logger.exception("MT4 demo auto-trader monitor loop failed")
-        await asyncio.sleep(15)
 
 
 async def _mexc_auto_monitor_loop():
@@ -383,7 +296,6 @@ async def lifespan(app: FastAPI):
     mexc_auto_task = None
     if _demo_execution_enabled():
         monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
-    if mt4_demo_execution_enabled():
         mt4_auto_task = asyncio.create_task(_mt4_auto_monitor_loop())
     if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true":
         mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
@@ -429,18 +341,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        if monitor_task is not None:
-            monitor_task.cancel()
-            try:
-                await monitor_task
-            except asyncio.CancelledError:
-                pass
-        if mt4_auto_task is not None:
-            mt4_auto_task.cancel()
-            try:
-                await mt4_auto_task
-            except asyncio.CancelledError:
-                pass
         if mexc_auto_task is not None:
             mexc_auto_task.cancel()
             try:
@@ -930,252 +830,6 @@ async def disconnect_ctrader_account(request: Request):
     return {"deleted": delete_ctrader_authorization(customer["id"])}
 
 
-@app.get("/api/connections/metatrader")
-async def metatrader_connections(request: Request):
-    init_auth_db()
-    init_metaapi_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"accounts": metaapi_metadata(customer["id"]), "provider_configured": bool(os.getenv("METAAPI_TOKEN", "").strip())}
-
-
-@app.post("/api/connections/metatrader")
-async def create_metatrader_cloud_connection(payload: MetaTraderCloudConnectRequest, request: Request):
-    """Create a cloud MT4/MT5 account and return a one-day hosted credential setup link."""
-    _check_same_origin(request)
-    init_auth_db()
-    init_metaapi_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        result = await create_metaapi_account(customer["id"], payload.platform, payload.broker, payload.server)
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except MetaApiError as exc:
-        message = str(exc)
-        status = 503 if "not configured" in message.lower() else 502
-        raise HTTPException(status_code=status, detail=message)
-
-
-@app.get("/api/connections/metatrader/{platform}")
-async def metatrader_cloud_connection_status(platform: str, request: Request):
-    init_auth_db()
-    init_metaapi_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        return await get_metaapi_account_status(customer["id"], platform)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except MetaApiError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-
-
-@app.delete("/api/connections/metatrader/{platform}")
-async def disconnect_metatrader_cloud_account(platform: str, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_metaapi_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        return {"deleted": await delete_metaapi_account(customer["id"], platform)}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except MetaApiError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-
-
-@app.post("/api/mt4/bridge/register")
-async def register_mt4_bridge_endpoint(payload: MT4BridgeRegistration, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        result = register_mt4_bridge(customer["id"], payload.account_login, payload.account_server)
-        return {**result, "ea_download": "/static/mt4/QuantumAI_JustMarkets_MT4.mq4",
-                "instructions": "Install the EA in a JustMarkets MT4 demo terminal. The bridge token is shown once; store it securely."}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/mt4/bridge/status")
-async def get_mt4_bridge_status(request: Request):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return mt4_bridge_status(customer["id"])
-
-
-@app.delete("/api/mt4/bridge")
-async def disconnect_mt4_bridge(request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"disconnected": delete_mt4_bridge(customer["id"]), "execution_enabled": False}
-
-
-@app.post("/api/mt4/bridge/candles")
-async def mt4_bridge_candles(payload: dict, authorization: str = Header(default="", alias="Authorization")):
-    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
-    try:
-        return sync_mt4_candles(token, payload)
-    except BridgeAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/mt4/candles/{symbol}")
-async def get_customer_mt4_candles(request: Request, symbol: str, timeframe: str = Query(default="15m")):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    try:
-        data = get_mt4_candles(customer["id"], symbol, timeframe)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    if not data:
-        raise HTTPException(status_code=404, detail="No fresh MT4 broker candles for this symbol/timeframe")
-    return data
-
-
-@app.get("/api/mt4/positions")
-async def get_mt4_positions(request: Request):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    snapshot = mt4_bridge_status(customer["id"])
-    return {"broker": "justmarkets", "platform": "mt4", **snapshot}
-
-
-@app.post("/api/mt4/bridge/sync")
-async def mt4_bridge_sync(payload: dict, authorization: str = Header(default="", alias="Authorization")):
-    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
-    try:
-        return sync_mt4_snapshot(token, payload)
-    except BridgeAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/mt4/bridge/commands")
-async def mt4_bridge_commands(
-    account_login: str,
-    account_server: str,
-    company: str,
-    authorization: str = Header(default="", alias="Authorization"),
-):
-    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
-    try:
-        commands = mt4_pending_commands(token, account_login, account_server, company)
-        lines = ["|".join([
-            item["command_id"], item["symbol"], item["side"],
-            str(item["lots"]), str(item["stop_loss"]), str(item["take_profit"]),
-        ]) for item in commands]
-        return Response(content="\n".join(lines), media_type="text/plain")
-    except BridgeAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
-
-
-@app.post("/api/mt4/bridge/command-result")
-async def mt4_bridge_command_result(
-    payload: dict,
-    authorization: str = Header(default="", alias="Authorization"),
-):
-    token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else ""
-    try:
-        return mt4_command_result(
-            token, str(payload.get("account_login") or ""),
-            str(payload.get("account_server") or ""), str(payload.get("company") or ""),
-            str(payload.get("command_id") or ""), str(payload.get("status") or ""),
-            int(payload.get("ticket") or 0), str(payload.get("message") or ""),
-        )
-    except BridgeAuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/mt4/orders")
-async def create_mt4_demo_order(payload: MT4DemoOrderRequest, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_subscription_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    if not subscription_for_customer(customer["id"]).get("active"):
-        raise HTTPException(status_code=403, detail="An active membership is required to submit an MT4 demo order")
-    try:
-        return enqueue_mt4_demo_order(customer["id"], payload.symbol, payload.side,
-                                       payload.lots, payload.stop_loss, payload.take_profit)
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.get("/api/mt4/orders")
-async def list_mt4_demo_orders(request: Request):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"orders": mt4_order_status(customer["id"]), "execution_mode": "demo_only"}
-
-
-@app.get("/api/mt4/auto")
-async def get_mt4_auto_trader_status(request: Request):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {**mt4_auto_status(customer["id"]), "server_execution_enabled": mt4_demo_execution_enabled()}
-
-
-@app.post("/api/mt4/auto/start")
-async def start_mt4_auto_trader(payload: MT4AutoStartRequest, request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_subscription_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    if not subscription_for_customer(customer["id"]).get("active"):
-        raise HTTPException(status_code=403, detail="An active membership is required to start MT4 demo auto trading")
-    try:
-        return start_auto_trader(customer["id"], payload.symbol, payload.timeframe,
-            payload.lots, payload.stop_atr, payload.target_atr, payload.max_drawdown_pct)
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-
-@app.post("/api/mt4/auto/stop")
-async def stop_mt4_auto_trader(request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return stop_auto_trader(customer["id"])
-
-
 @app.get("/api/auth/config")
 async def auth_config():
     """Expose non-sensitive account availability to the dashboard."""
@@ -1193,16 +847,10 @@ async def health(request: Request):
         "telegram_bot_running": bool(bot and bot.running),
         "telegram_webhook_active": bool(bot and getattr(request.app.state, "telegram_webhook_secret", "")),
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
-        "deriv_demo_connector": "available",
         "customer_auth": "available",
         "credential_storage_ready": _persistent_credentials_ready(),
-        "metatrader_cloud_provider_configured": bool(os.getenv("METAAPI_TOKEN", "").strip()),
         "ctrader_oauth_configured": ctrader_oauth_configured(),
         "ctrader_account_execution_enabled": False,
-        "deriv_demo_execution_enabled": _demo_execution_enabled(),
-        "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
-        "mt4_demo_execution_enabled": mt4_demo_execution_enabled(),
-        "mt4_auto_trader_monitor_running": bool(mt4_demo_execution_enabled()),
         "mexc_futures_execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "mexc_auto_trader_monitor_running": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "order_execution": False,
@@ -1257,60 +905,6 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax",
                            secure=os.getenv("ENVIRONMENT", "development").lower() == "production")
     return {"authenticated": False}
-
-
-@app.get("/api/connections/deriv/demo")
-async def deriv_demo_connection(request: Request):
-    init_auth_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return demo_credential_metadata(customer["id"])
-
-
-@app.post("/api/connections/deriv/demo/verify")
-async def verify_and_save_deriv_demo_connection(payload: DerivDemoCredentials, request: Request):
-    """Verify the customer's virtual Deriv account before storing its encrypted token."""
-    _check_same_origin(request)
-    init_auth_db()
-    init_vault_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    app_id = os.getenv("DERIV_APP_ID", "").strip()
-    if not app_id:
-        raise HTTPException(status_code=503, detail="Deriv application ID is not configured on the server")
-    try:
-        verified = await get_demo_status_for_credentials(payload.token, payload.account_id, app_id)
-        persistent_storage_ready = _persistent_credentials_ready()
-        if not persistent_storage_ready:
-            return {
-                **verified,
-                "credential_saved": False,
-                "persistence_required": True,
-                "note": "Account verified, but credentials were not saved because persistent encrypted storage is not configured.",
-            }
-        saved = save_demo(customer["id"], payload.account_id, payload.token)
-        return {**verified, "credential_saved": saved.get("connected", False), "persistence_required": False}
-    except DerivConfigError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivConnectionError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except VaultError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-
-
-@app.delete("/api/connections/deriv/demo")
-async def remove_deriv_demo_connection(request: Request):
-    _check_same_origin(request)
-    init_auth_db()
-    init_vault_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {"deleted": delete_demo(customer["id"])}
 
 
 @app.get("/api/connections/mexc")
@@ -1525,77 +1119,6 @@ async def mexc_auto_stop(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"strategy": stop_mexc_auto_strategy(customer["id"]),
             "note": "New entries stopped. Existing exchange positions remain open with their attached TP/SL orders."}
-
-
-@app.get("/api/deriv/demo/trades")
-async def deriv_demo_trades(request: Request):
-    if not _persistent_credentials_ready():
-        raise HTTPException(status_code=503, detail="Durable encrypted storage is required for demo trade history")
-    init_auth_db()
-    init_deriv_trading_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    return {
-        "mode": "demo",
-        "execution_enabled": _demo_execution_enabled(),
-        "risk": risk_snapshot(customer["id"]),
-        "trades": list_customer_trades(customer["id"]),
-    }
-
-
-@app.post("/api/deriv/demo/trades")
-async def create_deriv_demo_trade(
-    payload: DerivDemoTradeRequest,
-    request: Request,
-    idempotency_key: str = Header(default="", alias="Idempotency-Key"),
-):
-    _check_same_origin(request)
-    if not _demo_execution_enabled():
-        raise HTTPException(
-            status_code=503,
-            detail="Deriv demo execution is locked until persistent encrypted storage and the explicit demo-trading switch are enabled",
-        )
-    init_auth_db()
-    init_vault_db()
-    init_deriv_trading_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    credentials = load_demo(customer["id"])
-    if not credentials:
-        raise HTTPException(status_code=409, detail="Connect and verify your own Deriv demo account first")
-    try:
-        active = await get_deriv_markets("all")
-        market = next((item for item in active if item["symbol"] == payload.symbol and not item["is_suspended"]), None)
-        if not market:
-            raise HTTPException(status_code=400, detail="Selected Deriv market is not currently available")
-        reserved, duplicate = reserve_trade(
-            customer["id"], credentials["account_id"], payload.symbol,
-            payload.contract_type, payload.stake, payload.duration_minutes,
-            idempotency_key,
-        )
-        if duplicate:
-            return {"trade": reserved, "duplicate": True, "mode": "demo",
-                    "note": "This idempotency key was already used; no second order was sent."}
-        try:
-            result = await execute_demo_binary_trade(
-                credentials["token"], credentials["account_id"],
-                os.getenv("DERIV_APP_ID", "").strip(), payload.symbol,
-                payload.contract_type, payload.stake, payload.duration_minutes,
-            )
-            trade = mark_trade_open(customer["id"], reserved["id"], result)
-            return {"trade": trade, "duplicate": False, "mode": "demo",
-                    "note": "Deriv demo contract purchased. Contract settlement is monitored by the service."}
-        except DerivExecutionError as exc:
-            mark_trade_failed(customer["id"], reserved["id"], str(exc), uncertain=exc.uncertain)
-            if exc.uncertain:
-                raise HTTPException(status_code=409, detail=str(exc) + ". The order is marked UNKNOWN and new trades are blocked until reconciled.")
-            raise HTTPException(status_code=502, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Could not verify the selected Deriv market")
 
 
 @app.post("/api/olymp-trade/analyze")
@@ -1938,152 +1461,53 @@ async def crypto_backtest(
         raise HTTPException(status_code=502, detail="Crypto historical data is temporarily unavailable")
 
 
-@app.get("/api/backtest/deriv/{symbol}")
-async def deriv_backtest(
-    symbol: str,
-    category: str = Query(default="forex"),
-    timeframe: str = Query(default="15m"),
-    lookahead_candles: int = Query(default=1, ge=1, le=4),
-):
-    """Evaluate historical CALL/PUT direction without placing orders."""
-    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
-                 "1h": 3600, "4h": 14400, "1d": 86400}
-    if category not in {"forex", "synthetic"}:
-        raise HTTPException(status_code=400, detail="Category must be forex or synthetic")
-    if timeframe not in intervals:
-        raise HTTPException(status_code=400, detail="Unsupported backtest timeframe")
-    try:
-        markets_data = await get_deriv_markets(category)
-        if not any(item["symbol"] == symbol for item in markets_data):
-            raise HTTPException(status_code=400, detail="Symbol is not in the selected Deriv market category")
-        candle_data = await get_deriv_candles(symbol, intervals[timeframe], 200)
-        result = backtest_candles(candle_data, timeframe, lookahead_candles)
-        result.update({"symbol": symbol, "category": category,
-                       "source": "Deriv public historical candles",
-                       "execution_enabled": False})
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv historical data is temporarily unavailable")
-
-
 @app.get("/api/risk/policy")
 async def risk_policy():
     """Return the fixed demo-only risk policy; no order execution is enabled."""
     return evaluate_demo_risk(0.0, 0, 0)
 
 
-@app.get("/api/deriv/proposal/{symbol}")
-async def deriv_contract_quote(
-    symbol: str,
-    contract_type: str = Query(default="CALL"),
-    amount: float = Query(default=1.0, gt=0, le=2.0),
-    duration: int = Query(default=5),
-    currency: str = Query(default="USD", min_length=3, max_length=3),
-):
-    """Return a public binary contract price quote; never purchases the contract."""
+@app.get("/api/market-data/forex/markets")
+async def forex_markets():
     try:
-        return await get_deriv_proposal(symbol, contract_type, amount, duration, "m", currency)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv price quote is temporarily unavailable")
+        markets = await get_forex_market_overview()
+        return {"source": "Yahoo Finance public Forex data", "category": "forex",
+                "account_connected": False, "execution_enabled": False, "markets": markets}
+    except (ValueError, httpx.HTTPError):
+        raise HTTPException(status_code=502, detail="Public Forex market data is temporarily unavailable")
 
 
-@app.get("/api/signals/deriv/{symbol}")
-async def deriv_signal(
-    symbol: str,
-    category: str = Query(default="forex"),
-    timeframe: str = Query(default="15m"),
-):
-    """Calculate a transparent CALL/PUT/WAIT indicator from Deriv public candles."""
-    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
-                 "1h": 3600, "4h": 14400, "1d": 86400}
-    if category not in {"forex", "synthetic"}:
-        raise HTTPException(status_code=400, detail="Category must be forex or synthetic")
-    if timeframe not in intervals:
-        raise HTTPException(status_code=400, detail="Unsupported signal timeframe")
+@app.get("/api/market-data/forex/candles/{symbol}")
+async def forex_candles(symbol: str, granularity: int = Query(default=900),
+                        count: int = Query(default=100, ge=20, le=200)):
     try:
-        markets_data = await get_deriv_markets(category)
-        if not any(item["symbol"] == symbol for item in markets_data):
-            raise HTTPException(status_code=400, detail="Symbol is not in the selected Deriv market category")
-        candle_data = await get_deriv_candles(symbol, intervals[timeframe], 100)
-        result = analyze_candles(candle_data, timeframe)
-        result.update({
-            "symbol": symbol,
-            "category": category,
-            "market_type": "binary_options_underlying" if category == "synthetic" else "forex",
-            "source": "Deriv public market candles",
-            "execution_enabled": False,
-        })
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv data is temporarily unavailable; no signal was generated")
-
-
-@app.get("/api/deriv/markets")
-async def deriv_markets(category: str = Query(default="all")):
-    """Read-only public Forex and synthetic underlyings available on Deriv."""
-    try:
-        markets = (await get_deriv_markets(category))[:25]
-        quotes = {}
-        if markets:
-            try:
-                quotes = await get_deriv_tick_quotes([item["symbol"] for item in markets])
-            except DerivMarketDataError:
-                quotes = {}
-        for item in markets:
-            item["price"] = quotes.get(item["symbol"])
-        return {"source": "Deriv public market data", "category": category,
-                "account_connected": False, "execution_enabled": False,
-                "markets": markets}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv public market data is temporarily unavailable")
-
-
-@app.get("/api/deriv/candles/{symbol}")
-async def deriv_candles(symbol: str, granularity: int = Query(default=900), count: int = Query(default=100, ge=20, le=200)):
-    """Read-only OHLC candles for a verified active Deriv Forex/synthetic symbol."""
-    try:
-        return {"symbol": symbol, "granularity": granularity, "source": "Deriv public market data",
-                "candles": await get_deriv_candles(symbol, granularity, count),
+        return {"symbol": symbol, "granularity": granularity,
+                "source": "Yahoo Finance public Forex data",
+                "candles": await get_forex_candles(symbol, granularity, count),
                 "execution_enabled": False}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv public candle data is temporarily unavailable")
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Public Forex candles are temporarily unavailable")
 
 
-@app.get("/api/deriv/contracts/{symbol}")
-async def deriv_contracts(symbol: str):
-    """Discover binary/option contract types; this does not create a proposal or place an order."""
+@app.get("/api/signals/forex/{symbol}")
+async def forex_signal(symbol: str, timeframe: str = Query(default="15m")):
+    intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+                 "1h": 3600, "4h": 14400, "1d": 86400}
+    if timeframe not in intervals:
+        raise HTTPException(status_code=400, detail="Unsupported signal timeframe")
     try:
-        return {"source": "Deriv public contract metadata", "execution_enabled": False,
-                **await get_deriv_contracts(symbol)}
+        candles = await get_forex_candles(symbol, intervals[timeframe], 100)
+        result = analyze_candles(candles, timeframe)
+        result.update({"symbol": symbol, "category": "forex", "market_type": "forex",
+                       "source": "Yahoo Finance public market candles",
+                       "execution_enabled": False})
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    except DerivMarketDataError:
-        raise HTTPException(status_code=502, detail="Deriv contract information is temporarily unavailable")
-
-
-@app.get("/api/deriv/demo/status")
-async def deriv_demo_status(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
-    expected = os.getenv("QUANTUM_ADMIN_API_KEY", "").strip()
-    if not expected:
-        raise HTTPException(status_code=503, detail="Admin status check is not configured")
-    if not x_admin_key or not hmac.compare_digest(x_admin_key, expected):
-        raise HTTPException(status_code=403, detail="Admin authorization required")
-    try:
-        return await get_demo_status()
-    except DerivConfigError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-    except (DerivConnectionError, httpx.HTTPError):
-        raise HTTPException(status_code=502, detail="Deriv demo account check failed; verify demo credentials and permissions")
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="Public Forex data is temporarily unavailable; no signal was generated")
 
 
 @app.head("/", include_in_schema=False)
