@@ -49,3 +49,5 @@ main{width:min(1180px,100%);margin:0 auto;padding:20px clamp(12px,3vw,28px)}.pag
 /* HypeLab publisher banner slot */
 .ad-inner hype-banner{display:block;flex:1 1 320px;min-width:0;max-width:900px;min-height:50px;width:100%}
 @media(max-width:600px){.ad-inner hype-banner{flex-basis:250px;min-height:44px}}
+
+.ad-status{font-size:8px;color:#7e9bb7;letter-spacing:.2px;white-space:nowrap}.ad-status[hidden]{display:none}
