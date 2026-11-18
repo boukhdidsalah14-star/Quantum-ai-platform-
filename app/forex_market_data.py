@@ -93,12 +93,20 @@ async def get_candles(symbol: str, granularity: int = 900, count: int = 100) -> 
 
 async def get_market_overview() -> list[dict[str, Any]]:
     async def one(symbol: str) -> dict[str, Any]:
-        candles = await get_candles(symbol, 900, 2)
-        last = candles[-1] if candles else {}
-        return {
-            "symbol": symbol,
-            "display_name": LABELS[symbol],
-            "price": last.get("close"),
-            "is_suspended": not bool(last),
-        }
+        try:
+            candles = await get_candles(symbol, 900, 2)
+            last = candles[-1] if candles else {}
+            return {
+                "symbol": symbol,
+                "display_name": LABELS[symbol],
+                "price": last.get("close"),
+                "is_suspended": not bool(last),
+            }
+        except (ValueError, httpx.HTTPError):
+            return {
+                "symbol": symbol,
+                "display_name": LABELS[symbol],
+                "price": None,
+                "is_suspended": True,
+            }
     return await asyncio.gather(*(one(symbol) for symbol in SYMBOLS))
