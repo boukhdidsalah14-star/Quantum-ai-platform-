@@ -34,21 +34,6 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
     assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
 
 
-def test_deriv_demo_status_requires_credentials(monkeypatch):
-    monkeypatch.setenv("QUANTUM_ADMIN_API_KEY", "test-admin-key")
-    monkeypatch.delenv("DERIV_DEMO_TOKEN", raising=False)
-    monkeypatch.delenv("DERIV_DEMO_ACCOUNT_ID", raising=False)
-    monkeypatch.delenv("DERIV_APP_ID", raising=False)
-    response = client.get("/api/deriv/demo/status", headers={"X-Admin-Key": "test-admin-key"})
-    assert response.status_code == 503
-
-
-def test_deriv_demo_status_rejects_missing_admin_key(monkeypatch):
-    monkeypatch.setenv("QUANTUM_ADMIN_API_KEY", "test-admin-key")
-    response = client.get("/api/deriv/demo/status")
-    assert response.status_code == 403
-
-
 def test_registration_is_closed_by_default(monkeypatch):
     monkeypatch.delenv("ALLOW_CUSTOMER_SIGNUP", raising=False)
     response = client.post("/api/auth/register", json={
@@ -102,26 +87,15 @@ def test_customer_password_and_duplicate_validation(monkeypatch, tmp_path):
 
 
 
-def test_broker_registry_is_honest_and_execution_stays_disabled(monkeypatch):
-    monkeypatch.delenv("DERIV_APP_ID", raising=False)
-    monkeypatch.delenv("DERIV_DEMO_ACCOUNT_ID", raising=False)
-    monkeypatch.delenv("DERIV_DEMO_TOKEN", raising=False)
+def test_broker_registry_contains_only_selected_platforms():
     response = client.get("/api/brokers")
     assert response.status_code == 200
     body = response.json()
     brokers = {item["id"]: item for item in body["brokers"]}
-    assert set(brokers) == {"justmarkets_mt4", "deriv", "quotex", "expert_option", "olymp_trade", "mexc"}
-    assert brokers["justmarkets_mt4"]["connection_verified"] is False
-    assert brokers["justmarkets_mt4"]["execution_enabled"] is False
-    assert brokers["justmarkets_mt4"]["real_execution_enabled"] is False
-    assert brokers["deriv"]["connection_verified"] is False
-    assert brokers["mexc"]["status"] == "read_only_customer_account_connection_implemented"
-    assert brokers["mexc"]["real_execution_enabled"] is False
-    assert brokers["olymp_trade"]["status"] == "signal_and_paper_foundation"
-    assert brokers["olymp_trade"]["real_execution_enabled"] is False
+    assert set(brokers) == {"iq_option", "mexc", "ctrader", "ic_markets"}
     assert body["execution_enabled"] is False
     assert all(item["execution_enabled"] is False for item in body["brokers"])
-
+    assert all(item["real_execution_enabled"] is False for item in body["brokers"])
 
 
 def test_login_attempt_bucket_limits_and_resets(monkeypatch, tmp_path):
@@ -312,57 +286,32 @@ def test_auth_config_reports_registration_enabled(monkeypatch):
 
 
 
-def test_deriv_public_forex_market_endpoint(monkeypatch):
-    async def fake_markets(category):
-        assert category == "forex"
-        return [{"symbol": "frxEURUSD", "name": "EUR/USD", "market": "forex"}]
-    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
-    response = client.get("/api/deriv/markets?category=forex")
+def test_independent_forex_markets_endpoint(monkeypatch):
+    async def fake_markets():
+        return [{"symbol": "frxEURUSD", "display_name": "EUR/USD", "price": 1.1, "is_suspended": False}]
+    monkeypatch.setattr(main, "get_forex_market_overview", fake_markets)
+    response = client.get("/api/market-data/forex/markets")
     assert response.status_code == 200
-    body = response.json()
-    assert body["execution_enabled"] is False
-    assert body["markets"][0]["symbol"] == "frxEURUSD"
+    assert response.json()["source"] == "Yahoo Finance public Forex data"
+    assert response.json()["markets"][0]["symbol"] == "frxEURUSD"
 
 
-def test_deriv_public_candles_endpoint(monkeypatch):
+def test_independent_forex_candles_endpoint(monkeypatch):
     async def fake_candles(symbol, granularity, count):
         assert (symbol, granularity, count) == ("frxEURUSD", 900, 40)
-        return [{"time": i, "open": 1.1 + i * 0.0001, "high": 1.101 + i * 0.0001,
-                 "low": 1.099 + i * 0.0001, "close": 1.1005 + i * 0.0001}
-                for i in range(40)]
-    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
-    response = client.get("/api/deriv/candles/frxEURUSD?granularity=900&count=40")
+        return [{"time": i, "open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15} for i in range(40)]
+    monkeypatch.setattr(main, "get_forex_candles", fake_candles)
+    response = client.get("/api/market-data/forex/candles/frxEURUSD?granularity=900&count=40")
     assert response.status_code == 200
-    assert response.json()["candles"][0]["close"] == 1.1005
+    assert response.json()["candles"][0]["close"] == 1.15
     assert response.json()["execution_enabled"] is False
 
 
-def test_deriv_contract_discovery_is_not_execution(monkeypatch):
-    async def fake_contracts(symbol):
-        return {"symbol": symbol, "contracts": [{"contract_type": "CALL"}]}
-    monkeypatch.setattr(main, "get_deriv_contracts", fake_contracts)
-    response = client.get("/api/deriv/contracts/frxEURUSD")
-    assert response.status_code == 200
-    assert response.json()["contracts"][0]["contract_type"] == "CALL"
-    assert response.json()["execution_enabled"] is False
-
-
-def test_deriv_public_market_category_validation(monkeypatch):
-    async def fake_markets(category):
-        raise ValueError("Unsupported Deriv market category")
-    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
-    response = client.get("/api/deriv/markets?category=unknown")
-    assert response.status_code == 400
-
-
-def test_deriv_signal_endpoint_returns_indicator_only(monkeypatch):
-    async def fake_markets(category):
-        return [{"symbol": "frxEURUSD", "market": "forex"}]
+def test_independent_forex_signal_endpoint_is_indicator_only(monkeypatch):
     async def fake_candles(symbol, granularity, count):
         return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 60
-    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
-    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
-    response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=15m")
+    monkeypatch.setattr(main, "get_forex_candles", fake_candles)
+    response = client.get("/api/signals/forex/frxEURUSD?timeframe=15m")
     assert response.status_code == 200
     body = response.json()
     assert body["symbol"] == "frxEURUSD"
@@ -371,68 +320,9 @@ def test_deriv_signal_endpoint_returns_indicator_only(monkeypatch):
     assert body["direction"] in {"CALL", "PUT", "WAIT"}
 
 
-def test_deriv_signal_rejects_unknown_timeframe():
-    response = client.get("/api/signals/deriv/frxEURUSD?category=forex&timeframe=2m")
+def test_independent_forex_signal_rejects_unknown_timeframe():
+    response = client.get("/api/signals/forex/frxEURUSD?timeframe=2m")
     assert response.status_code == 400
-
-
-def test_deriv_signal_rejects_symbol_outside_selected_category(monkeypatch):
-    async def fake_markets(category):
-        return []
-    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
-    response = client.get("/api/signals/deriv/frxEURUSD?category=synthetic&timeframe=15m")
-    assert response.status_code == 400
-
-
-def test_deriv_contract_quote_is_preview_only(monkeypatch):
-    async def fake_quote(symbol, contract_type, amount, duration, duration_unit, currency):
-        assert (symbol, contract_type, amount, duration, duration_unit, currency) == ("R_100", "CALL", 1.0, 5, "m", "USD")
-        return {"symbol": symbol, "contract_type": contract_type, "stake": 1.0,
-                "payout": 1.85, "proposal_id": "test-proposal", "quote_only": True,
-                "execution_enabled": False}
-    monkeypatch.setattr(main, "get_deriv_proposal", fake_quote)
-    response = client.get("/api/deriv/proposal/R_100?contract_type=CALL&amount=1&duration=5")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["quote_only"] is True
-    assert body["execution_enabled"] is False
-    assert body["payout"] == 1.85
-
-
-def test_deriv_contract_quote_stake_is_limited():
-    response = client.get("/api/deriv/proposal/R_100?amount=3")
-    assert response.status_code == 422
-
-
-def test_deriv_contract_quote_rejects_invalid_direction(monkeypatch):
-    async def fake_quote(*args):
-        raise ValueError("Only CALL and PUT contract quotes are supported")
-    monkeypatch.setattr(main, "get_deriv_proposal", fake_quote)
-    response = client.get("/api/deriv/proposal/R_100?contract_type=UP")
-    assert response.status_code == 400
-
-
-def test_deriv_backtest_endpoint_is_read_only(monkeypatch):
-    async def fake_markets(category):
-        return [{"symbol": "R_100", "market": "synthetic"}]
-    async def fake_candles(symbol, granularity, count):
-        assert (symbol, granularity, count) == ("R_100", 900, 200)
-        return [{"open": 100 + i * 0.02, "high": 100 + i * 0.02 + 0.15,
-                 "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
-                for i in range(100)]
-    monkeypatch.setattr(main, "get_deriv_markets", fake_markets)
-    monkeypatch.setattr(main, "get_deriv_candles", fake_candles)
-    response = client.get("/api/backtest/deriv/R_100?category=synthetic&timeframe=15m")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["execution_enabled"] is False
-    assert body["candles_tested"] == 100
-    assert body["symbol"] == "R_100"
-
-
-def test_deriv_backtest_rejects_invalid_lookahead():
-    response = client.get("/api/backtest/deriv/R_100?category=synthetic&lookahead_candles=8")
-    assert response.status_code == 422
 
 
 def test_crypto_signal_endpoint_is_read_only(monkeypatch):
