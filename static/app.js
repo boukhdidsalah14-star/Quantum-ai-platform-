@@ -33,7 +33,7 @@ $("top-signin").addEventListener("click",()=>nav("account"));$("top-account").ad
 function setSelected(p){selected=p; $("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}loadChart()}
 function renderPairList(){ $("pair-list").innerHTML=binaryPairs.map(p=>'<button class="pair-item '+(p.symbol===selectedBinary.symbol?'active':'')+'" data-pair="'+p.symbol+'"><span class="flag">'+p.flag+'</span><span><b>'+p.label+'</b><small>Binary Options · Forex</small></span><span class="pair-price">'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"—")+'</span></button>').join("");document.querySelectorAll("[data-pair]").forEach(b=>b.addEventListener("click",()=>{selectedBinary=binaryPairs.find(p=>p.symbol===b.dataset.pair);setSelected(pairs.find(p=>p.symbol===b.dataset.pair));$("signal-pair-title").textContent=selectedBinary.label;renderPairList()}))}
 function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>USD-M FUTURES FEED</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
-async function loadMarkets(){try{let r=await fetch("/api/deriv/markets?category=forex");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable"}}
+async function loadMarkets(){try{let r=await fetch("/api/market-data/forex/markets");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable"}}
 const cryptoAssets=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","TRXUSDT","DOGEUSDT","ADAUSDT","BCHUSDT","LINKUSDT"];
 $("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.replace("USDT","")+' / USDT</option>').join("");
 async function loadCryptoMarkets(){
@@ -203,13 +203,13 @@ async function loadChart(){
  }catch(ctraderError){
   try{
    const granularity={"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400}[tf]||900;
-   const r=await fetch("/api/deriv/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+granularity+"&count=80");
+   const r=await fetch("/api/market-data/forex/candles/"+encodeURIComponent(selected.symbol)+"?granularity="+granularity+"&count=80");
    const d=await r.json();
    if(!r.ok)throw Error(d.detail||"Public market fallback unavailable");
    chartCandles=Array.isArray(d.candles)?d.candles:[];
    if(!chartCandles.length)throw Error("No fallback candles returned");
    chartEmptyMessage="Market candles are temporarily unavailable.";
-   if(source)source.textContent="PUBLIC DERIV FALLBACK · NOT IC MARKETS";
+   if(source)source.textContent="PUBLIC FOREX DATA · NOT IC MARKETS";
   }catch(fallbackError){
    chartCandles=[];chartEmptyMessage="Chart unavailable. Reconnect IC Markets cTrader or try again later.";
    if(source)source.textContent="MARKET DATA UNAVAILABLE";
@@ -263,7 +263,7 @@ $("signup-button").addEventListener("click",async()=>{try{let r=await fetch("/ap
 $("signout-button").addEventListener("click",async()=>{await fetch("/api/auth/logout",{method:"POST"});$("payment-box").hidden=true;await refreshAuth();toast("Signed out")});
 $("checkout-button").addEventListener("click",async()=>{let b=$("checkout-button");b.disabled=true;try{let r=await fetch("/api/subscription/checkout",{method:"POST"});let d=await r.json();if(!r.ok)throw Error(d.detail||"Checkout failed");$("pay-amount").textContent=d.pay_amount+" USDT";$("pay-address").textContent=d.pay_address;$("pay-id").textContent=d.payment_id||"—";$("pay-order-id").textContent=d.order_id||"—";$("payment-status").textContent=String(d.payment_status||"waiting").toUpperCase();$("payment-box").hidden=false;toast("Payment request created");}catch(e){toast(e.message)}finally{b.disabled=false}});
 $("copy-address").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("pay-address").textContent);toast("Address copied")}catch{toast("Select and copy the address")}});
-async function generateSignal(pair,container,detail){if(!signed||!member){nav("account");toast("Sign in and activate the $30 membership first");return}container.className="signal-result idle";container.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING BINARY OPTIONS…</b><small>Fetching completed Forex candles</small>";try{let tf=$("signal-timeframe").value;let r=await fetch("/api/signals/deriv/"+encodeURIComponent(pair.symbol)+"?category=forex&timeframe="+tf);let d=await r.json();if(!r.ok)throw Error(d.detail||"Signal unavailable");let dir=d.direction||"WAIT";container.className="signal-result "+(dir==="CALL"?"call":dir==="PUT"?"put":"idle");container.innerHTML="<div class='signal-arrow'>"+(dir==="CALL"?"↗":dir==="PUT"?"↘":"Ⅱ")+"</div><b>"+dir+"</b><small>"+safe(pair.label)+" · "+safe(tf)+" · "+safe(d.signal_strength||"low")+" confidence</small>";detail.hidden=false;detail.innerHTML="<b>BINARY OPTIONS · Analysis details</b><br>Trend: "+safe(d.trend)+" · RSI(14): "+safe(d.rsi_14)+" · Score: "+safe(d.score)+"<br>Reference close: "+safe(d.last_close)+"<br>"+(d.reasons||[]).map(safe).join(" · ")+"<br><small>Indicator result only. It does not place a trade or guarantee a win.</small>";let t={pair:pair.label,dir,time: new Date().toLocaleTimeString(),tf};history.unshift(t);history=history.slice(0,12);renderHistory();$("floating-result").textContent="BINARY OPTIONS · "+pair.label+" · "+dir+" · "+tf; if(container===$("signal-result"))$("signal-feed").textContent="BINARY OPTIONS · FRESH";}catch(e){container.className="signal-result idle";container.innerHTML="<b>NO SIGNAL</b><small>"+safe(e.message)+"</small>";}}
+async function generateSignal(pair,container,detail){if(!signed||!member){nav("account");toast("Sign in and activate the $30 membership first");return}container.className="signal-result idle";container.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING BINARY OPTIONS…</b><small>Fetching completed Forex candles</small>";try{let tf=$("signal-timeframe").value;let r=await fetch("/api/signals/forex/"+encodeURIComponent(pair.symbol)+"?timeframe="+tf);let d=await r.json();if(!r.ok)throw Error(d.detail||"Signal unavailable");let dir=d.direction||"WAIT";container.className="signal-result "+(dir==="CALL"?"call":dir==="PUT"?"put":"idle");container.innerHTML="<div class='signal-arrow'>"+(dir==="CALL"?"↗":dir==="PUT"?"↘":"Ⅱ")+"</div><b>"+dir+"</b><small>"+safe(pair.label)+" · "+safe(tf)+" · "+safe(d.signal_strength||"low")+" confidence</small>";detail.hidden=false;detail.innerHTML="<b>BINARY OPTIONS · Analysis details</b><br>Trend: "+safe(d.trend)+" · RSI(14): "+safe(d.rsi_14)+" · Score: "+safe(d.score)+"<br>Reference close: "+safe(d.last_close)+"<br>"+(d.reasons||[]).map(safe).join(" · ")+"<br><small>Indicator result only. It does not place a trade or guarantee a win.</small>";let t={pair:pair.label,dir,time: new Date().toLocaleTimeString(),tf};history.unshift(t);history=history.slice(0,12);renderHistory();$("floating-result").textContent="BINARY OPTIONS · "+pair.label+" · "+dir+" · "+tf; if(container===$("signal-result"))$("signal-feed").textContent="BINARY OPTIONS · FRESH";}catch(e){container.className="signal-result idle";container.innerHTML="<b>NO SIGNAL</b><small>"+safe(e.message)+"</small>";}}
 function renderHistory(){$("signal-history").innerHTML=history.length?history.map(h=>'<div class="history-item"><span><b>'+safe(h.pair)+'</b><small> · '+safe(h.tf)+' · '+safe(h.time)+'</small></span><b style="color:'+(h.dir==="CALL"?"#00e99a":h.dir==="PUT"?"#ff456b":"#a8c8e4")+'">'+safe(h.dir)+'</b></div>').join(""):"<p class='muted'>No signals generated yet.</p>"}
 $("get-signal").addEventListener("click",()=>generateSignal(selectedBinary,$("signal-result"),$("signal-details")));
 $("floating-signal").addEventListener("click",()=>generateSignal(binaryPairs.find(p=>p.symbol===$("floating-pair").value)||binaryPairs[0],$("floating-result"),{set hidden(v){},set innerHTML(v){}}));
@@ -272,12 +272,12 @@ let drag=null;$("floating-head").addEventListener("pointerdown",e=>{drag={x:e.cl
 const providerInfo={
  mt4:["JustMarkets MT4 bridge","A demo-only MQL4 Expert Advisor is available for your JustMarkets desktop MT4 terminal. Register your demo login and exact server in the MT4 panel, copy the one-time bridge token into the EA inputs, then enable WebRequest for this app's HTTPS domain. Android MT4 cannot run Expert Advisors. Real-account execution is disabled; demo order execution also stays locked until durable storage and the server-side demo switch are configured."],
  mexc:["MEXC USD-M Futures account","Connect your own MEXC Futures API key. QUANTUM AI can verify account access, store credentials encrypted and run the selected futures strategy when the live-trading safety switch is enabled. Each entry is capped at 1% risk and $500 notional with exchange-side stop-loss and take-profit."],
- deriv:["Deriv binary options","The app has public Forex candles and signal analysis. Deriv demo execution exists in the backend behind separate storage and kill-switch gates. Connect and verify your own VRTC demo account only after the service is configured; real-account execution remains disabled."]
+ iq:["IQ Option · signals only","QUANTUM AI provides CALL / PUT / WAIT analysis for selected Forex pairs. IQ Option account authorization and broker order execution are not connected or enabled."]
 };
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto();refreshMexcAuto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(refreshMexcAuto,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMexcAuto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(refreshMexcAuto,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","account"];
@@ -285,127 +285,6 @@ let touchX=null,touchY=null;
 $("main").addEventListener("touchstart",e=>{if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
 $("main").addEventListener("touchend",e=>{if(touchX===null)return;let dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;touchX=touchY=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.25){let active=swipePages.findIndex(p=>$("page-"+p).classList.contains("active"));let next=Math.max(0,Math.min(swipePages.length-1,active+(dx<0?1:-1)));if(next!==active)nav(swipePages[next])}},{passive:true});
 
-
-async function refreshMt4Bridge(){
- const badge=$("mt4-bridge-status");
- if(!signed){badge.textContent="SIGN IN";$("mt4-bridge-account").textContent="—";$("mt4-bridge-balance").textContent="—";$("mt4-bridge-equity").textContent="—";return;}
- try{
-  const response=await fetch("/api/mt4/bridge/status",{cache:"no-store"});
-  if(!response.ok)throw Error("Bridge status unavailable");
-  const data=await response.json();
-  badge.textContent=data.connected?"CONNECTED":data.registered?"EA OFFLINE":"NOT REGISTERED";
-  $("mt4-bridge-account").textContent=data.account_login||"—";
-  $("mt4-bridge-balance").textContent=data.balance==null?"—":money(data.balance)+" "+(data.currency||"");
-  $("mt4-bridge-equity").textContent=data.equity==null?"—":money(data.equity)+" "+(data.currency||"");
-  $("mt4-connection-state").textContent=data.connected?"JUSTMARKETS DEMO · CONNECTED":"NOT CONNECTED";
-  $("mt4-open-position").textContent=data.connected?(data.positions.length+" OPEN"): "NONE REPORTED";
-  const pnl=data.connected?data.positions.reduce((sum,p)=>sum+Number(p.profit||0)+Number(p.swap||0)+Number(p.commission||0),0):null;
-  $("mt4-open-pnl").textContent=pnl==null?"—":money(pnl)+" "+(data.currency||"");
-  if(data.connected){
-   $("mt4-bridge-message").textContent="JustMarkets MT4 demo terminal is connected. Position and quote snapshots are being refreshed.";
-  }else if(data.registered){
-   $("mt4-bridge-message").textContent="Bridge token registered for "+data.account_server+". Open the JustMarkets MT4 terminal and attach the EA to reconnect.";
-  }else{
-   $("mt4-bridge-message").textContent="Register your JustMarkets MT4 demo account above. No broker password is requested or stored.";
-  }
- }catch(error){badge.textContent="STATUS UNAVAILABLE";}
-}
-async function loadMt4Orders(){
- if(!signed)return;
- try{
-  const response=await fetch("/api/mt4/orders",{cache:"no-store"});
-  if(!response.ok)return;
-  const data=await response.json();
-  const orders=data.orders||[];
-  $("mt4-order-history").innerHTML=orders.length?orders.map(o=>'<div class="history-row"><b>'+safe(o.symbol)+' '+safe(o.side)+'</b><span>'+safe(o.lots)+' lots · '+safe(o.status.toUpperCase())+'</span><small>SL '+safe(o.stop_loss)+' · TP '+safe(o.take_profit)+(o.broker_ticket?' · Ticket '+safe(o.broker_ticket):'')+'</small></div>').join(""):"<p class='muted'>No MT4 commands yet.</p>";
- }catch(error){}
-}
-
-async function refreshMt4Auto(){
- const badge=$("mt4-auto-status"),message=$("mt4-auto-message");
- if(!signed){badge.textContent="SIGN IN";message.textContent="Sign in to configure your JustMarkets demo auto trader.";return;}
- try{
-  const response=await fetch("/api/mt4/auto",{cache:"no-store"});
-  if(!response.ok)throw Error("Auto-trader status unavailable");
-  const data=await response.json();
-  badge.textContent=data.active?"RUNNING · DEMO":"STOPPED";
-  $("mt4-auto-symbol").value=data.symbol||"XAUUSD";
-  $("mt4-auto-timeframe").value=data.timeframe||"15m";
-  $("mt4-auto-lots").value=data.lots||0.01;
-  $("mt4-auto-drawdown").value=data.max_drawdown_pct||10;
-  $("mt4-auto-stop-atr").value=data.stop_atr||1.5;
-  $("mt4-auto-target-atr").value=data.target_atr||2;
-  message.textContent=data.last_message||"Demo-only auto trader is stopped.";
-  $("mt4-auto-start").disabled=!data.server_execution_enabled;
-  if(!data.server_execution_enabled)message.textContent="The MT4 demo execution safety switch is currently off. Real-account execution is not available.";
- }catch(error){badge.textContent="STATUS UNAVAILABLE";message.textContent=error.message;}
-}
-$("mt4-bridge-form").addEventListener("submit",async e=>{
- e.preventDefault();
- if(!signed){nav("account");toast("Sign in first to register your MT4 bridge");return;}
- const button=e.submitter||$("mt4-bridge-form").querySelector("button[type=submit]");
- button.disabled=true;
- try{
-  const response=await fetch("/api/mt4/bridge/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_login:$("mt4-account-login").value.trim(),account_server:$("mt4-account-server").value.trim()})});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Could not register the MT4 bridge");
-  $("mt4-bridge-token").textContent=data.bridge_token;
-  $("mt4-bridge-token-box").hidden=false;
-  $("mt4-bridge-message").textContent="Bridge token created. Copy it once, download the EA, and configure the EA inputs in your JustMarkets MT4 demo terminal.";
-  toast("MT4 demo bridge token created");
-  refreshMt4Bridge();
- }catch(error){toast(error.message);}
- finally{button.disabled=false;}
-});
-$("mt4-copy-token").addEventListener("click",async()=>{
- const value=$("mt4-bridge-token").textContent;
- try{await navigator.clipboard.writeText(value);toast("Bridge token copied");}
- catch(error){const field=document.createElement("textarea");field.value=value;document.body.appendChild(field);field.select();document.execCommand("copy");field.remove();toast("Bridge token copied");}
-});
-
-$("mt4-auto-form").addEventListener("submit",async e=>{
- e.preventDefault();
- if(!signed){nav("account");toast("Sign in first to configure auto trading");return;}
- if(!member){nav("account");toast("Active membership required for auto trading");return;}
- const button=$("mt4-auto-start");button.disabled=true;
- try{
-  const payload={symbol:$("mt4-auto-symbol").value,timeframe:$("mt4-auto-timeframe").value,lots:Number($("mt4-auto-lots").value),max_drawdown_pct:Number($("mt4-auto-drawdown").value),stop_atr:Number($("mt4-auto-stop-atr").value),target_atr:Number($("mt4-auto-target-atr").value)};
-  const response=await fetch("/api/mt4/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Could not start demo auto trader");
-  toast("JustMarkets demo auto trader started");
-  refreshMt4Auto();
- }catch(error){$("mt4-auto-message").textContent=error.message;toast(error.message);}
- finally{button.disabled=false;}
-});
-$("mt4-auto-stop").addEventListener("click",async()=>{
- if(!signed){nav("account");toast("Sign in first");return;}
- const button=$("mt4-auto-stop");button.disabled=true;
- try{
-  const response=await fetch("/api/mt4/auto/stop",{method:"POST"});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Could not stop auto trader");
-  toast("Auto trader stopped. Pending auto entries cancelled; an already delivered MT4 command may still execute.");
-  refreshMt4Auto();
- }catch(error){toast(error.message);}
- finally{button.disabled=false;}
-});
-$("mt4-demo-order-form").addEventListener("submit",async e=>{
- e.preventDefault();
- if(!signed){nav("account");toast("Sign in first");return;}
- if(!member){nav("account");toast("Active membership required for demo order requests");return;}
- const button=$("mt4-demo-order-submit");button.disabled=true;
- try{
-  const payload={symbol:$("mt4-order-symbol").value,side:$("mt4-order-side").value,lots:Number($("mt4-order-lots").value),stop_loss:Number($("mt4-order-sl").value),take_profit:Number($("mt4-order-tp").value)};
-  const response=await fetch("/api/mt4/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Demo order was not queued");
-  toast("Demo order queued. Waiting for the connected MT4 EA.");
-  loadMt4Orders();
- }catch(error){toast(error.message);}
- finally{button.disabled=false;}
-});
-setInterval(()=>{refreshMt4Bridge();loadMt4Orders();refreshMt4Auto()},10000);
 
 async function refreshCTraderStatus(){
  const state=$("ctrader-state"),note=$("ctrader-note"),connect=$("ctrader-connect"),disconnect=$("ctrader-disconnect");
@@ -689,20 +568,20 @@ async function loadBottomAd(){
   const response=await fetch("/api/ads/config",{headers:{"Accept":"application/json"}});
   if(!response.ok)return;
   const config=await response.json();
-  if(!config.enabled||!/^ca-pub-\\d+$/.test(config.client_id||"")||!/^\\d+$/.test(config.slot_id||""))return;
+  if(!config.enabled||!/^ca-pub-\d+$/.test(config.client_id||"")||!/^\d+$/.test(config.slot_id||""))return;
   slot.setAttribute("data-ad-client",config.client_id);
   slot.setAttribute("data-ad-slot",config.slot_id);
   slot.style.display="block";
   slot.dataset.initialized="true";
-  fallback.hidden=true;
+  if(fallback)fallback.hidden=true;
   const scriptId="google-adsense-loader";
-  const renderAd=()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({});}catch(error){slot.style.display="none";fallback.hidden=false;}};
+  const renderAd=()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({});}catch(error){slot.style.display="none";if(fallback)fallback.hidden=false;}};
   if(document.getElementById(scriptId)){renderAd();return;}
   const script=document.createElement("script");
   script.id=scriptId;script.async=true;script.crossOrigin="anonymous";
   script.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client="+encodeURIComponent(config.client_id);
   script.onload=renderAd;
-  script.onerror=()=>{slot.style.display="none";fallback.hidden=false;};
+  script.onerror=()=>{slot.style.display="none";if(fallback)fallback.hidden=false;};
   document.head.appendChild(script);
  }catch(error){/* Ads are optional; never block the trading terminal. */}
 }
