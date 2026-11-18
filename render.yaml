@@ -31,11 +31,8 @@ services:
         sync: false
       - key: QUANTUM_ADMIN_API_KEY
         generateValue: true
-      - key: DERIV_APP_ID
         sync: false
-      - key: DERIV_DEMO_ACCOUNT_ID
         sync: false
-      - key: DERIV_DEMO_TOKEN
         sync: false
       - key: NOWPAYMENTS_API_KEY
         sync: false
