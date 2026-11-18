@@ -177,8 +177,8 @@
         return response.json();
       })
       .then(function (config) {
-        const validClient = /^ca-pub-\\d+$/.test(config.client_id || "");
-        const validSlot = /^\\d+$/.test(config.slot_id || "");
+        const validClient = /^ca-pub-\d+$/.test(config.client_id || "");
+        const validSlot = /^\d+$/.test(config.slot_id || "");
         if (!config.enabled || !validClient || !validSlot) {
           report("adsense_disabled");
           return;
