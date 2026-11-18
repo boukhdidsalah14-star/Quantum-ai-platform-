@@ -13,7 +13,7 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     window.HypeLab && HypeLab.initialize({
-      environment: "production",
+      URL: "https://api.hypelab.com",\n      environment: "production",
       propertySlug: "858f14de4e",
     });
   });
@@ -39,11 +39,11 @@
    <div class="section-title"><div><span class="eyebrow">MARKET OVERVIEW</span><h2 id="chart-title">EUR / USD</h2></div><span class="live-badge">● LIVE</span></div>
    <div class="chart-toolbar"><select id="home-pair" aria-label="Select Forex pair"></select><select id="home-timeframe" aria-label="Chart timeframe"><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select><span id="current-price">—</span></div>
    <div class="chart-box"><canvas id="price-chart"></canvas></div>
-   <div class="chart-legend"><span><i class="green-dot"></i> Bullish candle</span><span><i class="red-dot"></i> Bearish candle</span><span id="feed-label">Deriv public Forex feed</span><span id="chart-source">CHART FEED CHECKING</span></div>
+   <div class="chart-legend"><span><i class="green-dot"></i> Bullish candle</span><span><i class="red-dot"></i> Bearish candle</span><span id="feed-label">INDEPENDENT FOREX FEED</span><span id="chart-source">CHART FEED CHECKING</span></div>
   </section>
   <section class="quick-grid">
    <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>Binary Options Signals</b><small>CALL / PUT for Binary Options</small></button>
-   <button class="quick-card" data-goto="automation"><span class="quick-icon blue">▥</span><b>Auto Trading</b><small>MT4 & crypto futures</small></button>
+   <button class="quick-card" data-goto="automation"><span class="quick-icon blue">▥</span><b>Auto Trading</b><small>cTrader & crypto futures</small></button>
    <button class="quick-card" data-goto="account"><span class="quick-icon green">◇</span><b>Membership</b><small>Unlock trading access</small></button>
   </section>
  </section>
@@ -52,7 +52,7 @@
   <div class="page-heading"><span class="eyebrow">QUANTUM INTELLIGENCE</span><h1>Signals <i>Centre</i></h1><p>Binary options analysis: choose one of eight selected Forex pairs and request a fresh CALL / PUT / WAIT result.</p></div>
   <div class="signal-layout">
    <div class="panel pair-panel"><div class="section-title"><h2>Binary options · selected pairs</h2><span class="live-badge">8 PAIRS</span></div><div id="pair-list" class="pair-list"></div></div>
-   <div class="panel signal-panel"><div class="section-title"><div><span class="eyebrow">SELECTED MARKET</span><h2 id="signal-pair-title">EUR / USD</h2></div><span id="signal-feed" class="live-badge">DERIV</span></div>
+   <div class="panel signal-panel"><div class="section-title"><div><span class="eyebrow">SELECTED MARKET</span><h2 id="signal-pair-title">EUR / USD</h2></div><span id="signal-feed" class="live-badge">IQ OPTION SIGNALS</span></div>
     <div class="signal-controls"><label>TIMEFRAME<select id="signal-timeframe"><option>1m</option><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option></select></label><label>EXPIRY<select id="signal-expiry"><option value="1">1 min</option><option value="5">5 min</option><option value="15" selected>15 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label></div>
     <button id="get-signal" class="signal-button"><span>ϟ</span> GENERATE SIGNAL</button>
     <div id="signal-result" class="signal-result idle"><div class="signal-arrow">↗</div><b>READY TO ANALYSE</b><small>Sign in and activate membership to generate signals.</small></div>
@@ -122,64 +122,6 @@
    </div>
    <p id="ctrader-note" class="risk-note">The cTrader application must be approved by Spotware before customers can authorize accounts. Demo execution remains available only after a customer connects and selects an IC Markets demo account. Live trading stays locked.</p>
   </section>
-  <section class="panel" id="metatrader-cloud-panel">
-   <div class="section-title"><div><span class="eyebrow">CLOUD BROKER CONNECTION</span><h2>Connect MetaTrader</h2></div><span id="mt-cloud-state" class="live-badge">NOT CONNECTED</span></div>
-   <p class="risk-note">Choose MT4 or MT5. QUANTUM AI creates a secure cloud connection. You enter your trading login and password on MetaApi's secure hosted page, not inside QUANTUM AI. No Windows computer or EA installation is required on your phone.</p>
-   <form id="mt-cloud-form" class="auth-form">
-    <label>PLATFORM<select id="mt-cloud-platform"><option value="mt4">MetaTrader 4 (MT4)</option><option value="mt5">MetaTrader 5 (MT5)</option></select></label>
-    <label>BROKER<input id="mt-cloud-broker" value="JustMarkets" maxlength="80" required></label>
-    <label>EXACT TRADING SERVER<input id="mt-cloud-server" maxlength="120" placeholder="Example: JustMarkets-Demo2" required></label>
-    <button id="mt-cloud-connect" class="solid-btn wide-btn" type="submit">CREATE SECURE CLOUD CONNECTION</button>
-   </form>
-   <div id="mt-cloud-result" class="payment-box" hidden></div>
-   <div class="chart-toolbar"><button id="mt-cloud-refresh" class="outline-btn" type="button">REFRESH CONNECTION STATUS</button><button id="mt-cloud-disconnect" class="outline-btn" type="button">DISCONNECT SELECTED PLATFORM</button></div>
-   <p id="mt-cloud-note" class="risk-note">Cloud provider setup is pending server configuration. Automated trading remains disabled until the account connection and demo execution are tested.</p>
-  </section>
-  <div class="provider-card" id="mt4-provider-card">
-   <div class="provider-icon mt4-icon">MT4</div><div class="provider-copy"><span class="eyebrow">FOREX · EXPERT ADVISOR</span><h2>MetaTrader 4</h2><p>Automated strategy execution through an MT4 Expert Advisor installed in your broker terminal.</p><div class="provider-tags"><span>Broker account</span><span>EA bridge required</span><span>Risk limits</span></div></div><span class="provider-state pending">CONNECTOR SETUP</span>
-   <button class="provider-action" data-provider="mt4">VIEW MT4 SETUP <b>→</b></button>
-  </div>
-  <section class="panel mt4-bridge-panel" id="mt4-bridge-panel">
-   <div class="section-title"><div><span class="eyebrow">JUSTMARKETS · MT4 DEMO BRIDGE</span><h2>Connect your MT4 terminal</h2></div><span id="mt4-bridge-status" class="live-badge">NOT CONNECTED</span></div>
-   <form id="mt4-bridge-form" class="auth-form">
-    <label>MT4 account login<input id="mt4-account-login" inputmode="numeric" autocomplete="off" minlength="5" maxlength="12" placeholder="Your demo account number" required></label>
-    <label>Exact MT4 server<input id="mt4-account-server" autocomplete="off" maxlength="120" placeholder="Example: JustMarkets-Demo2" required></label>
-    <button class="solid-btn wide-btn" type="submit">GENERATE SECURE EA TOKEN</button>
-   </form>
-   <div id="mt4-bridge-token-box" class="payment-box" hidden><b>ONE-TIME EA TOKEN</b><code id="mt4-bridge-token"></code><button id="mt4-copy-token" class="outline-btn" type="button">COPY TOKEN</button><p><a href="/static/mt4/QuantumAI_JustMarkets_MT4.mq4" download>Download QUANTUM AI MT4 Expert Advisor (.mq4)</a></p><small>Copy the token into the EA inputs before attaching it to your JustMarkets MT4 demo terminal. The token is stored as a hash and cannot be displayed again.</small></div>
-   <div id="mt4-bridge-details" class="mt4-position-strip"><div><small>ACCOUNT</small><strong id="mt4-bridge-account">—</strong></div><div><small>BALANCE</small><strong id="mt4-bridge-balance">—</strong></div><div><small>EQUITY</small><strong id="mt4-bridge-equity">—</strong></div></div>
-   <p id="mt4-bridge-message" class="risk-note">Demo connection only. The EA reports broker positions, quotes and completed candles. Customer bridge data is stored in the connected persistent database. Real-account execution is not available.</p>
-   <div class="section-title"><h3>Automatic Forex demo trader</h3><span id="mt4-auto-status" class="live-badge">STOPPED</span></div>
-   <p id="mt4-auto-message" class="risk-note">Uses completed JustMarkets MT4 candles and the multi-indicator analysis engine. Match the EA input ChartTimeframe to the timeframe selected here (the EA default is 15m). Orders can only be sent to a verified demo terminal.</p>
-   <form id="mt4-auto-form" class="signal-controls">
-    <label>ASSET<select id="mt4-auto-symbol"><option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option><option>USDCHF</option><option>NZDUSD</option><option>EURJPY</option><option>GBPJPY</option></select></label>
-    <label>TIMEFRAME<select id="mt4-auto-timeframe"><option>5m</option><option selected>15m</option><option>30m</option><option>1h</option><option>4h</option></select></label>
-    <label>LOT SIZE<input id="mt4-auto-lots" type="number" min="0.01" max="0.10" step="0.01" value="0.01" required></label>
-    <label>MAX EQUITY DRAWDOWN %<input id="mt4-auto-drawdown" type="number" min="1" max="10" step="0.5" value="10" required></label>
-    <label>STOP LOSS · ATR<input id="mt4-auto-stop-atr" type="number" min="0.5" max="5" step="0.1" value="1.5" required></label>
-    <label>TAKE PROFIT · ATR<input id="mt4-auto-target-atr" type="number" min="0.5" max="8" step="0.1" value="2" required></label>
-    <button id="mt4-auto-start" class="solid-btn" type="submit">START DEMO AUTOTRADER</button>
-    <button id="mt4-auto-stop" class="outline-btn" type="button">STOP AUTOTRADER</button>
-   </form>
-   <div class="section-title"><h3>Demo order test</h3><span class="live-badge">LOCKED BY DEFAULT</span></div>
-   <form id="mt4-demo-order-form" class="signal-controls">
-    <label>ASSET<select id="mt4-order-symbol"><option>XAUUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>AUDUSD</option><option>USDCAD</option><option>USDCHF</option><option>NZDUSD</option><option>EURJPY</option><option>GBPJPY</option></select></label>
-    <label>SIDE<select id="mt4-order-side"><option>BUY</option><option>SELL</option></select></label>
-    <label>LOTS<input id="mt4-order-lots" type="number" min="0.01" max="0.10" step="0.01" value="0.01" required></label>
-    <label>STOP LOSS<input id="mt4-order-sl" type="number" min="0.00000001" step="0.00001" required></label>
-    <label>TAKE PROFIT<input id="mt4-order-tp" type="number" min="0.00000001" step="0.00001" required></label>
-    <button id="mt4-demo-order-submit" class="outline-btn" type="submit">QUEUE DEMO ORDER</button>
-   </form>
-   <div id="mt4-order-history" class="history-list"><p class="muted">No MT4 commands yet.</p></div>
-  </section>
-  <section class="panel mt4-live-chart" id="mt4-live-chart">
-   <div class="section-title"><div><span class="eyebrow">MT4 POSITION MONITOR</span><h2>Live Trade Chart</h2></div><span id="mt4-chart-state" class="live-badge">MARKET DATA CHECK</span></div>
-   <div class="chart-toolbar"><label for="mt4-chart-symbol">ASSET</label><select id="mt4-chart-symbol"><option value="XAUUSD">XAUUSD · GOLD</option><option value="EURUSD">EURUSD</option><option value="GBPUSD">GBPUSD</option><option value="USDJPY">USDJPY</option><option value="AUDUSD">AUDUSD</option><option value="USDCAD">USDCAD</option><option value="USDCHF">USDCHF</option><option value="NZDUSD">NZDUSD</option><option value="EURJPY">EURJPY</option><option value="GBPJPY">GBPJPY</option></select><label for="mt4-chart-timeframe">TIMEFRAME</label><select id="mt4-chart-timeframe"><option value="60">1m</option><option value="300">5m</option><option value="900" selected>15m</option><option value="3600">1h</option><option value="14400">4h</option></select><span id="mt4-chart-price">—</span></div>
-   <div class="chart-box mt4-chart-box"><canvas id="mt4-trade-chart" aria-label="XAUUSD candlestick chart"></canvas></div>
-   <div class="chart-legend"><span><i class="green-dot"></i> Bullish</span><span><i class="red-dot"></i> Bearish</span><span>MT4 lines: entry · stop-loss · take-profit</span></div>
-   <div class="mt4-position-strip"><div><small>MT4 CONNECTION</small><strong id="mt4-connection-state">NOT CONNECTED</strong></div><div><small>OPEN MT4 POSITION</small><strong id="mt4-open-position">NONE REPORTED</strong></div><div><small>FLOATING P/L</small><strong id="mt4-open-pnl">—</strong></div></div>
-   <p class="risk-note" id="mt4-chart-note">Market chart preview only. No MT4 account is connected, so no broker position, entry, stop-loss, take-profit or floating P/L is being reported. Connect an MT4 Expert Advisor bridge before enabling execution.</p>
-  </section>
   <div class="provider-card">
    <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · ACCOUNT INTEGRATION</span><h2>MEXC Account Link</h2><p>Connect your MEXC USD-M Futures account and opt in to automated entries with exchange-side stop-loss and take-profit.</p><div class="provider-tags"><span>USD-M Futures</span><span>Encrypted API key</span><span>Automatic entries</span></div></div><span class="provider-state pending">CONNECT</span>
    <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
@@ -212,10 +154,10 @@
     <p class="risk-note">MEXC USD-M perpetual futures only. Auto trading uses your connected Futures wallet, max 1% risk per entry and a $500 maximum notional per order. Exchange-side stop-loss and take-profit are attached to each entry. USDT is settlement currency, not a tradable asset. Live execution requires Futures API order permission and the server safety switch.</p>
   </section>
   <div class="provider-card">
-   <div class="provider-icon deriv-icon">D</div><div class="provider-copy"><span class="eyebrow">BINARY OPTIONS · SIGNALS ONLY</span><h2>Binary Options</h2><p>Dedicated CALL / PUT / WAIT analysis for the selected binary pair. Signals appear in the floating window. No binary broker account connection or automatic orders are claimed.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
-   <button class="provider-action" data-provider="deriv">VIEW BINARY OPTIONS SIGNAL STATUS <b>→</b></button>
+   <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
+   <button class="provider-action" data-provider="iq">VIEW BINARY OPTIONS SIGNAL STATUS <b>→</b></button>
   </div>
-  <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Equity drawdown guard</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">No live futures or MT4 orders are sent from this screen yet. Exchange futures API is live-only (no sandbox), so it must remain disabled until a reviewed, customer-isolated execution adapter and demo/paper test path are complete.</p></div>
+  <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Equity drawdown guard</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">No live futures or cTrader orders are sent from this screen yet. Exchange futures API is live-only (no sandbox), so it must remain disabled until a reviewed, customer-isolated execution adapter and demo/paper test path are complete.</p></div>
  </section>
 
 
@@ -250,5 +192,5 @@
 <div class="ad-footer" aria-label="Advertisement"><div class="ad-inner"><span class="ad-label">ADVERTISEMENT</span><hype-banner placement="ae7e1999fe"></hype-banner><ins id="quantum-bottom-ad" class="adsbygoogle" style="display:none;width:100%;min-height:50px" data-ad-format="auto" data-full-width-responsive="true"></ins></div></div>
 <nav class="bottom-nav" aria-label="Main pages"><button class="active" data-nav="home"><span>⌂</span>HOME</button><button data-nav="signals"><span>ϟ</span>SIGNALS</button><button data-nav="automation"><span>▥</span>AUTO</button><button data-nav="platforms"><span>▣</span>PLATFORMS</button><button data-nav="account"><span>◉</span>ACCOUNT</button></nav>
 <script src="/static/app.js?v=20261116-ctrader-mobile"></script>
-<script src="/static/mt4-chart.js?v=20261114-xau-chart"></script>
+
 </body></html>
