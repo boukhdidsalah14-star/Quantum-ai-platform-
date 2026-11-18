@@ -42,6 +42,31 @@ def test_removed_broker_routes_are_not_exposed():
     assert client.get("/api/olymp-trade/paper/trades").status_code == 404
 
 
+def test_ads_config_never_exposes_invalid_or_partial_adsense_settings(monkeypatch):
+    monkeypatch.setenv("GOOGLE_ADSENSE_CLIENT_ID", "not-a-client")
+    monkeypatch.setenv("GOOGLE_ADSENSE_BOTTOM_SLOT_ID", "12345")
+    response = client.get("/api/ads/config")
+    assert response.status_code == 200
+    assert response.json() == {"enabled": False, "client_id": "", "slot_id": ""}
+
+
+def test_ads_diagnostics_accepts_only_known_event_names():
+    response = client.post("/api/ads/diagnostics", json={
+        "event": "sdk_loaded",
+        "sdk_loaded": True,
+        "init_available": True,
+        "custom_element_defined": True,
+        "banner_height": 50,
+    })
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+
+def test_ads_diagnostics_rejects_arbitrary_events():
+    response = client.post("/api/ads/diagnostics", json={"event": "dump_all_secrets"})
+    assert response.status_code == 400
+
+
 def test_registration_is_closed_by_default(monkeypatch):
     monkeypatch.delenv("ALLOW_CUSTOMER_SIGNUP", raising=False)
     response = client.post("/api/auth/register", json={
