@@ -279,24 +279,13 @@ async def lifespan(app: FastAPI):
     init_paper_db()
     init_olymp_paper_db()
     init_virtual_db()
-    init_vault_db()
     init_mexc_vault_db()
     init_mexc_auto_db()
-    init_metaapi_db()
     init_ctrader_oauth_db()
     init_ctrader_sync_db()
     init_ctrader_risk_db()
     init_ctrader_permissions_db()
-    init_mt4_bridge_db()
-    init_mt4_auto_db()
-    if _persistent_credentials_ready():
-        init_deriv_trading_db()
-    monitor_task = None
-    mt4_auto_task = None
     mexc_auto_task = None
-    if _demo_execution_enabled():
-        monitor_task = asyncio.create_task(_deriv_demo_monitor_loop())
-        mt4_auto_task = asyncio.create_task(_mt4_auto_monitor_loop())
     if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true":
         mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
     bot = None
