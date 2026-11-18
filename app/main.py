@@ -321,9 +321,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="QUANTUM AI", version="0.5.0", description="Mobile trading workspace with customer identity foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
+class AdsDiagnosticEvent(BaseModel):
+    event: str = Field(min_length=3, max_length=40)
+    sdk_loaded: bool = False
+    init_available: bool = False
+    custom_element_defined: bool = False
+    banner_has_content: bool = False
+    adsense_configured: bool = False
+    banner_height: float = Field(default=0, ge=0, le=1000)
+
+
 @app.get("/api/ads/config")
 async def public_ads_config():
-    """Expose only public ad placement identifiers; never expose private ad-network credentials."""
+    """Expose only public AdSense placement identifiers; never private ad-network credentials."""
     client_id = os.getenv("GOOGLE_ADSENSE_CLIENT_ID", "").strip()
     slot_id = os.getenv("GOOGLE_ADSENSE_BOTTOM_SLOT_ID", "").strip()
     valid_client = client_id.startswith("ca-pub-") and client_id[7:].isdigit()
@@ -335,6 +345,25 @@ async def public_ads_config():
     }
 
 
+@app.post("/api/ads/diagnostics")
+async def ads_diagnostics(payload: AdsDiagnosticEvent):
+    allowed_events = {
+        "sdk_load_started", "sdk_load_failed", "sdk_loaded", "sdk_api_missing",
+        "sdk_init_failed", "sdk_initialized", "banner_defined", "banner_rendered",
+        "banner_empty", "adsense_configured", "adsense_disabled",
+        "adsense_load_failed", "adsense_load_started", "frontend_error",
+        "frontend_rejection",
+    }
+    if payload.event not in allowed_events:
+        raise HTTPException(status_code=400, detail="Unsupported ad diagnostic event")
+    logger.info(
+        "ADS_DIAGNOSTIC event=%s sdk_loaded=%s init_available=%s "
+        "custom_element_defined=%s banner_has_content=%s adsense_configured=%s banner_height=%.1f",
+        payload.event, payload.sdk_loaded, payload.init_available,
+        payload.custom_element_defined, payload.banner_has_content,
+        payload.adsense_configured, payload.banner_height,
+    )
+    return {"ok": True}
 
 
 @app.post("/telegram/webhook")
