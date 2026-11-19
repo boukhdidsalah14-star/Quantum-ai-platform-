@@ -20,7 +20,34 @@ def broker_capabilities() -> dict:
         persistent_storage_ready
         and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
     )
+    ctrader_configured = all(os.getenv(name, "").strip() for name in (
+        "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET", "CTRADER_REDIRECT_URI",
+        "QUANTUM_CREDENTIALS_ENCRYPTION_KEY",
+    ))
     brokers = [
+        {
+            "id": "icmarkets_ctrader",
+            "name": "IC Markets cTrader",
+            "category": "forex",
+            "status": "read_only_demo_sync_implemented",
+            "application_configured": ctrader_configured,
+            "production_available": True,
+            "connection_verified": False,
+            "supported_scope": [
+                "customer_oauth_authorization",
+                "encrypted_customer_token_storage",
+                "demo_account_discovery",
+                "demo_balance_read",
+                "demo_open_position_sync",
+                "demo_symbol_discovery",
+                "demo_candles",
+            ],
+            "execution_enabled": False,
+            "demo_execution_code_available": False,
+            "demo_execution_enabled": False,
+            "real_execution_enabled": False,
+            "note": "Customer OAuth, encrypted token storage, IC Markets demo-account discovery, read-only balance and open-position reconciliation, broker symbols, and demo candles are implemented. No broker order can be opened, modified, or closed, and broker trade history is not yet reconciled. Demo and live execution remain disabled.",
+        },
         {
             "id": "icmarkets_ctrader",
             "name": "IC Markets cTrader",
