@@ -256,6 +256,19 @@ async function loadBrokerCapabilities(){
       $("deriv-capability-tag").textContent=deriv.demo_status_configured?"DEMO · UNVERIFIED":"PUBLIC DATA · DEMO SETUP";
       $("deriv-capability-tag").className="tag-pending";
     }
+    const ctrader=body.brokers.find(item=>item.id==="icmarkets_ctrader");
+    if(ctrader){
+      $("ctrader-capability").textContent=ctrader.note;
+      const tag=$("ctrader-capability-tag");
+      if(!ctrader.application_configured){
+        tag.textContent="APP SETUP REQUIRED";
+      }else if(!ctrader.credential_storage_ready){
+        tag.textContent="STORAGE REQUIRED";
+      }else{
+        tag.textContent="READY · NOT CONNECTED";
+      }
+      tag.className="tag-pending";
+    }
   }catch{
     $("deriv-capability").textContent="Status could not be loaded";
   }
