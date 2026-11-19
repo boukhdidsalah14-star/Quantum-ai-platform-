@@ -43,6 +43,8 @@ from app.subscriptions import (
     attach_payment, verify_ipn_signature, apply_finished_payment, subscription_for_customer,
     pending_order_for_customer, update_payment_status,
 )
+from app.referrals import init_db as init_referral_db, attach_signup as attach_referral_signup, dashboard as referral_dashboard, record_paid_order as record_referral_paid_order
+
 
 load_dotenv()
 
@@ -68,6 +70,7 @@ def _configured_telegram_token() -> tuple[str, str]:
 class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
+    referral_code: str = Field(default="", max_length=32)
 
 
 class MexcCredentials(BaseModel):
@@ -489,6 +492,7 @@ async def refresh_subscription_payment(request: Request):
             raise HTTPException(status_code=502, detail="Payment provider returned no payment status")
         if status == "finished":
             result = apply_finished_payment(payment)
+            record_referral_paid_order(pending["order_id"])
         else:
             update_payment_status(pending["order_id"], pending["payment_id"], status)
             result = {"accepted": True, "activated": False, "status": status}
@@ -520,6 +524,8 @@ async def nowpayments_ipn(
         raise HTTPException(status_code=401, detail="Invalid payment notification signature")
     try:
         result = apply_finished_payment(payload)
+        if str(payload.get("payment_status") or "").lower() == "finished":
+            record_referral_paid_order(payload.get("order_id"))
         return {"ok": True, **result}
     except ValueError as exc:
         logger.warning("NOWPayments notification rejected: %s", str(exc)[:180])
@@ -862,9 +868,22 @@ async def register(payload: Credentials, request: Request, response: Response):
         customer = create_customer(payload.email, payload.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    init_referral_db()
+    attach_referral_signup(customer["id"], payload.referral_code)
     token = create_session(customer["id"])
     _session_cookie(response, token)
     return {"customer": customer, "authenticated": True}
+
+
+@app.get("/api/referrals")
+async def get_referral_dashboard(request: Request):
+    init_auth_db()
+    init_subscription_db()
+    init_referral_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return referral_dashboard(customer["id"], str(request.base_url).rstrip("/"))
 
 
 @app.post("/api/auth/login")
