@@ -69,7 +69,7 @@ public class FloatingAssistantService extends Service {
 
     private WindowManager.LayoutParams params(int width, int height, int gravity) {
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
-        WindowManager.LayoutParams p = new WindowManager.LayoutParams(width,height,type, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
+        WindowManager.LayoutParams p = new WindowManager.LayoutParams(width,height,type, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,PixelFormat.TRANSLUCENT);
         p.gravity = gravity;
         return p;
     }
@@ -135,6 +135,7 @@ public class FloatingAssistantService extends Service {
         TextView note=text("After expiry, tap WIN, LOSS or DRAW to update the circle. IQ Option is not connected.",10,Color.GRAY);root.addView(note);
         signalButton.setOnClickListener(v->generateSignal());
         panel=root;panelParams=params(dp(300),WindowManager.LayoutParams.WRAP_CONTENT,Gravity.TOP|Gravity.START);
+        panelParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
         panelParams.x=Math.max(dp(8),bubbleParams.x-dp(115));panelParams.y=Math.max(dp(45),bubbleParams.y+dp(66));
         try{wm.addView(panel,panelParams);}catch(Exception e){panel=null;}
     }
