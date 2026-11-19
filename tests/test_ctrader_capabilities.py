@@ -1,7 +1,7 @@
 from app.brokers import broker_capabilities
 
 
-def test_ctrader_registry_reports_development_only_scope(monkeypatch):
+def test_ctrader_registry_reports_read_only_demo_scope(monkeypatch):
     for name in (
         "CTRADER_CLIENT_ID",
         "CTRADER_CLIENT_SECRET",
@@ -13,15 +13,15 @@ def test_ctrader_registry_reports_development_only_scope(monkeypatch):
     registry = broker_capabilities()
     ctrader = next(item for item in registry["brokers"] if item["id"] == "icmarkets_ctrader")
 
-    assert ctrader["status"] == "development_branch_only_not_deployed"
+    assert ctrader["status"] == "read_only_demo_sync_implemented"
     assert ctrader["connection_verified"] is False
-    assert ctrader["production_available"] is False
-    assert ctrader["supported_scope"] == []
-    assert "demo_balance_read" in ctrader["development_scope"]
+    assert ctrader["production_available"] is True
+    assert "demo_balance_read" in ctrader["supported_scope"]
+    assert ctrader["application_configured"] is False
     assert ctrader["demo_execution_code_available"] is False
     assert ctrader["demo_execution_enabled"] is False
     assert ctrader["real_execution_enabled"] is False
-    assert "demo_balance_read" in ctrader["development_scope"]
-    assert "demo_open_position_sync" in ctrader["development_scope"]
-    assert "demo_order_placement" not in ctrader["development_scope"]
+    assert "demo_balance_read" in ctrader["supported_scope"]
+    assert "demo_open_position_sync" in ctrader["supported_scope"]
+    assert "demo_order_placement" not in ctrader["supported_scope"]
     assert registry["execution_enabled"] is False
