@@ -22,6 +22,7 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
+from app.storage_status import inspect_storage, credential_storage_ready
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, CTraderOpenAPIError)
 from app.mt4_bridge import (
@@ -144,10 +145,7 @@ def _check_same_origin(request: Request) -> None:
 
 
 def _persistent_credentials_ready() -> bool:
-    return (
-        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-    )
+    return credential_storage_ready()
 
 
 def _demo_execution_enabled() -> bool:
@@ -626,7 +624,7 @@ async def health(request: Request):
         "ctrader_application_configured": ctrader_oauth_configured(),
         "ctrader_demo_execution_enabled": False,
         "customer_auth": "available",
-        "credential_storage_ready": _persistent_credentials_ready(),
+        **inspect_storage(),
         "deriv_demo_execution_enabled": _demo_execution_enabled(),
         "deriv_demo_monitor_running": bool(_demo_execution_enabled()),
         "order_execution": False,
