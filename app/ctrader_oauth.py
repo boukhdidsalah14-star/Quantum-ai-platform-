@@ -45,6 +45,19 @@ def configured() -> bool:
         return False
 
 
+def _credential_storage_ready() -> bool:
+    return (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+    )
+
+
+def _require_credential_storage() -> None:
+    if os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() != "true":
+        raise CTraderOAuthError("Durable credential storage is not enabled on this server")
+    _cipher()
+
+
 def _cipher() -> Fernet:
     key = os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip()
     if not key:
@@ -82,6 +95,7 @@ def init_db() -> None:
 
 
 def create_authorization(customer_id: str, scope: str = "trading") -> tuple[str, str]:
+    _require_credential_storage()
     if scope not in ALLOWED_SCOPES:
         raise ValueError("Unsupported cTrader authorization scope")
     client_id, _, redirect_uri = _config()
@@ -104,6 +118,7 @@ def create_authorization(customer_id: str, scope: str = "trading") -> tuple[str,
 
 
 async def complete_authorization(code: str, state: str) -> str:
+    _require_credential_storage()
     if not code or len(code) > 2048 or not state or len(state) > 256:
         raise CTraderOAuthError("The cTrader authorization response is invalid")
     client_id, client_secret, redirect_uri = _config()
@@ -164,6 +179,7 @@ async def complete_authorization(code: str, state: str) -> str:
 
 
 def status(customer_id: str) -> dict:
+    storage_ready = _credential_storage_ready()
     with _db() as db:
         row = db.execute(
             "SELECT created_at, updated_at FROM ctrader_customer_tokens WHERE customer_id=?",
@@ -174,15 +190,19 @@ def status(customer_id: str) -> dict:
             "authorized": False,
             "connected": False,
             "configured": configured(),
+            "credential_storage_ready": storage_ready,
             "broker": "IC Markets",
             "platform": "cTrader",
             "trading_enabled": False,
-            "state": "NOT_CONNECTED" if configured() else "APPLICATION_SETUP_REQUIRED",
+            "state": ("APPLICATION_SETUP_REQUIRED" if not configured()
+                      else "PERSISTENT_STORAGE_REQUIRED" if not storage_ready
+                      else "NOT_CONNECTED"),
         }
     return {
         "authorized": True,
         "connected": False,
         "configured": configured(),
+        "credential_storage_ready": storage_ready,
         "broker": "IC Markets",
         "platform": "cTrader",
         "trading_enabled": False,
@@ -217,6 +237,7 @@ def load_tokens(customer_id: str) -> dict | None:
 
 
 async def refresh_access_token(customer_id: str) -> dict:
+    _require_credential_storage()
     tokens = load_tokens(customer_id)
     if not tokens:
         raise CTraderOAuthError("No cTrader account is authorized")
