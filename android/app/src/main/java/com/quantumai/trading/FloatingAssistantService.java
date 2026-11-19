@@ -148,27 +148,72 @@ public class FloatingAssistantService extends Service {
         if(signalButton!=null)signalButton.setEnabled(false);
         final int selected=pairSpinner.getSelectedItemPosition();
         final int minutes=Integer.parseInt(expiries[expirySpinner.getSelectedItemPosition()]);
-        resultText.setText("Analysing public market data…");countdownText.setText("Please wait");
+        final String timeframe=minutes==60?"1h":minutes+"m";
+        resultText.setText("Analysing public market data…");
+        countdownText.setText("Loading completed candles for "+timeframe);
         executor.execute(()->{
-            String message;String direction="WAIT";
+            String message;
+            String direction="WAIT";
+            long nextExpiry=0;
             try{
-                URL url=new URL(API+"/api/signals/forex/"+symbols[selected]+"?timeframe=1m");
-                HttpURLConnection c=(HttpURLConnection)url.openConnection();c.setRequestMethod("GET");c.setConnectTimeout(12000);c.setReadTimeout(12000);
-                int status=c.getResponseCode();java.io.InputStream in=status>=200&&status<300?c.getInputStream():c.getErrorStream();
-                java.util.Scanner scanner=new java.util.Scanner(in,"UTF-8").useDelimiter("\\A");String body=scanner.hasNext()?scanner.next():"{}";c.disconnect();
-                JSONObject json=new JSONObject(body);direction=json.optString("direction","WAIT").toUpperCase();
-                String confidence=json.optString("confidence","—");
-                message=pairs[selected]+"  ·  "+direction+"\nConfidence: "+confidence+"\nExpiry: "+minutes+" minute(s)";
-                if(!direction.equals("CALL")&&!direction.equals("PUT"))direction="WAIT";
-            }catch(Exception e){message="Signal unavailable. Check your connection and try again.";}
-            final String d=direction, msg=message;
+                URL url=new URL(API+"/api/signals/forex/"+symbols[selected]+"?timeframe="+timeframe);
+                HttpURLConnection connection=(HttpURLConnection)url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+                int status=connection.getResponseCode();
+                java.io.InputStream stream=status>=200&&status<300?connection.getInputStream():connection.getErrorStream();
+                String body;
+                try(java.util.Scanner scanner=new java.util.Scanner(stream,"UTF-8").useDelimiter("\\A")){
+                    body=scanner.hasNext()?scanner.next():"{}";
+                }
+                connection.disconnect();
+                JSONObject json=new JSONObject(body);
+                if(status<200||status>=300){
+                    message=json.optString("detail","Market data is temporarily unavailable.");
+                }else{
+                    direction=json.optString("direction","WAIT").toUpperCase();
+                    String strength=json.optString("signal_strength","low").toUpperCase();
+                    String trend=json.optString("trend","NEUTRAL");
+                    double price=json.optDouble("last_close",Double.NaN);
+                    int score=json.optInt("score",0);
+                    StringBuilder details=new StringBuilder();
+                    org.json.JSONArray reasons=json.optJSONArray("reasons");
+                    if(reasons!=null){
+                        for(int i=0;i<Math.min(2,reasons.length());i++){
+                            details.append("\n• ").append(reasons.optString(i));
+                        }
+                    }
+                    message=pairs[selected]+"  ·  "+direction+
+                            "\nStrength: "+strength+"  |  Trend: "+trend+
+                            "\nScore: "+score+"  |  Expiry: "+minutes+" min"+
+                            (Double.isNaN(price)?"":"\nLast completed close: "+price)+details;
+                    if(direction.equals("CALL")||direction.equals("PUT")){
+                        nextExpiry=System.currentTimeMillis()+minutes*60_000L;
+                    }else{
+                        direction="WAIT";
+                        message+="\nNo trade: conditions did not meet the signal filter.";
+                    }
+                }
+            }catch(Exception e){
+                message="Signal unavailable. Check your connection and try again.";
+                direction="WAIT";
+            }
+            final String finalDirection=direction;
+            final String finalMessage=message;
+            final long finalExpiry=nextExpiry;
             handler.post(()->{
                 if(signalButton!=null)signalButton.setEnabled(true);
-                lastDirection=d;resultText.setText(msg);
-                if(d.equals("CALL"))bubbleText.setText("↑");else if(d.equals("PUT"))bubbleText.setText("↓");else bubbleText.setText("ϟ");
-                bubbleText.setBackground(round(Color.rgb(20,112,170),dp(30)));
-                expiryAt=System.currentTimeMillis()+minutes*60_000L;
-                startCountdown();
+                lastDirection=finalDirection;
+                resultText.setText(finalMessage);
+                if(finalDirection.equals("CALL"))bubbleText.setText("↑");
+                else if(finalDirection.equals("PUT"))bubbleText.setText("↓");
+                else bubbleText.setText("ϟ");
+                bubbleColor=finalDirection.equals("WAIT")?Color.rgb(20,112,170):Color.rgb(20,145,230);
+                bubbleText.setBackground(round(bubbleColor,dp(30)));
+                expiryAt=finalExpiry;
+                if(expiryAt>0)startCountdown();
+                else countdownText.setText("No active expiry. Wait for a CALL or PUT signal.");
             });
         });
     }
