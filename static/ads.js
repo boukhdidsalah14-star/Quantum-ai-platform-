@@ -1,10 +1,11 @@
-/* Independent ad bootstrap: ads continue loading even if the trading UI script fails. */
+/* HypeLab web banner bootstrap, following HypeLab's documented Client + banner API. */
 (function () {
   "use strict";
 
   const PROPERTY_SLUG = "858f14de4e";
   const PLACEMENT_SLUG = "ae7e1999fe";
   const SDK_URL = "https://api.hypelab.com/v1/scripts/hp-sdk.js?v=0";
+  const API_URL = "https://api.hypelab.com";
   const BANNER_ID = "quantum-hypelab-slot";
 
   function report(event, extra) {
@@ -27,12 +28,8 @@
     } catch (_) {}
   }
 
-  window.addEventListener("error", function () {
-    report("frontend_error");
-  });
-  window.addEventListener("unhandledrejection", function () {
-    report("frontend_rejection");
-  });
+  window.addEventListener("error", function () { report("frontend_error"); });
+  window.addEventListener("unhandledrejection", function () { report("frontend_rejection"); });
 
   function setStatus(message, hidden) {
     const status = document.getElementById("ad-status");
@@ -51,19 +48,16 @@
       banner.querySelector("img,iframe,a,video") ||
       (shadow && shadow.querySelector("img,iframe,a,video"))
     ));
-    const hasGoogleContent = !!(slot && (
-      slot.querySelector("iframe,img") ||
-      slot.querySelector("ins")
-    ) && slot.getBoundingClientRect().height > 20);
+    const hasGoogleContent = !!(slot && slot.getBoundingClientRect().height > 20 &&
+      slot.querySelector("iframe,img"));
     const hasContent = hasHypeContent || hasGoogleContent;
     const height = banner ? Math.round(banner.getBoundingClientRect().height) : 0;
-    const defined = !!(window.customElements && customElements.get("hype-banner"));
+
     if (hasContent) {
       setStatus("", true);
       report("banner_rendered", {
-        sdk_loaded: !!window.HypeLab,
-        init_available: !!(window.HypeLab && typeof HypeLab.initialize === "function"),
-        custom_element_defined: defined,
+        sdk_loaded: true,
+        init_available: true,
         banner_has_content: true,
         banner_height: height
       });
@@ -71,8 +65,7 @@
       setStatus("No sponsored ad available right now.", false);
       report("banner_empty", {
         sdk_loaded: !!window.HypeLab,
-        init_available: !!(window.HypeLab && typeof HypeLab.initialize === "function"),
-        custom_element_defined: defined,
+        init_available: !!(window.HypeLab && typeof HypeLab.Client === "function"),
         banner_has_content: false,
         banner_height: height
       });
@@ -80,8 +73,8 @@
   }
 
   function initializeHypeLab() {
-    const banner = document.getElementById(BANNER_ID);
-    if (!banner) {
+    const container = document.getElementById(BANNER_ID);
+    if (!container) {
       report("banner_empty");
       return;
     }
@@ -92,78 +85,61 @@
     const script = document.createElement("script");
     script.src = SDK_URL;
     script.async = true;
+
     script.onload = function () {
       const api = window.HypeLab;
-      const hasInitialize = !!(api && typeof api.initialize === "function");
-      const hasLegacyBanner = !!(api &&
+      const supported = !!(api &&
         typeof api.Client === "function" &&
         typeof api.setClient === "function" &&
         typeof api.banner === "function");
 
       report("sdk_loaded", {
         sdk_loaded: !!api,
-        init_available: hasInitialize,
+        init_available: supported,
         custom_element_defined: !!(window.customElements && customElements.get("hype-banner"))
       });
 
-      try {
-        let result;
-        if (hasInitialize) {
-          result = api.initialize({
-            URL: "https://api.hypelab.com",
-            environment: "production",
-            propertySlug: PROPERTY_SLUG
-          });
-        } else if (hasLegacyBanner) {
-          const environment = api.Environment && api.Environment.Production
-            ? api.Environment.Production
-            : "production";
-          const client = new api.Client({
-            URL: "https://api.hypelab.com",
-            propertySlug: PROPERTY_SLUG,
-            environment: environment
-          });
-          api.setClient(client);
-          result = api.banner({
-            placement: PLACEMENT_SLUG,
-            container: BANNER_ID
-          });
-        } else {
-          report("sdk_api_missing", { sdk_loaded: !!api, init_available: false });
-          setStatus("Ad provider setup needs attention.", false);
-          return;
-        }
+      if (!supported) {
+        report("sdk_api_missing", { sdk_loaded: !!api, init_available: false });
+        setStatus("Ad provider integration needs attention.", false);
+        return;
+      }
 
-        Promise.resolve(result).then(function () {
-          report("sdk_initialized", {
-            sdk_loaded: true,
-            init_available: hasInitialize,
-            custom_element_defined: !!(window.customElements && customElements.get("hype-banner"))
-          });
-          if (window.customElements && customElements.whenDefined) {
-            customElements.whenDefined("hype-banner").then(function () {
-              report("banner_defined", {
-                sdk_loaded: true,
-                init_available: hasInitialize,
-                custom_element_defined: true
-              });
-            }).catch(function () {});
-          }
-          window.setTimeout(inspectBanner, 12000);
-          window.setTimeout(inspectBanner, 30000);
-        }).catch(function () {
-          report("sdk_init_failed", { sdk_loaded: true, init_available: hasInitialize });
-          setStatus("Ad provider could not initialize.", false);
+      try {
+        const environment = api.Environment && api.Environment.Production
+          ? api.Environment.Production
+          : "production";
+        const client = new api.Client({
+          URL: API_URL,
+          propertySlug: PROPERTY_SLUG,
+          environment: environment
         });
+
+        api.setClient(client);
+        report("sdk_client_created", { sdk_loaded: true, init_available: true });
+
+        // HypeLab's web banner API requires an explicit placement request.
+        // Initializing a client alone does not render an ad.
+        api.banner({
+          placement: PLACEMENT_SLUG,
+          container: BANNER_ID
+        });
+
+        report("sdk_banner_requested", { sdk_loaded: true, init_available: true });
+        window.setTimeout(inspectBanner, 5000);
+        window.setTimeout(inspectBanner, 12000);
+        window.setTimeout(inspectBanner, 30000);
       } catch (_) {
-        report("sdk_init_failed", { sdk_loaded: true, init_available: hasInitialize });
+        report("sdk_init_failed", { sdk_loaded: true, init_available: true });
         setStatus("Ad provider could not initialize.", false);
       }
     };
+
     script.onerror = function () {
       report("sdk_load_failed");
       setStatus("Ad provider could not be reached.", false);
     };
+
     document.head.appendChild(script);
   }
 
@@ -177,8 +153,8 @@
         return response.json();
       })
       .then(function (config) {
-        const validClient = /^ca-pub-\d+$/.test(config.client_id || "");
-        const validSlot = /^\d+$/.test(config.slot_id || "");
+        const validClient = /^ca-pub-\\d+$/.test(config.client_id || "");
+        const validSlot = /^\\d+$/.test(config.slot_id || "");
         if (!config.enabled || !validClient || !validSlot) {
           report("adsense_disabled");
           return;
@@ -207,9 +183,7 @@
         };
         document.head.appendChild(script);
       })
-      .catch(function () {
-        report("adsense_disabled");
-      });
+      .catch(function () { report("adsense_disabled"); });
   }
 
   function start() {
