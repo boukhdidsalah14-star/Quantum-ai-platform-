@@ -22,7 +22,7 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
-from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
+from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, CTraderOpenAPIError)
 from app.mt4_bridge import (
     BridgeAuthError, init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge,
@@ -616,6 +616,8 @@ async def health(request: Request):
         "telegram_webhook_active": bool(bot and getattr(request.app.state, "telegram_webhook_secret", "")),
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "deriv_demo_connector": "available",
+        "ctrader_application_configured": ctrader_oauth_configured(),
+        "ctrader_demo_execution_enabled": False,
         "customer_auth": "available",
         "credential_storage_ready": _persistent_credentials_ready(),
         "deriv_demo_execution_enabled": _demo_execution_enabled(),
