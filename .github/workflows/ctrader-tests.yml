@@ -1,0 +1,35 @@
+name: cTrader read-only integration tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/ctrader_*.py"
+      - "app/main.py"
+      - "app/brokers.py"
+      - "tests/test_ctrader_*.py"
+      - "tests/test_ctrader_capabilities.py"
+      - "requirements.txt"
+      - ".github/workflows/ctrader-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/ctrader_*.py"
+      - "app/main.py"
+      - "app/brokers.py"
+      - "tests/test_ctrader_*.py"
+      - "tests/test_ctrader_capabilities.py"
+      - "requirements.txt"
+
+jobs:
+  cTrader-read-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest -q tests/test_ctrader_oauth.py tests/test_ctrader_open_api.py tests/test_ctrader_capabilities.py
