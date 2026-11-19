@@ -24,6 +24,7 @@ from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.signals import analyze_candles
+from app.signal_history import init_db as init_signal_history_db, record_signal, list_signals, set_signal_result, signal_statistics
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
@@ -256,6 +257,7 @@ async def _mexc_auto_monitor_loop():
 async def lifespan(app: FastAPI):
     init_auth_db()
     init_subscription_db()
+    init_signal_history_db()
     init_paper_db()
     init_virtual_db()
     init_mexc_vault_db()
@@ -323,6 +325,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="QUANTUM AI", version="0.5.0", description="Mobile trading workspace with customer identity foundation", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+
+class SignalResultRequest(BaseModel):
+    result: str = Field(pattern="^(WIN|LOSS|DRAW)$")
+
 
 class AdsDiagnosticEvent(BaseModel):
     event: str = Field(min_length=3, max_length=40)
@@ -1265,6 +1271,7 @@ async def candles(symbol: str, interval: str = Query(default="1h"), limit: int =
 @app.get("/api/signals/crypto/{symbol}")
 async def crypto_signal(
     symbol: str,
+    request: Request,
     source: str = Query(default="mexc"),
     timeframe: str = Query(default="1h"),
 ):
@@ -1282,6 +1289,11 @@ async def crypto_signal(
                        "trade_bias": "LONG" if result["direction"] == "CALL" else "SHORT" if result["direction"] == "PUT" else "WAIT",
                        "source": "MEXC USDT-margined perpetual futures public candles",
                        "execution_enabled": False})
+        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+        if customer:
+            result["history_id"] = record_signal(customer["id"], "crypto", symbol.upper(), timeframe,
+                result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
+                result.get("last_close"), result.get("source", "MEXC"))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -1377,6 +1389,11 @@ async def crypto_backtest(
         result.update({"symbol": symbol.upper(), "category": "crypto",
                        "source": source.upper() + " historical candles",
                        "execution_enabled": False})
+        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+        if customer:
+            result["history_id"] = record_signal(customer["id"], "forex", symbol, timeframe,
+                result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
+                result.get("last_close"), result.get("source", "Yahoo Finance"))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -1415,7 +1432,7 @@ async def forex_candles(symbol: str, granularity: int = Query(default=900),
 
 
 @app.get("/api/signals/forex/{symbol}")
-async def forex_signal(symbol: str, timeframe: str = Query(default="15m")):
+async def forex_signal(symbol: str, request: Request, timeframe: str = Query(default="15m")):
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
                  "1h": 3600, "4h": 14400, "1d": 86400}
     if timeframe not in intervals:
@@ -1431,6 +1448,35 @@ async def forex_signal(symbol: str, timeframe: str = Query(default="15m")):
         raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError:
         raise HTTPException(status_code=502, detail="Public Forex data is temporarily unavailable; no signal was generated")
+
+
+@app.get("/api/signals/history")
+async def customer_signal_history(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+    init_auth_db()
+    init_signal_history_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {"signals": list_signals(customer["id"], limit), "statistics": signal_statistics(customer["id"]),
+            "result_method": "customer_confirmed", "note": "Win/loss/draw outcomes are manually confirmed by you; they are not verified by a broker."}
+
+
+@app.post("/api/signals/history/{signal_id}/result")
+async def update_customer_signal_result(signal_id: str, payload: SignalResultRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_signal_history_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        updated = set_signal_result(customer["id"], signal_id, payload.result)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Signal not found or already settled")
+    return {"signal": updated, "statistics": signal_statistics(customer["id"]),
+            "result_method": "customer_confirmed"}
 
 
 @app.head("/", include_in_schema=False)
