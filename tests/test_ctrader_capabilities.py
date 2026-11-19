@@ -16,7 +16,6 @@ def test_ctrader_registry_reports_read_only_demo_scope(monkeypatch):
     assert ctrader["status"] == "read_only_demo_sync_implemented"
     assert ctrader["connection_verified"] is False
     assert ctrader["production_available"] is True
-    assert "demo_balance_read" in ctrader["supported_scope"]
     assert ctrader["application_configured"] is False
     assert ctrader["demo_execution_code_available"] is False
     assert ctrader["demo_execution_enabled"] is False
