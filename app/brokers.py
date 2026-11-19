@@ -22,6 +22,27 @@ def broker_capabilities() -> dict:
     )
     brokers = [
         {
+            "id": "icmarkets_ctrader",
+            "name": "IC Markets cTrader",
+            "category": "forex",
+            "status": "read_only_demo_sync_implemented",
+            "connection_verified": False,
+            "supported_scope": [
+                "customer_oauth_authorization",
+                "encrypted_customer_token_storage",
+                "demo_account_discovery",
+                "demo_balance_read",
+                "demo_open_position_sync",
+                "demo_symbol_discovery",
+                "demo_candles",
+            ],
+            "execution_enabled": False,
+            "demo_execution_code_available": False,
+            "demo_execution_enabled": False,
+            "real_execution_enabled": False,
+            "note": "Customer OAuth, IC Markets demo-account discovery, read-only balance/position reconciliation, broker symbols, and demo candles are implemented in development. Opening, modifying, and closing broker orders, and broker trade-history reconciliation are not implemented or verified. No demo or live orders can be placed.",
+        },
+        {
             "id": "justmarkets_mt4",
             "name": "JustMarkets",
             "platform": "MetaTrader 4",
