@@ -6,7 +6,6 @@ import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.os.*;
-import android.provider.Settings;
 import android.view.*;
 import android.view.Gravity;
 import android.widget.*;
@@ -70,7 +69,9 @@ public class FloatingAssistantService extends Service {
 
     private WindowManager.LayoutParams params(int width, int height, int gravity) {
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
-        return new WindowManager.LayoutParams(width,height,type,WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT,gravity);
+        WindowManager.LayoutParams p = new WindowManager.LayoutParams(width,height,type, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,PixelFormat.TRANSLUCENT);
+        p.gravity = gravity;
+        return p;
     }
 
     private TextView text(String value, int size, int color) {
@@ -101,6 +102,13 @@ public class FloatingAssistantService extends Service {
     private android.graphics.drawable.GradientDrawable round(int color,int radius) {
         android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();
         d.setColor(color);d.setCornerRadius(radius);d.setStroke(dp(1),Color.argb(170,110,205,255));return d;
+    }
+
+    private android.graphics.drawable.GradientDrawable rainbow() {
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.RED, 0xFFFF9800, Color.YELLOW, Color.GREEN, Color.CYAN, 0xFF3F51B5, 0xFF9C27B0});
+        d.setCornerRadius(dp(30)); d.setStroke(dp(1), Color.WHITE); return d;
     }
 
     private void togglePanel() { if(panel==null) showPanel(); else hidePanel(); }
@@ -177,7 +185,10 @@ public class FloatingAssistantService extends Service {
     private void setOutcome(String outcome,int color){
         if(expiryAt==0){countdownText.setText("Generate a signal first.");return;}
         if(System.currentTimeMillis()<expiryAt){countdownText.setText("Wait until the selected expiry before recording the result.");return;}
-        bubbleColor=color;bubbleText.setBackground(round(color,dp(30)));bubbleText.setText(outcome.equals("WIN")?"✓":outcome.equals("LOSS")?"×":"✦");
+        bubbleColor=color;
+        if(outcome.equals("DRAW")) bubbleText.setBackground(rainbow());
+        else bubbleText.setBackground(round(color,dp(30)));
+        bubbleText.setText(outcome.equals("WIN")?"✓":outcome.equals("LOSS")?"×":"✦");
         resultText.setText(resultText.getText()+"\nRESULT: "+outcome+" (confirmed by you)");
         countdownText.setText("Result saved on this device. Generate another signal when ready.");
         expiryAt=0;if(timer!=null)handler.removeCallbacks(timer);
