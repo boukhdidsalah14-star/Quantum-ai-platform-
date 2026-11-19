@@ -32,6 +32,15 @@
    <div class="chart-toolbar"><select id="home-pair" aria-label="Select Forex pair"></select><select id="home-timeframe" aria-label="Chart timeframe"><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select><span id="current-price">—</span></div>
    <div class="chart-box"><canvas id="price-chart"></canvas></div>
    <div class="chart-legend"><span><i class="green-dot"></i> Bullish candle</span><span><i class="red-dot"></i> Bearish candle</span><span id="feed-label">INDEPENDENT FOREX FEED</span><span id="chart-source">CHART FEED CHECKING</span></div>
+   <div class="chart-options" aria-label="Chart overlays">
+    <label><input id="chart-ema20" type="checkbox" checked> EMA 20</label>
+    <label><input id="chart-ema50" type="checkbox"> EMA 50</label>
+    <span class="chart-hint">Indicators calculated from displayed candles</span>
+   </div>
+  </section>
+  <section class="panel forex-watch-panel">
+   <div class="section-title"><div><span class="eyebrow">MARKET SCANNER</span><h2>Forex watchlist</h2></div><span class="live-badge">10 MARKETS</span></div>
+   <div id="forex-watchlist" class="forex-watchlist" aria-label="Select a Forex market"><p class="muted">Loading market quotes…</p></div>
   </section>
   <section class="quick-grid">
    <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>Binary Options Signals</b><small>CALL / PUT for Binary Options</small></button>
