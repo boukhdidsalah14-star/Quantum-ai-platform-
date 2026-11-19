@@ -31,10 +31,22 @@ function nav(page){document.querySelectorAll(".page").forEach(p=>p.classList.tog
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.nav)));
 document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.goto)));
 $("top-signin").addEventListener("click",()=>nav("account"));$("top-account").addEventListener("click",()=>nav("account"));
-function setSelected(p){selected=p; $("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}loadChart()}
+function setSelected(p){selected=p;$("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}renderForexWatchlist();loadChart()}
 function renderPairList(){ $("pair-list").innerHTML=binaryPairs.map(p=>'<button class="pair-item '+(p.symbol===selectedBinary.symbol?'active':'')+'" data-pair="'+p.symbol+'"><span class="flag">'+p.flag+'</span><span><b>'+p.label+'</b><small>Binary Options · Forex</small></span><span class="pair-price">'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"—")+'</span></button>').join("");document.querySelectorAll("[data-pair]").forEach(b=>b.addEventListener("click",()=>{selectedBinary=binaryPairs.find(p=>p.symbol===b.dataset.pair);setSelected(pairs.find(p=>p.symbol===b.dataset.pair));$("signal-pair-title").textContent=selectedBinary.label;renderPairList()}))}
 function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>USD-M FUTURES FEED</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
-async function loadMarkets(){try{let r=await fetch("/api/market-data/forex/markets");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable"}}
+function renderForexWatchlist(){
+ const root=$("forex-watchlist");if(!root)return;
+ root.innerHTML=pairs.map(p=>{
+  const quote=marketMap[p.symbol],price=quote&&Number.isFinite(Number(quote.price))?money(quote.price):"—";
+  const change=quote&&Number.isFinite(Number(quote.change_percent))?Number(quote.change_percent):null;
+  const direction=change===null?"flat":change>=0?"up":"down";
+  return '<button type="button" class="watch-item '+(selected.symbol===p.symbol?'active':'')+'" data-watch-symbol="'+p.symbol+'"><span class="watch-name">'+p.flag+' <b>'+p.label+'</b></span><strong>'+price+'</strong><small class="'+direction+'">'+(change===null?"Quote update pending":(change>=0?"+":"")+change.toFixed(2)+"%")+'</small></button>';
+ }).join("");
+ root.querySelectorAll("[data-watch-symbol]").forEach(button=>button.addEventListener("click",()=>{
+  const pair=pairs.find(p=>p.symbol===button.dataset.watchSymbol);if(pair)setSelected(pair);
+ }));
+}
+async function loadMarkets(){try{let r=await fetch("/api/market-data/forex/markets");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();renderForexWatchlist();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable";renderForexWatchlist()}}
 const cryptoAssets=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","TRXUSDT","DOGEUSDT","ADAUSDT","BCHUSDT","LINKUSDT"];
 $("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.replace("USDT","")+' / USDT</option>').join("");
 async function loadCryptoMarkets(){
@@ -218,8 +230,35 @@ async function loadChart(){
  }
  const last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();
 }
-function drawChart(){let c=$("price-chart"),box=c.parentElement,w=box.clientWidth,h=box.clientHeight,dpr=Math.min(devicePixelRatio||1,2);c.width=w*dpr;c.height=h*dpr;let x=c.getContext("2d");x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle="#0b3153";x.lineWidth=1;for(let i=1;i<5;i++){let y=h*i/5;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!chartCandles.length){x.fillStyle="#7998b7";x.font="12px Inter";x.fillText(chartEmptyMessage,16,h/2);return}let lo=Math.min(...chartCandles.map(v=>+v.low)),hi=Math.max(...chartCandles.map(v=>+v.high)),span=hi-lo||1,step=w/chartCandles.length,bw=Math.max(2,step*.52);chartCandles.forEach((v,i)=>{let cx=i*step+step/2,yo=h-(v.open-lo)/span*h*.86-h*.07,yc=h-(v.close-lo)/span*h*.86-h*.07,yh=h-(v.high-lo)/span*h*.86-h*.07,yl=h-(v.low-lo)/span*h*.86-h*.07,up=v.close>=v.open;x.strokeStyle=up?"#00e99a":"#ff456b";x.fillStyle=x.strokeStyle;x.beginPath();x.moveTo(cx,yh);x.lineTo(cx,yl);x.stroke();x.fillRect(cx-bw/2,Math.min(yo,yc),bw,Math.max(2,Math.abs(yc-yo)));});}
+function drawChart(){
+ const canvas=$("price-chart"),box=canvas.parentElement,width=box.clientWidth,height=box.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
+ if(!width||!height)return;canvas.width=width*dpr;canvas.height=height*dpr;
+ const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+ const left=58,right=12,top=12,bottom=20,plotW=Math.max(1,width-left-right),plotH=Math.max(1,height-top-bottom);
+ ctx.font="10px Inter,system-ui,sans-serif";ctx.lineWidth=1;ctx.strokeStyle="#103453";ctx.fillStyle="#7898b6";
+ for(let i=0;i<=4;i++){const y=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(width-right,y);ctx.stroke();}
+ if(!chartCandles.length){ctx.fillText(chartEmptyMessage,left+8,height/2);return;}
+ const values=chartCandles.flatMap(v=>[Number(v.low),Number(v.high)]).filter(Number.isFinite);
+ let lo=Math.min(...values),hi=Math.max(...values);if(!Number.isFinite(lo)||!Number.isFinite(hi)){ctx.fillText("Invalid candle data",left+8,height/2);return;}
+ const padding=(hi-lo||Math.abs(hi)*.001||1)*.08;lo-=padding;hi+=padding;const span=hi-lo||1;
+ const yFor=value=>top+(hi-Number(value))/span*plotH;
+ for(let i=0;i<=4;i++){const value=hi-(span*i/4);ctx.fillStyle="#7898b6";ctx.fillText(value.toFixed(value<10?5:2),3,top+plotH*i/4+3);}
+ const step=plotW/chartCandles.length,body=Math.max(2,Math.min(12,step*.58));
+ chartCandles.forEach(c=>{
+  const i=chartCandles.indexOf(c),x=left+i*step+step/2,open=yFor(c.open),close=yFor(c.close),high=yFor(c.high),low=yFor(c.low),up=Number(c.close)>=Number(c.open);
+  ctx.strokeStyle=ctx.fillStyle=up?"#00e99a":"#ff456b";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,high);ctx.lineTo(x,low);ctx.stroke();
+  ctx.fillRect(x-body/2,Math.min(open,close),body,Math.max(1.5,Math.abs(close-open)));
+ });
+ const ema=period=>{const alpha=2/(period+1);let current=null;return chartCandles.map(c=>{const close=Number(c.close);current=current===null?close:close*alpha+current*(1-alpha);return current;});};
+ const drawEma=(period,color)=>{const values=ema(period);ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=1.6;values.forEach((value,i)=>{const x=left+i*step+step/2,y=yFor(value);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();};
+ if($("chart-ema20")?.checked)drawEma(20,"#ffd45a");
+ if($("chart-ema50")?.checked)drawEma(50,"#b78cff");
+ const last=chartCandles[chartCandles.length-1],lastY=yFor(last.close);
+ ctx.setLineDash([4,4]);ctx.strokeStyle="#55caff88";ctx.beginPath();ctx.moveTo(left,lastY);ctx.lineTo(width-right,lastY);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle="#55caff";ctx.beginPath();ctx.arc(width-right,lastY,3,0,Math.PI*2);ctx.fill();
+}
 window.addEventListener("resize",drawChart);
+$("chart-ema20").addEventListener("change",drawChart);$("chart-ema50").addEventListener("change",drawChart);
 $("home-pair").innerHTML=pairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");$("floating-pair").innerHTML=binaryPairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");
 $("home-pair").addEventListener("change",e=>setSelected(pairs.find(p=>p.symbol===e.target.value)));$("home-timeframe").addEventListener("change",loadChart);
 async function refreshAuth(){try{let r=await fetch("/api/auth/me");if(!r.ok)throw Error();let d=await r.json();signed=true;$("auth-form-wrap").hidden=true;$("signed-in-panel").hidden=false;$("member-email").textContent=d.customer.email;$("account-chip").textContent="MEMBER";$("top-signin").textContent="ACCOUNT";let sr=await fetch("/api/subscription");let s=await sr.json();member=!!(sr.ok&&s.active);$("auth-state").textContent=member?"ACTIVE":"UNPAID";$("membership-status").textContent=member?"ACTIVE MEMBERSHIP":"NOT ACTIVE";$("membership-status").classList.toggle("active",member);$("membership-expiry").textContent=member?(s.days_remaining+" days remaining · expires "+new Date(s.expires_at*1000).toLocaleDateString()):"Subscribe for $30 USDT TRC20 / 30 days."; $("checkout-button").disabled=!s.payment_configured||member;$("checkout-button").textContent=member?"MEMBERSHIP ACTIVE":s.payment_configured?"SUBSCRIBE · $30 USDT TRC20":"PAYMENT SETUP PENDING";$("home-membership").textContent=member?"ACTIVE":"UNPAID";$("home-membership-note").textContent=member?"Trading access enabled":"Subscribe to unlock trading";$("auth-message").textContent=member?"Membership confirmed. Paid features are unlocked.":"You can browse the app. Trading actions are locked until payment confirmation.";await loadPendingPayment();await loadReferralDashboard();await loadSignalHistory();await refreshCTraderStatus();}catch{signed=false;member=false;$("auth-form-wrap").hidden=false;$("signed-in-panel").hidden=true;$("account-chip").textContent="GUEST";$("auth-state").textContent="GUEST";$("home-membership").textContent="GUEST ACCESS";$("home-membership-note").textContent="Sign in to manage access";$("membership-status").textContent="NOT ACTIVE";let c=await fetch("/api/auth/config").then(r=>r.json()).catch(()=>({}));$("signup-button").hidden=!c.registration_enabled;$("auth-message").textContent=c.registration_enabled?"Sign in or create an account.":"Sign in to your account. Registration is currently closed.";}}
