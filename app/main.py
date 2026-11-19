@@ -1389,11 +1389,6 @@ async def crypto_backtest(
         result.update({"symbol": symbol.upper(), "category": "crypto",
                        "source": source.upper() + " historical candles",
                        "execution_enabled": False})
-        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-        if customer:
-            result["history_id"] = record_signal(customer["id"], "forex", symbol, timeframe,
-                result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
-                result.get("last_close"), result.get("source", "Yahoo Finance"))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -1443,6 +1438,11 @@ async def forex_signal(symbol: str, request: Request, timeframe: str = Query(def
         result.update({"symbol": symbol, "category": "forex", "market_type": "forex",
                        "source": "Yahoo Finance public market candles",
                        "execution_enabled": False})
+        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+        if customer:
+            result["history_id"] = record_signal(customer["id"], "forex", symbol, timeframe,
+                result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
+                result.get("last_close"), result.get("source", "Yahoo Finance"))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
