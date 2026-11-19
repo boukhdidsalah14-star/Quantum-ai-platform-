@@ -19,6 +19,7 @@ from app.ctrader_oauth import (
 def setup_ctrader(monkeypatch, tmp_path):
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "ctrader.sqlite3"))
     monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
+    monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
     monkeypatch.setenv("CTRADER_CLIENT_ID", "test-client-id")
     monkeypatch.setenv("CTRADER_CLIENT_SECRET", "test-client-secret")
     monkeypatch.setenv(
@@ -145,3 +146,11 @@ def test_disconnect_deletes_authorization(monkeypatch, tmp_path):
     assert delete_authorization(customer["id"]) is True
     assert load_tokens(customer["id"]) is None
     assert status(customer["id"])["authorized"] is False
+
+
+def test_authorization_is_blocked_without_durable_storage(monkeypatch, tmp_path):
+    customer = setup_ctrader(monkeypatch, tmp_path)
+    monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "false")
+
+    with pytest.raises(CTraderOAuthError, match="Durable credential storage"):
+        create_authorization(customer["id"])
