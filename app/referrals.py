@@ -102,3 +102,9 @@ def dashboard(customer_id, base_url):
       "reward_eligible":reg-reg_base>=8 and paid-paid_base>=2,
       "rewards":[{"days":r["days"],"granted_at":r["granted_at"]} for r in history],
       "rules":{"signups":8,"paid":2,"reward_days":30}}
+
+def record_paid_order(order_id):
+    with _connect() as db:
+        row=db.execute("SELECT customer_id FROM subscription_orders WHERE order_id=?",(str(order_id),)).fetchone()
+    if not row: return False
+    return record_paid_customer(row["customer_id"],order_id)
