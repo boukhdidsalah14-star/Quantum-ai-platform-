@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_candles, get_market_overview, get_order_book
@@ -22,6 +22,8 @@ from app.signals import analyze_candles
 from app.backtest import backtest_candles
 from app.risk import evaluate_demo_risk
 from app.brokers import broker_capabilities
+from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
+from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, CTraderOpenAPIError)
 from app.mt4_bridge import (
     BridgeAuthError, init_db as init_mt4_bridge_db, register_bridge as register_mt4_bridge,
     bridge_status as mt4_bridge_status, sync_snapshot as sync_mt4_snapshot,
@@ -54,6 +56,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 SESSION_COOKIE = "quantum_session"
+CTRADER_OAUTH_COOKIE = "quantum_ctrader_oauth_state"
 TELEGRAM_TOKEN_ENV_NAMES = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN")
 
 
@@ -83,6 +86,10 @@ class MexcCredentials(BaseModel):
 class MT4BridgeRegistration(BaseModel):
     account_login: str = Field(min_length=5, max_length=12)
     account_server: str = Field(min_length=2, max_length=120)
+
+
+class CTraderAccountSelection(BaseModel):
+    account_id: str = Field(min_length=1, max_length=32, pattern=r"^\d+$")
 
 
 class PaperTradeRequest(BaseModel):
@@ -191,6 +198,8 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_vault_db()
     init_mexc_vault_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
     if _persistent_credentials_ready():
         init_deriv_trading_db()
     monitor_task = None
@@ -450,6 +459,143 @@ async def get_customer_mt4_candles(request: Request, symbol: str, timeframe: str
 async def brokers():
     """Return verified implementation scope; this endpoint never claims a live account."""
     return broker_capabilities()
+
+
+@app.get("/api/connections/ctrader/status")
+async def ctrader_connection_status(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return {**ctrader_authorization_status(customer["id"]),
+            "account_snapshot": get_ctrader_snapshot(customer["id"])}
+
+
+@app.post("/api/connections/ctrader/start")
+async def start_ctrader_authorization(request: Request, response: Response):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        state, authorization_url = create_ctrader_authorization(customer["id"], "trading")
+    except CTraderOAuthError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    response.set_cookie(
+        CTRADER_OAUTH_COOKIE, state, max_age=600, httponly=True,
+        secure=os.getenv("ENVIRONMENT", "development").lower() == "production",
+        samesite="lax", path="/api/connections/ctrader",
+    )
+    return {"authorization_url": authorization_url, "expires_in": 600}
+
+
+@app.get("/api/connections/ctrader/callback")
+async def ctrader_authorization_callback(request: Request, code: str = "", error: str = ""):
+    state = request.cookies.get(CTRADER_OAUTH_COOKIE, "")
+    try:
+        if error:
+            raise CTraderOAuthError("cTrader authorization was cancelled or declined")
+        if not state:
+            raise CTraderOAuthError("The secure connection session expired. Please try again.")
+        await complete_ctrader_authorization(code, state)
+        destination = "/?ctrader=authorized"
+    except CTraderOAuthError:
+        logger.warning("cTrader OAuth callback could not be completed")
+        destination = "/?ctrader=error"
+    response = RedirectResponse(destination, status_code=303)
+    response.delete_cookie(CTRADER_OAUTH_COOKIE, path="/api/connections/ctrader")
+    return response
+
+
+@app.get("/api/connections/ctrader/accounts")
+async def ctrader_demo_accounts(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader before discovering accounts")
+    try:
+        accounts = await discover_ctrader_demo_accounts(customer["id"])
+        return {"accounts": accounts, "environment": "demo", "order_execution_enabled": False}
+    except (CTraderOAuthError, CTraderOpenAPIError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/select")
+async def select_ctrader_demo_account(payload: CTraderAccountSelection, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader before selecting an account")
+    try:
+        return await sync_ctrader_demo_account(customer["id"], payload.account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except (CTraderOAuthError, CTraderOpenAPIError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/snapshot")
+async def refresh_ctrader_demo_snapshot(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_snapshot(customer["id"])
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Select an IC Markets demo account first")
+    try:
+        return await sync_ctrader_demo_account(customer["id"], snapshot["account_id"])
+    except (CTraderOAuthError, CTraderOpenAPIError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/markets")
+async def ctrader_demo_markets(request: Request):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return {"markets": await discover_ctrader_demo_symbols(customer["id"]),
+                "source": "IC Markets cTrader demo market data", "execution_enabled": False}
+    except (CTraderOAuthError, CTraderOpenAPIError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/candles/{symbol}")
+async def ctrader_demo_candles(
+    symbol: str,
+    request: Request,
+    timeframe: str = Query(default="15m"),
+    count: int = Query(default=80, ge=20, le=200),
+):
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await get_ctrader_demo_candles(customer["id"], symbol, timeframe, count)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except (CTraderOAuthError, CTraderOpenAPIError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.delete("/api/connections/ctrader")
+async def disconnect_ctrader_account(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    clear_ctrader_snapshot(customer["id"])
+    return {"deleted": delete_ctrader_authorization(customer["id"])}
 
 
 @app.get("/api/auth/config")
