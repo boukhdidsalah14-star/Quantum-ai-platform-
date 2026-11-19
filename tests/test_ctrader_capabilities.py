@@ -7,6 +7,7 @@ def test_ctrader_registry_reports_read_only_demo_scope(monkeypatch):
         "CTRADER_CLIENT_SECRET",
         "CTRADER_REDIRECT_URI",
         "QUANTUM_CREDENTIALS_ENCRYPTION_KEY",
+        "QUANTUM_PERSISTENT_STORAGE",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -17,6 +18,7 @@ def test_ctrader_registry_reports_read_only_demo_scope(monkeypatch):
     assert ctrader["connection_verified"] is False
     assert ctrader["production_available"] is True
     assert ctrader["application_configured"] is False
+    assert ctrader["credential_storage_ready"] is False
     assert ctrader["demo_execution_code_available"] is False
     assert ctrader["demo_execution_enabled"] is False
     assert ctrader["real_execution_enabled"] is False
