@@ -20,17 +20,21 @@ def broker_capabilities() -> dict:
         persistent_storage_ready
         and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
     )
-    ctrader_configured = all(os.getenv(name, "").strip() for name in (
+    ctrader_application_configured = all(os.getenv(name, "").strip() for name in (
         "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET", "CTRADER_REDIRECT_URI",
-        "QUANTUM_CREDENTIALS_ENCRYPTION_KEY",
     ))
+    ctrader_storage_ready = (
+        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
+    )
     brokers = [
         {
             "id": "icmarkets_ctrader",
             "name": "IC Markets cTrader",
             "category": "forex",
             "status": "read_only_demo_sync_implemented",
-            "application_configured": ctrader_configured,
+            "application_configured": ctrader_application_configured,
+            "credential_storage_ready": ctrader_storage_ready,
             "production_available": True,
             "connection_verified": False,
             "supported_scope": [
@@ -46,7 +50,7 @@ def broker_capabilities() -> dict:
             "demo_execution_code_available": False,
             "demo_execution_enabled": False,
             "real_execution_enabled": False,
-            "note": "Customer OAuth, encrypted token storage, IC Markets demo-account discovery, read-only balance and open-position reconciliation, broker symbols, and demo candles are implemented. No broker order can be opened, modified, or closed, and broker trade history is not yet reconciled. Demo and live execution remain disabled.",
+            "note": "Customer OAuth, encrypted token storage, IC Markets demo-account discovery, read-only balance and open-position reconciliation, broker symbols, and demo candles are implemented. OAuth is blocked until durable storage and the encryption key are enabled. No broker order can be opened, modified, or closed, and broker trade history is not yet reconciled. Demo and live execution remain disabled.",
         },
         {
             "id": "justmarkets_mt4",
