@@ -46,7 +46,7 @@ public class FloatingAssistantService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
+        if (intent != null && ACTION_STOP.equals(intent.getAction())) { getSharedPreferences("quantum_assistant", MODE_PRIVATE).edit().putBoolean("enabled", false).apply(); stopSelf(); return START_NOT_STICKY; }
         return START_STICKY;
     }
 
