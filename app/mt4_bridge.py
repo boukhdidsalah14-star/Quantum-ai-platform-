@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.database import sqlite3
+from app.storage_status import credential_storage_ready
 
 ALLOWED_SYMBOLS = {
     "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
@@ -52,7 +53,7 @@ def _now() -> int:
 
 def _demo_execution_enabled() -> bool:
     return (
-        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
+        credential_storage_ready()
         and os.getenv("QUANTUM_MT4_DEMO_EXECUTION_ENABLED", "").strip().lower() == "true"
     )
 

@@ -18,6 +18,7 @@ from urllib.parse import urlencode
 import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from app.database import sqlite3
+from app.storage_status import credential_storage_ready
 
 AUTHORIZATION_URL = "https://id.ctrader.com/my/settings/openapi/grantingaccess/"
 TOKEN_URL = "https://openapi.ctrader.com/apps/token"
@@ -46,15 +47,12 @@ def configured() -> bool:
 
 
 def _credential_storage_ready() -> bool:
-    return (
-        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-    )
+    return credential_storage_ready()
 
 
 def _require_credential_storage() -> None:
-    if os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() != "true":
-        raise CTraderOAuthError("Durable credential storage is not enabled on this server")
+    if not credential_storage_ready():
+        raise CTraderOAuthError("Durable credential storage is not enabled or mounted on this server")
     _cipher()
 
 

@@ -17,6 +17,7 @@ from app.ctrader_oauth import (
 
 
 def setup_ctrader(monkeypatch, tmp_path):
+    monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "ctrader.sqlite3"))
     monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode("ascii"))
     monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")

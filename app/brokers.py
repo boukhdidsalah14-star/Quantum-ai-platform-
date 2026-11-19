@@ -6,16 +6,14 @@ A website/session automation claim is not treated as an official broker API.
 from __future__ import annotations
 
 import os
+from app.storage_status import credential_storage_ready
 
 
 def broker_capabilities() -> dict:
     deriv_configured = all(os.getenv(name, "").strip() for name in (
         "DERIV_APP_ID", "DERIV_DEMO_ACCOUNT_ID", "DERIV_DEMO_TOKEN"
     ))
-    persistent_storage_ready = (
-        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-    )
+    persistent_storage_ready = credential_storage_ready()
     demo_execution_enabled = (
         persistent_storage_ready
         and os.getenv("QUANTUM_DERIV_DEMO_TRADING_ENABLED", "").strip().lower() == "true"
@@ -23,10 +21,7 @@ def broker_capabilities() -> dict:
     ctrader_application_configured = all(os.getenv(name, "").strip() for name in (
         "CTRADER_CLIENT_ID", "CTRADER_CLIENT_SECRET", "CTRADER_REDIRECT_URI",
     ))
-    ctrader_storage_ready = (
-        os.getenv("QUANTUM_PERSISTENT_STORAGE", "").strip().lower() == "true"
-        and bool(os.getenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "").strip())
-    )
+    ctrader_storage_ready = credential_storage_ready()
     brokers = [
         {
             "id": "icmarkets_ctrader",
