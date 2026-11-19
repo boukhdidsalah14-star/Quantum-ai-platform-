@@ -13,8 +13,11 @@ def test_ctrader_registry_reports_read_only_demo_scope(monkeypatch):
     registry = broker_capabilities()
     ctrader = next(item for item in registry["brokers"] if item["id"] == "icmarkets_ctrader")
 
-    assert ctrader["status"] == "read_only_demo_sync_implemented"
+    assert ctrader["status"] == "development_branch_only_not_deployed"
     assert ctrader["connection_verified"] is False
+    assert ctrader["production_available"] is False
+    assert ctrader["supported_scope"] == []
+    assert "demo_balance_read" in ctrader["development_scope"]
     assert ctrader["demo_execution_code_available"] is False
     assert ctrader["demo_execution_enabled"] is False
     assert ctrader["real_execution_enabled"] is False
