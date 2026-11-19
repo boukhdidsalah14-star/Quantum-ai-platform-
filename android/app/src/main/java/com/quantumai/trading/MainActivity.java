@@ -54,7 +54,11 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (!askedOverlay && Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)
+                && getSharedPreferences("quantum_assistant", MODE_PRIVATE).getBoolean("enabled", false)) {
+            startFloatingAssistant();
+        }
+        if (!askedOverlay && Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this))
             askedOverlay = true;
             new AlertDialog.Builder(this)
                 .setTitle("Enable QUANTUM AI floating assistant?")
@@ -81,6 +85,7 @@ public class MainActivity extends Activity {
 
     private void startFloatingAssistant() {
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) return;
+        getSharedPreferences("quantum_assistant", MODE_PRIVATE).edit().putBoolean("enabled", true).apply();
         Intent service = new Intent(this, FloatingAssistantService.class);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
         Toast.makeText(this, "Floating assistant enabled. Open IQ Option or Chrome and tap the QUANTUM circle.", Toast.LENGTH_LONG).show();
