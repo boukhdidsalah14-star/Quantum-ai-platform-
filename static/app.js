@@ -38,9 +38,8 @@ function renderForexWatchlist(){
  const root=$("forex-watchlist");if(!root)return;
  root.innerHTML=pairs.map(p=>{
   const quote=marketMap[p.symbol],price=quote&&Number.isFinite(Number(quote.price))?money(quote.price):"—";
-  const change=quote&&Number.isFinite(Number(quote.change_percent))?Number(quote.change_percent):null;
-  const direction=change===null?"flat":change>=0?"up":"down";
-  return '<button type="button" class="watch-item '+(selected.symbol===p.symbol?'active':'')+'" data-watch-symbol="'+p.symbol+'"><span class="watch-name">'+p.flag+' <b>'+p.label+'</b></span><strong>'+price+'</strong><small class="'+direction+'">'+(change===null?"Quote update pending":(change>=0?"+":"")+change.toFixed(2)+"%")+'</small></button>';
+  const live=!!(quote&&quote.price!==null&&Number.isFinite(Number(quote.price)));
+  return '<button type="button" class="watch-item '+(selected.symbol===p.symbol?'active':'')+'" data-watch-symbol="'+p.symbol+'"><span class="watch-name">'+p.flag+' <b>'+p.label+'</b></span><strong>'+price+'</strong><small class="'+(live?"up":"flat")+'">'+(live?"PUBLIC QUOTE":"FEED UNAVAILABLE")+'</small></button>';
  }).join("");
  root.querySelectorAll("[data-watch-symbol]").forEach(button=>button.addEventListener("click",()=>{
   const pair=pairs.find(p=>p.symbol===button.dataset.watchSymbol);if(pair)setSelected(pair);
@@ -244,8 +243,8 @@ function drawChart(){
  const yFor=value=>top+(hi-Number(value))/span*plotH;
  for(let i=0;i<=4;i++){const value=hi-(span*i/4);ctx.fillStyle="#7898b6";ctx.fillText(value.toFixed(value<10?5:2),3,top+plotH*i/4+3);}
  const step=plotW/chartCandles.length,body=Math.max(2,Math.min(12,step*.58));
- chartCandles.forEach(c=>{
-  const i=chartCandles.indexOf(c),x=left+i*step+step/2,open=yFor(c.open),close=yFor(c.close),high=yFor(c.high),low=yFor(c.low),up=Number(c.close)>=Number(c.open);
+ chartCandles.forEach((c,i)=>{
+  const x=left+i*step+step/2,open=yFor(c.open),close=yFor(c.close),high=yFor(c.high),low=yFor(c.low),up=Number(c.close)>=Number(c.open);
   ctx.strokeStyle=ctx.fillStyle=up?"#00e99a":"#ff456b";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,high);ctx.lineTo(x,low);ctx.stroke();
   ctx.fillRect(x-body/2,Math.min(open,close),body,Math.max(1.5,Math.abs(close-open)));
  });
