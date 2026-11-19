@@ -467,8 +467,15 @@ async def ctrader_connection_status(request: Request):
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return {**ctrader_authorization_status(customer["id"]),
-            "account_snapshot": get_ctrader_snapshot(customer["id"])}
+    snapshot = get_ctrader_snapshot(customer["id"])
+    return {
+        **ctrader_authorization_status(customer["id"]),
+        "account_selected": bool(snapshot),
+        "account_state": "demo_account_synced" if snapshot else "account_sync_pending",
+        "account_snapshot": snapshot,
+        "demo_execution_enabled": False,
+        "real_execution_enabled": False,
+    }
 
 
 @app.post("/api/connections/ctrader/start")
