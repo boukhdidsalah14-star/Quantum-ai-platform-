@@ -22,6 +22,7 @@ from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db,
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
 from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, set_live_permission as set_ctrader_live_permission, revoke_all_permissions as revoke_ctrader_permissions, CTraderPermissionError)
+from app.ctrader_auto import (init_db as init_ctrader_auto_db, start_strategy as start_ctrader_auto_strategy, stop_strategy as stop_ctrader_auto_strategy, get_strategy as get_ctrader_auto_strategy, engine_loop as ctrader_auto_engine_loop)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, discover_live_accounts as discover_ctrader_live_accounts, discover_live_symbols as discover_ctrader_live_symbols, sync_live_account as sync_ctrader_live_account, saved_live_snapshot as get_ctrader_live_snapshot, open_live_trade as open_ctrader_live_trade, amend_live_position as amend_ctrader_live_position, close_live_position as execute_ctrader_live_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.signals import analyze_candles
@@ -152,6 +153,18 @@ class CTraderEmergencyStopRequest(BaseModel):
 class CTraderDemoAuthorizationRequest(BaseModel):
     enabled: bool
     acknowledge_risk: bool = False
+
+
+class CTraderAutoStartRequest(BaseModel):
+    environment: str
+    symbols: list[str] = Field(min_length=1, max_length=5)
+    timeframe: str = Field(default="15m", min_length=2, max_length=3)
+    lots: float = Field(default=0.001, gt=0, le=0.01)
+    acknowledge_risk: bool = False
+
+
+class CTraderAutoStopRequest(BaseModel):
+    environment: str
 
 
 def _check_same_origin(request: Request) -> None:
@@ -297,6 +310,13 @@ async def lifespan(app: FastAPI):
     init_ctrader_sync_db()
     init_ctrader_risk_db()
     init_ctrader_permissions_db()
+    init_ctrader_auto_db()
+    ctrader_auto_task = None
+    if os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true":
+        ctrader_auto_task = asyncio.create_task(ctrader_auto_engine_loop())
+        logger.info("QUANTUM AI cTrader Forex auto engine started")
+    else:
+        logger.info("QUANTUM AI cTrader Forex auto engine is disabled by server configuration")
     mexc_auto_task = None
     mexc_auto_mode = os.getenv("QUANTUM_MEXC_AUTO_EXECUTION_MODE", "inline").strip().lower()
     if mexc_auto_mode not in {"inline", "worker"}:
@@ -348,6 +368,12 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if ctrader_auto_task is not None:
+            ctrader_auto_task.cancel()
+            try:
+                await ctrader_auto_task
+            except asyncio.CancelledError:
+                pass
         if mexc_auto_task is not None:
             mexc_auto_task.cancel()
             try:
@@ -1941,3 +1967,71 @@ async def close_virtual_position(platform: str, position_id: str, payload: Virtu
                 "execution": "virtual_simulation_only", "broker_order_sent": False}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/auto")
+async def get_ctrader_auto_status(request: Request):
+    init_auth_db()
+    init_ctrader_sync_db()
+    init_ctrader_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    demo = get_ctrader_snapshot(customer["id"])
+    live = get_ctrader_live_snapshot(customer["id"])
+    return {
+        "engine_enabled": os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true",
+        "engine_mode": "inline",
+        "demo_strategy": get_ctrader_auto_strategy(customer["id"], demo["account_id"], "demo") if demo and demo.get("account_id") else None,
+        "live_strategy": get_ctrader_auto_strategy(customer["id"], live["account_id"], "live") if live and live.get("account_id") else None,
+        "demo_account_connected": bool(demo),
+        "live_account_connected": bool(live),
+    }
+
+
+@app.post("/api/connections/ctrader/auto/start")
+async def start_ctrader_auto(request_data: CTraderAutoStartRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    init_ctrader_permissions_db()
+    init_ctrader_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not request_data.acknowledge_risk:
+        raise HTTPException(status_code=400, detail="Confirm the automated-trading risk acknowledgement first")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Connect and authorize your cTrader account first")
+    env = str(request_data.environment or "").lower()
+    snapshot = get_ctrader_snapshot(customer["id"]) if env == "demo" else get_ctrader_live_snapshot(customer["id"])
+    if not snapshot or snapshot.get("environment") != env:
+        raise HTTPException(status_code=409, detail=f"Connect and sync your IC Markets {env} account first")
+    try:
+        strategy = start_ctrader_auto_strategy(
+            customer["id"], snapshot["account_id"], env, request_data.symbols,
+            request_data.timeframe, request_data.lots)
+        return {"ok": True, "strategy": strategy, "engine_enabled":
+                os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true"}
+    except CTraderPermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/auto/stop")
+async def stop_ctrader_auto(request_data: CTraderAutoStopRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_sync_db()
+    init_ctrader_auto_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    env = str(request_data.environment or "").lower()
+    snapshot = get_ctrader_snapshot(customer["id"]) if env == "demo" else get_ctrader_live_snapshot(customer["id"])
+    if not snapshot or not snapshot.get("account_id"):
+        raise HTTPException(status_code=409, detail=f"No selected {env} account")
+    return {"ok": True, "strategy": stop_ctrader_auto_strategy(
+        customer["id"], snapshot["account_id"], env)}
