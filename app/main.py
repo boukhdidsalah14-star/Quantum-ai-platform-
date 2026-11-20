@@ -21,7 +21,7 @@ from app.mexc_futures_execution import (get_futures_account_info as get_mexc_acc
 from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db, get_live_authorization as get_mexc_live_authorization, set_live_authorization as set_mexc_live_authorization, activate_emergency_stop as activate_mexc_emergency_stop, require_live_authorization as require_mexc_live_authorization)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
-from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, set_live_permission as set_ctrader_live_permission, CTraderPermissionError)
+from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, set_live_permission as set_ctrader_live_permission, revoke_all_permissions as revoke_ctrader_permissions, CTraderPermissionError)
 from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, discover_live_accounts as discover_ctrader_live_accounts, discover_live_symbols as discover_ctrader_live_symbols, sync_live_account as sync_ctrader_live_account, saved_live_snapshot as get_ctrader_live_snapshot, open_live_trade as open_ctrader_live_trade, amend_live_position as amend_ctrader_live_position, close_live_position as execute_ctrader_live_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.signals import analyze_candles
@@ -1074,6 +1074,7 @@ async def disconnect_ctrader_account(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     clear_ctrader_snapshot(customer["id"])
+    revoke_ctrader_permissions(customer["id"])
     return {"deleted": delete_ctrader_authorization(customer["id"])}
 
 
