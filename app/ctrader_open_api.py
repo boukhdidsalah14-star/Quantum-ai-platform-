@@ -23,7 +23,7 @@ from app.ctrader_risk import (
     release_entry as release_risk_entry, sync_open_positions as sync_risk_positions,
     record_open_position as record_risk_open_position,
 )
-from app.ctrader_permissions import require_demo_permission
+from app.ctrader_permissions import require_demo_permission, require_live_permission
 
 
 # Spotware JSON protocol WebSocket endpoints (port 5036).
