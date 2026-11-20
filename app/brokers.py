@@ -32,7 +32,7 @@ def broker_capabilities() -> dict:
             "supported_scope": [
                 "oauth_authorization", "demo_account_discovery", "demo_balance_sync",
                 "demo_position_sync", "demo_market_orders", "demo_modify_stop_loss_take_profit",
-                "demo_close_positions",
+                "demo_close_positions", "demo_trade_history",
             ],
             "execution_enabled": False, "demo_execution_enabled": True,
             "real_execution_enabled": False,
