@@ -314,8 +314,10 @@ async def lifespan(app: FastAPI):
     ctrader_auto_task = None
     if os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true":
         ctrader_auto_task = asyncio.create_task(ctrader_auto_engine_loop())
+        app.state.ctrader_auto_engine_running = True
         logger.info("QUANTUM AI cTrader Forex auto engine started")
     else:
+        app.state.ctrader_auto_engine_running = False
         logger.info("QUANTUM AI cTrader Forex auto engine is disabled by server configuration")
     mexc_auto_task = None
     mexc_auto_mode = os.getenv("QUANTUM_MEXC_AUTO_EXECUTION_MODE", "inline").strip().lower()
@@ -1165,6 +1167,8 @@ async def health(request: Request):
         "telegram_webhook_active": bool(bot and getattr(request.app.state, "telegram_webhook_secret", "")),
         "webapp_url_configured": os.getenv("TELEGRAM_WEBAPP_URL", "").strip().startswith("https://"),
         "customer_auth": "available",
+        "ctrader_auto_engine_enabled": os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true",
+        "ctrader_auto_engine_running": bool(getattr(request.app.state, "ctrader_auto_engine_running", False)),
         "credential_storage_ready": _persistent_credentials_ready(),
         "ctrader_oauth_configured": ctrader_oauth_configured(),
         "ctrader_account_execution_enabled": False,
