@@ -60,10 +60,12 @@ def init_auth_db() -> None:
             attempts INTEGER NOT NULL
         );
         """)
-        try:
-            db.execute("ALTER TABLE customers ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'")
-        except Exception:
-            pass
+        if os.getenv("DATABASE_URL", "").strip():
+            db.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'customer'")
+        else:
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(customers)").fetchall()}
+            if "role" not in columns:
+                db.execute("ALTER TABLE customers ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'")
 
 
 def _password_hash(password: str, salt: bytes | None = None) -> str:
