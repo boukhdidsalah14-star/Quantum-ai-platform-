@@ -122,6 +122,37 @@
      </form>
      <p class="risk-note">Demo only · Maximum 0.01 lots per order · Broker must confirm execution. This is not automated trading.</p>
     </div>
+    <section class="risk-control-panel" id="ctrader-live-panel">
+     <h3>LIVE FOREX ACCOUNT</h3>
+     <p class="risk-note">Connect and verify your own IC Markets live account separately. Live order controls remain unavailable until Spotware live access and platform approval are confirmed. No live orders are sent by default.</p>
+     <div class="chart-toolbar">
+      <button id="ctrader-live-discover" class="outline-btn" type="button">FIND LIVE ACCOUNTS</button>
+      <select id="ctrader-live-account-select" class="outline-btn" aria-label="IC Markets live account"><option value="">Choose live account</option></select>
+      <button id="ctrader-live-select" class="solid-btn" type="button">SYNC LIVE ACCOUNT</button>
+     </div>
+     <div id="ctrader-live-result" class="payment-box" hidden></div>
+     <div id="ctrader-live-snapshot" class="payment-box" hidden></div>
+     <div id="ctrader-live-authorization" class="payment-box" hidden>
+      <b>LIVE TRADING AUTHORIZATION</b>
+      <div id="ctrader-live-auth-status">Checking live authorization…</div>
+      <label class="consent-row"><input id="ctrader-live-risk-ack" type="checkbox"> I explicitly authorize QUANTUM AI to send manual orders to my selected IC Markets live account. I understand real money can be lost, including rapidly, and I remain responsible for monitoring every position.</label>
+      <button id="ctrader-live-auth-toggle" class="outline-btn wide-btn" type="button" disabled>LIVE EXECUTION LOCKED</button>
+     </div>
+     <form id="ctrader-live-order-form" class="auth-form" hidden>
+      <h3>LIVE MANUAL EXECUTION</h3>
+      <label>TRADING SYMBOL<select id="ctrader-live-symbol" required><option value="">Select a broker symbol</option></select></label>
+      <div class="form-grid">
+       <label>TRADE SIDE<select id="ctrader-live-side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></label>
+       <label>SIZE (LOTS)<input id="ctrader-live-lots" type="number" min="0.001" max="0.01" step="0.001" value="0.001" required></label>
+      </div>
+      <div class="form-grid">
+       <label>STOP-LOSS PRICE<input id="ctrader-live-sl" type="number" min="0.00001" step="any" required></label>
+       <label>TAKE-PROFIT PRICE<input id="ctrader-live-tp" type="number" min="0.00001" step="any" required></label>
+      </div>
+      <button id="ctrader-live-open" class="solid-btn wide-btn" type="submit" disabled>PLACE LIVE ORDER</button>
+      <p class="risk-note">Hard cap: 0.01 lots per order. Server-side daily-loss, position-count and emergency-stop controls apply. Confirm each order yourself.</p>
+     </form>
+    </section>
    </div>
    <p id="ctrader-note" class="risk-note">The cTrader application must be approved by Spotware before customers can authorize accounts. Demo execution remains available only after a customer connects and selects an IC Markets demo account. Live trading stays locked.</p>
   </section>
