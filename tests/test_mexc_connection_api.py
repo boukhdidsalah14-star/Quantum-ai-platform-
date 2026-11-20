@@ -26,12 +26,11 @@ def test_mexc_connection_requires_customer_auth():
         }).status_code == 401
 
 
-def test_mexc_verify_is_read_only_and_does_not_save_without_durable_storage(monkeypatch, tmp_path):
-    setup_customer(monkeypatch, tmp_path, persistent="false")
+def test_mexc_verify_is_disabled_in_paper_only_release(monkeypatch, tmp_path):
+    customer = setup_customer(monkeypatch, tmp_path, persistent="false")
 
     async def fake_verify(api_key, api_secret):
-        assert (api_key, api_secret) == ("test-key", "test-secret")
-        return {"connected": True, "broker": "mexc", "mode": "real", "balances": []}
+        raise AssertionError("MEXC customer credentials must not be verified in paper-only mode")
 
     monkeypatch.setattr(main, "get_mexc_account_info", fake_verify)
     with TestClient(main.app) as client:
@@ -42,19 +41,17 @@ def test_mexc_verify_is_read_only_and_does_not_save_without_durable_storage(monk
         response = client.post("/api/connections/mexc/verify", json={
             "api_key": "test-key", "api_secret": "test-secret"
         })
-        assert response.status_code == 200
-        body = response.json()
-        assert body["connected"] is True
-        assert body["credential_saved"] is False
-        assert body["persistence_required"] is True
+        assert response.status_code == 503
+        assert "paper-trading release" in response.json()["detail"]
+        assert vault.load(customer["id"]) is None
         assert "test-secret" not in response.text
 
 
-def test_mexc_verify_saves_encrypted_credentials_when_durable_storage_is_enabled(monkeypatch, tmp_path):
+def test_mexc_verify_never_saves_api_credentials_in_paper_only_release(monkeypatch, tmp_path):
     customer = setup_customer(monkeypatch, tmp_path, persistent="true")
 
     async def fake_verify(api_key, api_secret):
-        return {"connected": True, "broker": "mexc", "mode": "real", "balances": []}
+        raise AssertionError("MEXC customer credentials must not be verified in paper-only mode")
 
     monkeypatch.setattr(main, "get_mexc_account_info", fake_verify)
     with TestClient(main.app) as client:
@@ -64,13 +61,8 @@ def test_mexc_verify_saves_encrypted_credentials_when_durable_storage_is_enabled
         response = client.post("/api/connections/mexc/verify", json={
             "api_key": "test-key", "api_secret": "test-secret"
         })
-        assert response.status_code == 200
-        assert response.json()["credential_saved"] is True
-        assert vault.load(customer["id"]) == {
-            "api_key": "test-key", "api_secret": "test-secret"
-        }
+        assert response.status_code == 503
+        assert "paper-trading release" in response.json()["detail"]
+        assert vault.load(customer["id"]) is None
         raw = (tmp_path / "mexc-api.sqlite3").read_bytes()
         assert b"test-secret" not in raw
-        assert client.get("/api/connections/mexc").json()["connected"] is True
-        assert client.delete("/api/connections/mexc").json()["deleted"] is True
-        assert vault.load(customer["id"]) is None
