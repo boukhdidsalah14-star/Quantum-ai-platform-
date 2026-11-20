@@ -1269,13 +1269,13 @@ async def verify_and_save_mexc_connection(payload: MexcCredentials, request: Req
     This endpoint never places or cancels orders. Customers should use an API key
     with futures account/trade-reading permission and IP restrictions.
     """
-    raise HTTPException(status_code=503, detail="MEXC API-key connections are not used in the paper-trading release")
     _check_same_origin(request)
     init_auth_db()
     init_mexc_vault_db()
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
+    raise HTTPException(status_code=503, detail="MEXC API-key connections are not used in the paper-trading release")
     try:
         verified = await get_mexc_account_info(payload.api_key, payload.api_secret)
         if not _persistent_credentials_ready():
