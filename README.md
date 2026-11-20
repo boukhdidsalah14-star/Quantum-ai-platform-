@@ -11,13 +11,21 @@
 
 A mobile-first trading workspace foundation with a custom candlestick dashboard, Telegram entry point, and an initial customer identity layer.
 
+## Current customer release scope — authoritative
+
+- **MEXC Crypto Futures:** public market data, technical analysis, signals, backtesting and customer-isolated paper trading only. The customer release does not connect MEXC API keys, read live account balances or positions, place exchange orders, or run live futures automation.
+- **cTrader / IC Markets Forex:** customer-owned demo account authorization, demo balance/position synchronization, and demo order open/modify/close features only. These require a successful customer OAuth connection, verified demo account, explicit demo permission, durable encrypted storage, and broker-side end-to-end testing.
+- **Live Forex:** not verified and not offered in this release. Live account order, modification and close endpoints are disabled.
+- Old live-execution adapters or historical notes elsewhere in this repository are not customer features and must not be advertised as available.
+- A successful preview deployment proves only that the app deployed; it does not prove broker execution or real-money safety.
+
 ## Current capabilities
 
 - Responsive QUANTUM AI dashboard with a custom Canvas candlestick chart.
 - Public, read-only USDT-margined perpetual futures quotes and candles for the approved crypto watchlist through the MEXC Futures API; separate MEXC Spot endpoints remain available for spot data.
-- Customer-scoped MEXC USD-M Futures API credentials are encrypted at rest; signed account verification, contract-rule lookup, open-position reads, market-order placement, and market close primitives are implemented.
-- MEXC auto-trading can be explicitly started/stopped per active member. The worker evaluates completed 1h/4h/1d candles, allows one strategy per customer, blocks duplicate entries per candle, sizes orders from exchange contract size/volume steps, caps risk at 1% and notional at $500 per entry, uses isolated margin, and attaches exchange-side stop-loss/take-profit. A persistent 10% UTC-day equity drawdown guard stops new entries.
-- Live MEXC trading requires `QUANTUM_MEXC_LIVE_TRADING_ENABLED=true`, durable encrypted storage, a customer-owned API key with Futures order permission, and an active subscription. Stopping a strategy prevents new entries but does not close existing positions; attached exchange TP/SL remains active. An uncertain order submission is recorded as unknown and is not blindly retried.
+- MEXC USD-M perpetual futures public market data is read-only. Customer futures analysis, signal generation, historical backtesting and simulated paper entries use public candles and quotes; no MEXC order endpoint is called by the customer release.
+- MEXC paper auto-entry evaluates completed 1h/4h/1d candles and creates simulated positions in the customer-isolated paper ledger. It does not submit orders to MEXC.
+- MEXC live futures trading and live auto-trading are hard-disabled in the current release. Do not enable `QUANTUM_MEXC_LIVE_TRADING_ENABLED`; the customer UI does not offer API-key connection or live order controls.
 - Initial Deriv public market-data adapter for Forex and synthetic underlyings: active symbols, OHLC candles, and available binary/option contract metadata. This uses the official unauthenticated public WebSocket and cannot place trades.
 - Backend market-data endpoints with symbol/interval allowlists and short-lived in-memory caching.
 - Telegram bot commands: `/start`, `/help`, `/status`, `/markets`, `/price BTCUSDT`, `/forex`, `/binary`, `/signal`, `/quote`, and `/backtest`; market commands use allowlisted public read-only quotes. In production, Telegram updates are delivered through an authenticated HTTPS webhook handled by the FastAPI service.
