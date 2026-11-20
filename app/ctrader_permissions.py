@@ -48,23 +48,52 @@ def set_demo_permission(customer_id, account_id, enabled, acknowledged):
           (customer_id,str(account_id),1 if enabled else 0,now if enabled else None,now))
     return get_permission(customer_id,account_id)
 
+def set_live_permission(customer_id, account_id, enabled, acknowledged):
+    if not str(account_id or "").isdigit():
+        raise ValueError("Select your cTrader live account first")
+    if enabled and not acknowledged:
+        raise ValueError("You must acknowledge the live-trading risks before enabling trading")
+    init_db()
+    now=int(time.time())
+    with _db() as db:
+        db.execute("""INSERT INTO ctrader_customer_permissions
+          (customer_id,account_id,environment,enabled,acknowledged_at,updated_at)
+          VALUES (?,?,'live',?,?,?)
+          ON CONFLICT(customer_id,account_id,environment) DO UPDATE SET
+          enabled=excluded.enabled,acknowledged_at=excluded.acknowledged_at,
+          updated_at=excluded.updated_at""",
+          (customer_id,str(account_id),1 if enabled else 0,now if enabled else None,now))
+    return get_permission(customer_id,account_id)
+
 def get_permission(customer_id, account_id):
     if not account_id:
         return {"account_id":None,"environment":"demo","demo_trading_authorized":False,
                 "live_trading_authorized":False,"live_trading_available":False}
     init_db()
     with _db() as db:
-        row=db.execute("""SELECT enabled,acknowledged_at,updated_at
+        rows=db.execute("""SELECT environment,enabled,acknowledged_at,updated_at
           FROM ctrader_customer_permissions WHERE customer_id=? AND account_id=?
-          AND environment='demo'""",(customer_id,str(account_id))).fetchone()
-    enabled=bool(row and row["enabled"])
+          AND environment IN ('demo','live')""",(customer_id,str(account_id))).fetchall()
+    states={str(row["environment"]):row for row in rows}
+    demo=states.get("demo")
+    live=states.get("live")
     return {"account_id":str(account_id),"environment":"demo",
-            "demo_trading_authorized":enabled,"acknowledged_at":int(row["acknowledged_at"]) if row and row["acknowledged_at"] else None,
-            "updated_at":int(row["updated_at"]) if row else None,
-            "live_trading_authorized":False,"live_trading_available":False}
+            "demo_trading_authorized":bool(demo and demo["enabled"]),
+            "live_trading_authorized":bool(live and live["enabled"]),
+            "acknowledged_at":int(demo["acknowledged_at"]) if demo and demo["acknowledged_at"] else None,
+            "updated_at":int(demo["updated_at"]) if demo else None,
+            "live_acknowledged_at":int(live["acknowledged_at"]) if live and live["acknowledged_at"] else None,
+            "live_updated_at":int(live["updated_at"]) if live else None,
+            "live_trading_available":False}
 
 def require_demo_permission(customer_id, account_id):
     permission=get_permission(customer_id,account_id)
     if not permission["demo_trading_authorized"]:
         raise CTraderPermissionError("Demo trading is not authorized for this customer and account. Enable it in Account Authorization first.")
+    return permission
+
+def require_live_permission(customer_id, account_id):
+    permission=get_permission(customer_id,account_id)
+    if not permission["live_trading_authorized"]:
+        raise CTraderPermissionError("Live trading is not authorized for this customer and account. Complete Live Account Authorization first.")
     return permission
