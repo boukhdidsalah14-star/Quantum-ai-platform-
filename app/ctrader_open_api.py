@@ -504,6 +504,248 @@ async def close_demo_position(customer_id: str, position_id: str) -> dict:
         await ws.close()
 
 
+
+# Live account support is deliberately separate from demo. Live orders require
+# server approval, a selected broker-verified live account, explicit customer
+# consent for that account, and the same server-enforced risk limits.
+MAX_LIVE_LOTS = 0.01
+
+
+def _live_session_enabled() -> bool:
+    return os.getenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", "").strip().lower() == "true"
+
+
+def _live_execution_enabled() -> bool:
+    return os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"
+
+
+async def discover_live_accounts(customer_id: str) -> list[dict]:
+    if not _live_session_enabled():
+        raise CTraderOpenAPIError("Live cTrader access is awaiting Spotware approval and server enablement")
+    tokens = await refresh_access_token(customer_id)
+    ws, payload = await _open_ctrader_session(tokens["access_token"], "live")
+    try:
+        accounts = [item for item in _account_rows(payload) if item["is_live"]]
+        return [item for item in accounts if _broker_is_ic_markets(item["broker"])]
+    finally:
+        await ws.close()
+
+
+async def sync_live_account(customer_id: str, account_id: str) -> dict:
+    if not _live_session_enabled():
+        raise CTraderOpenAPIError("Live cTrader access is awaiting Spotware approval and server enablement")
+    if not str(account_id).isdigit():
+        raise ValueError("Choose a valid cTrader live account")
+    tokens = await refresh_access_token(customer_id)
+    ws, payload = await _open_ctrader_session(tokens["access_token"], "live")
+    try:
+        selected = next((item for item in _account_rows(payload)
+                         if item["account_id"] == str(account_id)), None)
+        if not selected or not selected["is_live"]:
+            raise CTraderOpenAPIError("The selected account was not verified as a live cTrader account")
+        if not _broker_is_ic_markets(selected["broker"]):
+            raise CTraderOpenAPIError("The selected cTrader account is not identified as IC Markets")
+        await _request(ws, ACCOUNT_AUTH_REQ, {
+            "ctidTraderAccountId": int(account_id), "accessToken": tokens["access_token"],
+        }, ACCOUNT_AUTH_RES)
+        trader_response = await _request(ws, TRADER_REQ, {
+            "ctidTraderAccountId": int(account_id),
+        }, TRADER_RES)
+        reconcile = await _request(ws, RECONCILE_REQ, {
+            "ctidTraderAccountId": int(account_id), "returnProtectionOrders": False,
+        }, RECONCILE_RES)
+        trader = trader_response.get("trader") or {}
+        digits = trader.get("moneyDigits", 2)
+        positions = reconcile.get("position") or []
+        orders = reconcile.get("order") or []
+        snapshot = {
+            "account_id": str(account_id), "broker": selected["broker"],
+            "trader_login": selected["trader_login"], "environment": "live",
+            "balance": _scaled(trader.get("balance"), digits),
+            "money_digits": int(digits or 0),
+            "deposit_asset_id": str(trader.get("depositAssetId") or ""),
+            "leverage": trader.get("leverageInCents"),
+            "open_positions": [_position_summary(item) for item in positions if isinstance(item, dict)],
+            "pending_orders_count": len(orders) if isinstance(orders, list) else 0,
+            "trading_permission": "oauth_trading_scope_requested",
+            "trading_enabled": False, "source": "cTrader Open API live account",
+        }
+        synced_at = int(time.time())
+        record_account_sync(customer_id, str(account_id), snapshot["balance"] or 0)
+        sync_risk_positions(customer_id, str(account_id), [
+            item.get("positionId") for item in positions
+            if isinstance(item, dict) and item.get("positionId") is not None
+        ])
+        with _db() as db:
+            db.execute("""
+            INSERT INTO ctrader_live_account_snapshots
+              (customer_id,account_id,broker_title,trader_login,snapshot_json,synced_at)
+            VALUES (?,?,?,?,?,?)
+            ON CONFLICT(customer_id) DO UPDATE SET
+              account_id=excluded.account_id,broker_title=excluded.broker_title,
+              trader_login=excluded.trader_login,snapshot_json=excluded.snapshot_json,
+              synced_at=excluded.synced_at
+            """, (customer_id, str(account_id), selected["broker"],
+                  selected["trader_login"], json.dumps(snapshot, separators=(",", ":")), synced_at))
+        return {**snapshot, "synced_at": synced_at, "connected": True}
+    finally:
+        await ws.close()
+
+
+def saved_live_snapshot(customer_id: str) -> dict | None:
+    with _db() as db:
+        row = db.execute(
+            "SELECT snapshot_json,synced_at FROM ctrader_live_account_snapshots WHERE customer_id=?",
+            (customer_id,),
+        ).fetchone()
+    if not row:
+        return None
+    try:
+        snapshot = json.loads(row["snapshot_json"])
+    except (ValueError, TypeError):
+        return None
+    return {**snapshot, "synced_at": int(row["synced_at"]), "connected": True}
+
+
+async def _open_selected_live(customer_id: str):
+    if not _live_session_enabled():
+        raise CTraderOpenAPIError("Live cTrader sessions are not enabled on this server")
+    snapshot = saved_live_snapshot(customer_id)
+    if not snapshot:
+        raise CTraderOpenAPIError("Connect and sync your own IC Markets live account first")
+    tokens = await refresh_access_token(customer_id)
+    ws, payload = await _open_ctrader_session(tokens["access_token"], "live")
+    try:
+        selected = next((item for item in _account_rows(payload)
+                         if item["account_id"] == str(snapshot["account_id"])), None)
+        if not selected or not selected["is_live"] or not _broker_is_ic_markets(selected["broker"]):
+            raise CTraderOpenAPIError("The saved IC Markets live account is no longer available")
+        await _request(ws, ACCOUNT_AUTH_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "accessToken": tokens["access_token"],
+        }, ACCOUNT_AUTH_RES)
+        return ws, selected
+    except Exception:
+        await ws.close()
+        raise
+
+
+async def open_live_trade(customer_id: str, symbol: str, side: str, lots: float,
+                          stop_loss: float, take_profit: float) -> dict:
+    if not _live_execution_enabled():
+        raise CTraderOpenAPIError("Live order execution is locked pending Spotware approval and a controlled rollout")
+    normalized_side = str(side or "").strip().upper()
+    if normalized_side not in ("BUY", "SELL"):
+        raise ValueError("Trade side must be BUY or SELL")
+    try:
+        lot_size = float(lots)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Trade size must be valid") from exc
+    if not (0 < lot_size <= MAX_LIVE_LOTS):
+        raise ValueError(f"Live trade size must be greater than zero and no more than {MAX_LIVE_LOTS} lots")
+    sl = _valid_positive_price(stop_loss, "Stop-loss")
+    tp = _valid_positive_price(take_profit, "Take-profit")
+    if sl == tp:
+        raise ValueError("Stop-loss and take-profit must be different prices")
+    ws, selected = await _open_selected_live(customer_id)
+    reservation_id = None
+    try:
+        account_id = selected["account_id"]
+        require_live_permission(customer_id, account_id)
+        trader = await _ensure_demo_trade_access(ws, account_id)
+        balance = _scaled(trader.get("balance"), trader.get("moneyDigits", 2))
+        reconcile = await _request(ws, RECONCILE_REQ, {
+            "ctidTraderAccountId": int(account_id), "returnProtectionOrders": False,
+        }, RECONCILE_RES)
+        positions = reconcile.get("position") or []
+        open_positions = [item for item in positions if isinstance(item, dict)]
+        sync_risk_positions(customer_id, account_id, [
+            item.get("positionId") for item in open_positions if item.get("positionId") is not None
+        ])
+        symbol_id, symbol_name = await _demo_symbol_id(ws, account_id, symbol)
+        reservation_id = reserve_risk_entry(customer_id, account_id, balance or 0,
+                                            len(open_positions), lot_size)
+        client_order_id = uuid.uuid4().hex[:32]
+        event = await _request(ws, NEW_ORDER_REQ, {
+            "ctidTraderAccountId": int(account_id), "symbolId": symbol_id,
+            "orderType": 1, "tradeSide": 1 if normalized_side == "BUY" else 2,
+            "volume": int(round(lot_size * VOLUME_CENTS_PER_LOT)),
+            "stopLoss": sl, "takeProfit": tp, "clientOrderId": client_order_id,
+            "label": "QUANTUM_AI_LIVE",
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type == 7:
+            raise CTraderOpenAPIError("The cTrader live broker rejected the order")
+        position = event.get("position") or {}
+        order = event.get("order") or {}
+        if position.get("positionId") is not None:
+            record_risk_open_position(customer_id, account_id, position.get("positionId"))
+        return {
+            "accepted": execution_type in (2, 3, 11), "execution_type": execution_type,
+            "account_id": account_id, "environment": "live", "symbol": symbol_name,
+            "side": normalized_side, "lots": lot_size, "stop_loss": sl, "take_profit": tp,
+            "position_id": str(position.get("positionId") or ""),
+            "order_id": str(order.get("orderId") or ""), "client_order_id": client_order_id,
+            "broker_confirmed": True, "risk_controls": "passed",
+        }
+    finally:
+        release_risk_entry(reservation_id)
+        await ws.close()
+
+
+async def amend_live_position(customer_id: str, position_id: str,
+                              stop_loss: float, take_profit: float) -> dict:
+    if not _live_execution_enabled():
+        raise CTraderOpenAPIError("Live order execution is locked pending Spotware approval")
+    sl = _valid_positive_price(stop_loss, "Stop-loss")
+    tp = _valid_positive_price(take_profit, "Take-profit")
+    if sl == tp:
+        raise ValueError("Stop-loss and take-profit must be different prices")
+    ws, selected = await _open_selected_live(customer_id)
+    try:
+        account_id = selected["account_id"]
+        require_live_permission(customer_id, account_id)
+        await _ensure_demo_trade_access(ws, account_id)
+        await _find_demo_position(ws, account_id, position_id)
+        event = await _request(ws, AMEND_POSITION_SLTP_REQ, {
+            "ctidTraderAccountId": int(account_id), "positionId": int(position_id),
+            "stopLoss": sl, "takeProfit": tp,
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type not in (2, 3, 4, 13, 14):
+            raise CTraderOpenAPIError("cTrader did not confirm the live protection update")
+        return {"updated": True, "broker_confirmed": True, "account_id": account_id,
+                "environment": "live", "position_id": str(position_id),
+                "stop_loss": sl, "take_profit": tp, "execution_type": execution_type}
+    finally:
+        await ws.close()
+
+
+async def close_live_position(customer_id: str, position_id: str) -> dict:
+    if not _live_execution_enabled():
+        raise CTraderOpenAPIError("Live order execution is locked pending Spotware approval")
+    ws, selected = await _open_selected_live(customer_id)
+    try:
+        account_id = selected["account_id"]
+        require_live_permission(customer_id, account_id)
+        await _ensure_demo_trade_access(ws, account_id, allow_close_only=True)
+        position = await _find_demo_position(ws, account_id, position_id)
+        volume = int((position.get("tradeData") or {}).get("volume") or 0)
+        if volume <= 0:
+            raise CTraderOpenAPIError("cTrader returned an invalid live position volume")
+        event = await _request(ws, CLOSE_POSITION_REQ, {
+            "ctidTraderAccountId": int(account_id), "positionId": int(position_id),
+            "volume": volume,
+        }, EXECUTION_EVENT, timeout=25.0)
+        execution_type = int(event.get("executionType", 0))
+        if execution_type not in (2, 3, 11):
+            raise CTraderOpenAPIError("cTrader did not confirm the live position close")
+        return {"closed_or_closing": True, "broker_confirmed": True,
+                "account_id": account_id, "environment": "live",
+                "position_id": str(position_id), "execution_type": execution_type}
+    finally:
+        await ws.close()
+
 def saved_snapshot(customer_id: str) -> dict | None:
     with _db() as db:
         row = db.execute(
