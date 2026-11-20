@@ -976,7 +976,9 @@ async def mexc_connection(request: Request):
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
-    return mexc_credential_metadata(customer["id"])
+    metadata = mexc_credential_metadata(customer["id"])
+    metadata.pop("credential_fingerprint", None)
+    return metadata
 
 
 @app.post("/api/connections/mexc/verify")
