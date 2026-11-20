@@ -20,12 +20,11 @@ def broker_capabilities() -> dict:
         },
         {
             "id": "mexc", "name": "MEXC", "category": "crypto_futures",
-            "status": "account_connection_and_futures_execution_unverified", "connection_verified": False,
-            "supported_scope": ["public_usdm_futures_market_data", "customer_account_verification"],
+            "status": "live_futures_adapter_implemented_locked_pending_validation", "connection_verified": False,
+            "supported_scope": ["public_usdm_futures_market_data", "customer_account_verification", "signed_usdm_futures_orders", "exchange_side_stop_loss_take_profit", "customer_scoped_auto_strategy", "per_customer_live_consent", "daily_loss_guard", "emergency_stop"],
             "execution_enabled": False, "demo_execution_enabled": False,
             "real_execution_enabled": False,
-            "note": "Public USD-M futures data and account-connection foundations exist. Customer futures order execution and automated trading are not yet verified or enabled.",
-        },
+            "note": "USD-M futures order and auto-strategy code is implemented with customer-scoped consent, credential-version binding, daily loss limits and emergency stop. Real orders remain locked until live account validation and always-on worker verification are complete."        },
         {
             "id": "ctrader", "name": "cTrader", "category": "forex_trading_platform",
             "status": "demo_execution_implemented_customer_verification_required", "connection_verified": False,
