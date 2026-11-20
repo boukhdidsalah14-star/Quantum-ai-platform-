@@ -21,8 +21,8 @@ from app.mexc_futures_execution import (get_futures_account_info as get_mexc_acc
 from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db, get_live_authorization as get_mexc_live_authorization, set_live_authorization as set_mexc_live_authorization, activate_emergency_stop as activate_mexc_emergency_stop, require_live_authorization as require_mexc_live_authorization)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
-from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, CTraderPermissionError)
-from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, CTraderOpenAPIError)
+from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, set_live_permission as set_ctrader_live_permission, CTraderPermissionError)
+from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, discover_live_accounts as discover_ctrader_live_accounts, sync_live_account as sync_ctrader_live_account, saved_live_snapshot as get_ctrader_live_snapshot, open_live_trade as open_ctrader_live_trade, amend_live_position as amend_ctrader_live_position, close_live_position as execute_ctrader_live_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.signals import analyze_candles
 from app.signal_history import init_db as init_signal_history_db, record_signal, list_signals, set_signal_result, signal_statistics
@@ -115,6 +115,19 @@ class CTraderDemoOrderRequest(BaseModel):
     lots: float = Field(gt=0, le=0.01)
     stop_loss: float = Field(gt=0)
     take_profit: float = Field(gt=0)
+
+
+class CTraderLiveOrderRequest(BaseModel):
+    symbol: str = Field(min_length=3, max_length=32)
+    side: str
+    lots: float = Field(gt=0, le=0.01)
+    stop_loss: float = Field(gt=0)
+    take_profit: float = Field(gt=0)
+
+
+class CTraderLiveAuthorizationRequest(BaseModel):
+    enabled: bool
+    acknowledge_risk: bool = False
 
 
 class CTraderDemoProtectionRequest(BaseModel):
@@ -790,6 +803,171 @@ async def close_ctrader_demo_position(payload: CTraderDemoCloseRequest, request:
         raise HTTPException(status_code=400, detail=str(exc))
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+
+
+@app.get("/api/connections/ctrader/live/accounts")
+async def ctrader_live_accounts(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader before discovering live accounts")
+    try:
+        accounts = await discover_ctrader_live_accounts(customer["id"])
+        return {"accounts": accounts, "environment": "live",
+                "live_session_available": True, "live_execution_enabled":
+                os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/live/select")
+async def select_ctrader_live_account(payload: CTraderAccountSelection, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader before selecting a live account")
+    try:
+        return await sync_ctrader_live_account(customer["id"], payload.account_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/live/snapshot")
+async def refresh_ctrader_live_snapshot(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Select your IC Markets live account first")
+    try:
+        return await sync_ctrader_live_account(customer["id"], snapshot["account_id"])
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/live/authorization")
+async def get_ctrader_live_authorization(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    init_ctrader_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    account_id = snapshot.get("account_id") if snapshot else None
+    permission = get_ctrader_permission(customer["id"], account_id)
+    return {**permission, "environment": "live",
+            "customer_authorized": bool(ctrader_authorization_status(customer["id"]).get("authorized")),
+            "account_selected": bool(account_id),
+            "live_session_enabled": os.getenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", "").strip().lower() == "true",
+            "live_execution_enabled": os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+
+
+@app.put("/api/connections/ctrader/live/authorization")
+async def update_ctrader_live_authorization(payload: CTraderLiveAuthorizationRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    init_ctrader_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    if not snapshot:
+        raise HTTPException(status_code=409, detail="Connect and sync your own verified IC Markets live account first")
+    if payload.enabled and os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+        raise HTTPException(status_code=503, detail="Live execution is not enabled by the platform yet")
+    try:
+        permission = set_ctrader_live_permission(customer["id"], snapshot["account_id"],
+                                                 payload.enabled, payload.acknowledge_risk)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {**permission, "environment": "live", "customer_authorized": True,
+            "account_selected": True,
+            "live_execution_enabled": os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+
+
+@app.post("/api/connections/ctrader/live/orders")
+async def open_ctrader_live_order(payload: CTraderLiveOrderRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if not ctrader_authorization_status(customer["id"]).get("authorized"):
+        raise HTTPException(status_code=409, detail="Authorize cTrader and select your live account first")
+    try:
+        return await open_ctrader_live_trade(
+            customer["id"], payload.symbol, payload.side, payload.lots,
+            payload.stop_loss, payload.take_profit)
+    except CTraderPermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except CTraderRiskBlocked as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.patch("/api/connections/ctrader/live/positions/protection")
+async def amend_ctrader_live_protection(payload: CTraderDemoProtectionRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await amend_ctrader_live_position(
+            customer["id"], payload.position_id, payload.stop_loss, payload.take_profit)
+    except CTraderPermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.post("/api/connections/ctrader/live/positions/close")
+async def close_ctrader_live_position(payload: CTraderDemoCloseRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return await execute_ctrader_live_close(customer["id"], payload.position_id)
+    except CTraderPermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @app.get("/api/connections/ctrader/demo/authorization")
