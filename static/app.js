@@ -437,6 +437,7 @@ function renderCTraderLiveSnapshot(snapshot){
   "<br><small>Read-only broker sync · "+safe(new Date((snapshot.synced_at||0)*1000).toLocaleString())+"</small>"+
   (positions.length?"<hr>"+positions.map(p=>"<div class='ctrader-position-row'><b>"+safe(p.side)+"</b> · "+safe(p.symbol_id)+" · "+safe(p.volume_units)+" units · SL "+safe(p.stop_loss??"—")+" · TP "+safe(p.take_profit??"—")+"<br><small>Live position #"+safe(p.position_id)+"</small><div class='chart-toolbar'><button type='button' class='outline-btn' data-ctrader-live-action='amend' data-position-id='"+safe(p.position_id)+"'>EDIT SL / TP</button><button type='button' class='outline-btn' data-ctrader-live-action='close' data-position-id='"+safe(p.position_id)+"'>CLOSE LIVE POSITION</button></div></div>").join(""):"<br><small>No open live positions.</small>");
  loadCTraderLiveSymbols();
+ loadCTraderLiveRiskSettings();
 }
 async function loadCTraderLiveSymbols(){
  const select=$("ctrader-live-symbol");
@@ -449,6 +450,50 @@ async function loadCTraderLiveSymbols(){
   select.innerHTML='<option value="">Choose symbol</option>'+symbols.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+'</option>').join("");
  }catch(error){select.innerHTML='<option value="">Live symbols unavailable</option>';}
 }
+
+async function loadCTraderLiveRiskSettings(){
+ const status=$("ctrader-live-risk-status");if(!status)return;
+ try{
+  const response=await fetch("/api/connections/ctrader/live/risk");
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Live risk settings unavailable");
+  const loss=data.daily_loss_pct===null||data.daily_loss_pct===undefined?"Awaiting live balance snapshot":Number(data.daily_loss_pct).toFixed(2)+"% of starting balance";
+  status.innerHTML="<b>LIVE SERVER RISK STATUS</b><br>Daily loss: "+safe(loss)+
+   "<br>Daily starting balance: "+(data.daily_start_balance===null?"—":safe(Number(data.daily_start_balance).toFixed(2)))+
+   "<br>Maximum size: "+safe(data.max_lots)+" lots · Max positions: "+safe(data.max_open_positions)+
+   "<br>Emergency stop: <b>"+(data.emergency_stop?"ACTIVE":"OFF")+"</b>"+
+   "<br><small>Server-enforced · realized balance tracking</small>";
+  $("ctrader-live-risk-loss").value=data.max_daily_loss_pct;
+  $("ctrader-live-risk-lots").value=data.max_lots;
+  $("ctrader-live-risk-positions").value=String(data.max_open_positions);
+  const stop=$("ctrader-live-emergency-stop");
+  stop.dataset.active=data.emergency_stop?"true":"false";
+  stop.textContent=data.emergency_stop?"RELEASE LIVE EMERGENCY STOP":"ACTIVATE LIVE EMERGENCY STOP";
+ }catch(error){status.textContent=error.message;}
+}
+async function saveCTraderLiveRiskSettings(){
+ const button=$("ctrader-live-risk-save");button.disabled=true;button.textContent="SAVING…";
+ try{
+  const payload={max_daily_loss_pct:Number($("ctrader-live-risk-loss").value),
+   max_lots:Number($("ctrader-live-risk-lots").value),
+   max_open_positions:Number($("ctrader-live-risk-positions").value)};
+  const response=await fetch("/api/connections/ctrader/live/risk",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Could not save live risk limits");
+  await loadCTraderLiveRiskSettings();toast("Live Forex risk limits saved and enforced by the server");
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;button.textContent="SAVE LIVE RISK LIMITS";}
+}
+async function toggleCTraderLiveEmergencyStop(){
+ const button=$("ctrader-live-emergency-stop"),enabled=button.dataset.active!=="true";
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/connections/ctrader/live/risk/emergency-stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled})});
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Could not change live emergency stop");
+  await loadCTraderLiveRiskSettings();
+  toast(enabled?"Live emergency stop active: new live entries blocked":"Live emergency stop released");
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+}
+
 async function loadCTraderLiveAuthorization(){
  const panel=$("ctrader-live-authorization"),status=$("ctrader-live-auth-status");
  if(!panel||!status)return;
@@ -803,6 +848,8 @@ async function refreshCTraderSnapshot(){
 $("ctrader-live-discover")?.addEventListener("click",discoverCTraderLiveAccounts);
 $("ctrader-live-select")?.addEventListener("click",selectCTraderLiveAccount);
 $("ctrader-live-auth-toggle")?.addEventListener("click",toggleCTraderLiveAuthorization);
+$("ctrader-live-risk-save")?.addEventListener("click",saveCTraderLiveRiskSettings);
+$("ctrader-live-emergency-stop")?.addEventListener("click",toggleCTraderLiveEmergencyStop);
 $("ctrader-live-order-form")?.addEventListener("submit",submitCTraderLiveOrder);
 $("ctrader-live-snapshot")?.addEventListener("click",handleCTraderLivePositionAction);
 $("ctrader-demo-order-form")?.addEventListener("submit",submitCTraderDemoOrder);
