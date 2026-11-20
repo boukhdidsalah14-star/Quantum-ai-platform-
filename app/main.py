@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from app.market_data import ALLOWED_SYMBOLS, get_order_book
 from app.mexc_futures_market_data import get_candles, get_market_overview
 from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
-from app.forex_market_data import get_candles as get_forex_candles, get_market_overview as get_forex_market_overview
+from app.forex_market_data import get_candles as get_forex_candles, completed_candles as get_completed_forex_candles, get_market_overview as get_forex_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
 from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db, get_live_authorization as get_mexc_live_authorization, set_live_authorization as set_mexc_live_authorization, activate_emergency_stop as activate_mexc_emergency_stop, require_live_authorization as require_mexc_live_authorization)
@@ -1844,8 +1844,11 @@ async def forex_signal(symbol: str, request: Request, timeframe: str = Query(def
                  "1h": 3600, "4h": 14400, "1d": 86400}
     if timeframe not in intervals:
         raise HTTPException(status_code=400, detail="Unsupported signal timeframe")
+    if symbol not in {item["symbol"] for item in BINARY_PAIRS}:
+        raise HTTPException(status_code=400, detail="Unsupported binary-options signal market")
     try:
-        candles = await get_forex_candles(symbol, intervals[timeframe], 100)
+        raw_candles = await get_forex_candles(symbol, intervals[timeframe], 100)
+        candles = get_completed_forex_candles(raw_candles)
         result = analyze_candles(candles, timeframe)
         result.update({"symbol": symbol, "category": "forex", "market_type": "forex",
                        "source": "Yahoo Finance public market candles",
