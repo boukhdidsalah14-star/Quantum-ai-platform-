@@ -594,14 +594,16 @@ async function refreshCTraderStatus(){
   if(response.status===401){state.textContent="SIGN IN REQUIRED";note.textContent="Sign in to QUANTUM AI before connecting your broker account.";connect.disabled=false;connect.textContent="SIGN IN TO CONNECT";disconnect.hidden=true;return;}
   if(!response.ok)throw Error(data.detail||"Connection status unavailable");
   const snapshot=data.account_snapshot;
-  state.textContent=snapshot?"DEMO ACCOUNT SYNCED":(data.authorized?"AUTHORISED · DEMO ACCOUNT REQUIRED":(data.configured?"NOT CONNECTED":"SETUP PENDING"));
+  state.textContent=snapshot?"DEMO ACCOUNT SYNCED":(data.live_account_snapshot?"LIVE ACCOUNT SYNCED":(data.authorized?"CTRADER AUTHORIZED · ACCOUNT SYNC REQUIRED":(data.configured?"NOT CONNECTED":"SETUP PENDING")));
   note.textContent=snapshot
    ?"IC Markets demo account is connected. You can place small manual demo orders with mandatory stop-loss and take-profit."
-   :(data.authorized
-    ?"Authorization is saved. Tap FIND DEMO ACCOUNTS, choose your IC Markets demo account, then sync it."
-    :(data.configured
-     ?"Authorize your IC Markets cTrader account. QUANTUM AI will sync a demo account before any trading feature is enabled."
-     :"QUANTUM AI is waiting for its Spotware application credentials and approval."));
+   :(data.live_account_snapshot
+    ?"Your IC Markets live account is connected read-only. Live orders remain separately locked until platform approval and explicit account authorization."
+    :(data.authorized
+     ?"Authorization is saved. Find and sync your IC Markets demo account, or use the separate live-account section when Spotware live access is approved."
+     :(data.configured
+      ?"Authorize your IC Markets cTrader account. Demo connection is available first; live access requires separate platform approval."
+      :"QUANTUM AI is waiting for its Spotware application credentials and approval.")));
   connect.disabled=!data.configured;
   connect.textContent=data.authorized?"RECONNECT CTRADER":"CONNECT IC MARKETS CTRADER";
   disconnect.hidden=!data.authorized;
