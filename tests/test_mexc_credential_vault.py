@@ -47,3 +47,11 @@ def test_mexc_vault_requires_encryption_key(monkeypatch, tmp_path):
     customer = create_customer("mexc-no-key@example.com", "strong-password-four")
     with pytest.raises(vault.MexcVaultError):
         vault.save(customer["id"], "key", "secret")
+
+
+def test_mexc_credential_version_changes_when_key_is_replaced(monkeypatch, tmp_path):
+    setup_db(monkeypatch, tmp_path)
+    customer = create_customer("mexc-version@example.com", "strong-password-five")
+    first = vault.save(customer["id"], "first-key", "first-secret")
+    second = vault.save(customer["id"], "second-key", "second-secret")
+    assert second["updated_at"] > first["updated_at"]
