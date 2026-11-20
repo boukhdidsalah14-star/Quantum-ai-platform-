@@ -1,7 +1,7 @@
 """Explicit per-customer MEXC USD-M live-trading authorization.
 
-Authorization is bound to the currently saved API credential version. Replacing
-an API key invalidates the previous consent. This module never stores secrets.
+Consent is bound to a SHA-256 fingerprint of the currently encrypted API
+credential payload. The fingerprint is not an API secret and is never logged.
 """
 from __future__ import annotations
 
@@ -35,11 +35,11 @@ def init_db():
         )""")
 
 
-def get_live_authorization(customer_id: str, credential_updated_at: int | None = None) -> dict:
+def get_live_authorization(customer_id: str, credential_fingerprint: str | None = None) -> dict:
     init_db()
     with _db() as db:
         row = db.execute(
-            "SELECT * FROM mexc_live_permissions WHERE customer_id=?",
+            "SELECT * FROM mexc_live_permissions_v2 WHERE customer_id=?",
             (customer_id,),
         ).fetchone()
     if not row:
@@ -48,9 +48,9 @@ def get_live_authorization(customer_id: str, credential_updated_at: int | None =
             "max_daily_loss_percent": 2.0, "reason": "not_authorized",
         }
     same_credentials = (
-        credential_updated_at is not None
-        and row["credential_updated_at"] is not None
-        and int(row["credential_updated_at"]) == int(credential_updated_at)
+        credential_fingerprint is not None
+        and row["credential_fingerprint"] is not None
+        and str(row["credential_fingerprint"]) == str(credential_fingerprint)
     )
     authorized = bool(row["enabled"]) and not bool(row["emergency_stop"]) and same_credentials
     reason = (
@@ -71,14 +71,14 @@ def get_live_authorization(customer_id: str, credential_updated_at: int | None =
 
 def set_live_authorization(
     customer_id: str,
-    credential_updated_at: int,
+    credential_fingerprint: str,
     enabled: bool,
     acknowledged: bool,
     max_daily_loss_percent: float = 2.0,
 ) -> dict:
     if enabled and not acknowledged:
         raise ValueError("Explicit acknowledgement of MEXC futures live-trading risks is required")
-    if enabled and (credential_updated_at is None or int(credential_updated_at) <= 0):
+    if enabled and not str(credential_fingerprint or "").strip():
         raise ValueError("Connect and verify your MEXC Futures API credentials first")
     try:
         loss_limit = float(max_daily_loss_percent)
@@ -90,23 +90,23 @@ def set_live_authorization(
     init_db()
     with _db() as db:
         db.execute("""
-        INSERT INTO mexc_live_permissions
+        INSERT INTO mexc_live_permissions_v2
           (customer_id,enabled,emergency_stop,max_daily_loss_percent,
-           credential_updated_at,acknowledged_at,updated_at)
+           credential_fingerprint,acknowledged_at,updated_at)
         VALUES (?,?,?,?,?,?,?)
         ON CONFLICT(customer_id) DO UPDATE SET
           enabled=excluded.enabled,
           emergency_stop=excluded.emergency_stop,
           max_daily_loss_percent=excluded.max_daily_loss_percent,
-          credential_updated_at=excluded.credential_updated_at,
+          credential_fingerprint=excluded.credential_fingerprint,
           acknowledged_at=excluded.acknowledged_at,
           updated_at=excluded.updated_at
         """, (
             customer_id, 1 if enabled else 0, 0 if enabled else 1,
-            loss_limit, int(credential_updated_at) if enabled else None,
+            loss_limit, str(credential_fingerprint) if enabled else None,
             now if enabled else None, now,
         ))
-    return get_live_authorization(customer_id, credential_updated_at if enabled else None)
+    return get_live_authorization(customer_id, credential_fingerprint if enabled else None)
 
 
 def activate_emergency_stop(customer_id: str) -> dict:
@@ -114,9 +114,9 @@ def activate_emergency_stop(customer_id: str) -> dict:
     init_db()
     with _db() as db:
         db.execute("""
-        INSERT INTO mexc_live_permissions
+        INSERT INTO mexc_live_permissions_v2
           (customer_id,enabled,emergency_stop,max_daily_loss_percent,
-           credential_updated_at,acknowledged_at,updated_at)
+           credential_fingerprint,acknowledged_at,updated_at)
         VALUES (?,0,1,2.0,NULL,NULL,?)
         ON CONFLICT(customer_id) DO UPDATE SET
           enabled=0,emergency_stop=1,acknowledged_at=NULL,updated_at=excluded.updated_at
@@ -124,8 +124,8 @@ def activate_emergency_stop(customer_id: str) -> dict:
     return get_live_authorization(customer_id)
 
 
-def require_live_authorization(customer_id: str, credential_updated_at: int) -> dict:
-    state = get_live_authorization(customer_id, credential_updated_at)
+def require_live_authorization(customer_id: str, credential_fingerprint: str) -> dict:
+    state = get_live_authorization(customer_id, credential_fingerprint)
     if not state["authorized"]:
         raise PermissionError(
             "MEXC futures live trading is not authorized for this customer and current API key"
