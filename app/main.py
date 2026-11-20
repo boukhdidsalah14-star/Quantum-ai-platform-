@@ -58,6 +58,10 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 SESSION_COOKIE = "quantum_session"
+
+# Current release scope is intentionally paper/demo only. Keep real-money execution hard-disabled.
+MEXC_FUTURES_LIVE_EXECUTION_ENABLED = False
+CTRADER_LIVE_EXECUTION_ENABLED = False
 CTRADER_OAUTH_COOKIE = "quantum_ctrader_oauth_state"
 TELEGRAM_TOKEN_ENV_NAMES = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN", "BOT_TOKEN")
 
@@ -325,7 +329,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("QUANTUM_MEXC_AUTO_EXECUTION_MODE must be inline or worker")
     if (
         mexc_auto_mode == "inline"
-        and os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"
+        and MEXC_FUTURES_LIVE_EXECUTION_ENABLED
     ):
         mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
     bot = None
@@ -849,7 +853,7 @@ async def ctrader_live_accounts(request: Request):
         accounts = await discover_ctrader_live_accounts(customer["id"])
         return {"accounts": accounts, "environment": "live",
                 "live_session_available": True, "live_execution_enabled":
-                os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+                CTRADER_LIVE_EXECUTION_ENABLED}
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
@@ -921,8 +925,8 @@ async def get_ctrader_live_authorization(request: Request):
     return {**permission, "environment": "live",
             "customer_authorized": bool(ctrader_authorization_status(customer["id"]).get("authorized")),
             "account_selected": bool(account_id),
-            "live_session_enabled": os.getenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", "").strip().lower() == "true",
-            "live_execution_enabled": os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+            "live_session_enabled": CTRADER_LIVE_EXECUTION_ENABLED,
+            "live_execution_enabled": CTRADER_LIVE_EXECUTION_ENABLED}
 
 
 @app.put("/api/connections/ctrader/live/authorization")
@@ -947,7 +951,7 @@ async def update_ctrader_live_authorization(payload: CTraderLiveAuthorizationReq
         raise HTTPException(status_code=400, detail=str(exc))
     return {**permission, "environment": "live", "customer_authorized": True,
             "account_selected": True,
-            "live_execution_enabled": os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+            "live_execution_enabled": CTRADER_LIVE_EXECUTION_ENABLED}
 
 
 
@@ -995,6 +999,7 @@ async def set_ctrader_live_emergency_stop(payload: CTraderEmergencyStopRequest, 
 
 @app.post("/api/connections/ctrader/live/orders")
 async def open_ctrader_live_order(payload: CTraderLiveOrderRequest, request: Request):
+    raise HTTPException(status_code=503, detail="Live Forex execution is not enabled in this release")
     _check_same_origin(request)
     init_auth_db()
     init_ctrader_oauth_db()
@@ -1020,6 +1025,7 @@ async def open_ctrader_live_order(payload: CTraderLiveOrderRequest, request: Req
 
 @app.patch("/api/connections/ctrader/live/positions/protection")
 async def amend_ctrader_live_protection(payload: CTraderDemoProtectionRequest, request: Request):
+    raise HTTPException(status_code=503, detail="Live Forex execution is not enabled in this release")
     _check_same_origin(request)
     init_auth_db()
     init_ctrader_oauth_db()
@@ -1040,6 +1046,7 @@ async def amend_ctrader_live_protection(payload: CTraderDemoProtectionRequest, r
 
 @app.post("/api/connections/ctrader/live/positions/close")
 async def close_ctrader_live_position(payload: CTraderDemoCloseRequest, request: Request):
+    raise HTTPException(status_code=503, detail="Live Forex execution is not enabled in this release")
     _check_same_origin(request)
     init_auth_db()
     init_ctrader_oauth_db()
@@ -1174,8 +1181,8 @@ async def health(request: Request):
         "ctrader_account_execution_enabled": False,
         "ctrader_demo_execution_available": True,
         "ctrader_live_execution_enabled": False,
-        "mexc_futures_execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
-        "mexc_auto_trader_monitor_running": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+        "mexc_futures_execution_enabled": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
+        "mexc_auto_trader_monitor_running": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
         "order_execution": False,
         "trading_enabled": False,
     }
@@ -1262,6 +1269,7 @@ async def verify_and_save_mexc_connection(payload: MexcCredentials, request: Req
     This endpoint never places or cancels orders. Customers should use an API key
     with futures account/trade-reading permission and IP restrictions.
     """
+    raise HTTPException(status_code=503, detail="MEXC API-key connections are not used in the paper-trading release")
     _check_same_origin(request)
     init_auth_db()
     init_mexc_vault_db()
@@ -1325,7 +1333,7 @@ async def execute_mexc_futures_signal(
 ):
     """Execute one customer-requested MEXC USD-M signal with exchange-side TP/SL."""
     _check_same_origin(request)
-    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED":
         raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
     if not _persistent_credentials_ready():
         raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
@@ -1426,7 +1434,7 @@ async def mexc_live_authorization_status(request: Request):
     return {
         **get_mexc_live_authorization(customer["id"], metadata.get("credential_fingerprint")),
         "credentials_connected": bool(metadata.get("connected")),
-        "server_kill_switch_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+        "server_kill_switch_enabled": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
         "mode": "live",
     }
 
@@ -1434,6 +1442,8 @@ async def mexc_live_authorization_status(request: Request):
 @app.put("/api/mexc/futures/live-authorization")
 async def update_mexc_live_authorization(payload: MexcLiveAuthorizationRequest, request: Request):
     _check_same_origin(request)
+    if payload.enabled:
+        raise HTTPException(status_code=503, detail="MEXC futures live trading is not part of the current QUANTUM AI release")
     init_auth_db()
     init_subscription_db()
     init_mexc_vault_db()
@@ -1463,7 +1473,7 @@ async def update_mexc_live_authorization(payload: MexcLiveAuthorizationRequest, 
             raise HTTPException(status_code=502, detail=str(exc))
         return {
             **permission, "credentials_connected": True,
-            "server_kill_switch_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+            "server_kill_switch_enabled": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
             "note": "Customer live consent saved. Automatic order execution remains blocked until the server kill switch is deliberately enabled after validation. Use an API key with futures trade/read access and withdrawals disabled.",
         }
     permission = set_mexc_live_authorization(
@@ -1500,13 +1510,13 @@ async def mexc_auto_status(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"strategy": get_mexc_auto_strategy(customer["id"]),
             "live_authorization": _mexc_live_permission(customer["id"]),
-            "execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+            "execution_enabled": MEXC_FUTURES_LIVE_EXECUTION_ENABLED}
 
 
 @app.post("/api/mexc/futures/auto/start")
 async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
     _check_same_origin(request)
-    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() != "true":
+    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED":
         raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
     if not _persistent_credentials_ready():
         raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
@@ -2012,7 +2022,9 @@ async def start_ctrader_auto(request_data: CTraderAutoStartRequest, request: Req
     if not ctrader_authorization_status(customer["id"]).get("authorized"):
         raise HTTPException(status_code=409, detail="Connect and authorize your cTrader account first")
     env = str(request_data.environment or "").lower()
-    snapshot = get_ctrader_snapshot(customer["id"]) if env == "demo" else get_ctrader_live_snapshot(customer["id"])
+    if env != "demo":
+        raise HTTPException(status_code=400, detail="Only cTrader demo automation is available in this release")
+    snapshot = get_ctrader_snapshot(customer["id"])
     if not snapshot or snapshot.get("environment") != env:
         raise HTTPException(status_code=409, detail=f"Connect and sync your IC Markets {env} account first")
     try:
