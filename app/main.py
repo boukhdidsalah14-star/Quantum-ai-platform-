@@ -1333,7 +1333,7 @@ async def execute_mexc_futures_signal(
 ):
     """Execute one customer-requested MEXC USD-M signal with exchange-side TP/SL."""
     _check_same_origin(request)
-    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED":
+    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED:
         raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
     if not _persistent_credentials_ready():
         raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
@@ -1516,7 +1516,7 @@ async def mexc_auto_status(request: Request):
 @app.post("/api/mexc/futures/auto/start")
 async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
     _check_same_origin(request)
-    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED":
+    if not MEXC_FUTURES_LIVE_EXECUTION_ENABLED:
         raise HTTPException(status_code=503, detail="MEXC live futures execution is disabled by the server safety switch")
     if not _persistent_credentials_ready():
         raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
