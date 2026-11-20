@@ -49,6 +49,8 @@ SYMBOLS_LIST_REQ = 2114
 SYMBOLS_LIST_RES = 2115
 GET_TRENDBARS_REQ = 2137
 GET_TRENDBARS_RES = 2138
+DEAL_LIST_REQ = 2133
+DEAL_LIST_RES = 2134
 ERROR_RES = 2142
 
 
@@ -628,6 +630,77 @@ async def get_demo_candles(customer_id: str, symbol: str,
             "source": "IC Markets cTrader demo market data",
             "candles": candles,
             "execution_enabled": False,
+        }
+    finally:
+        await ws.close()
+
+
+
+async def get_demo_trade_history(customer_id: str, days: int = 7, limit: int = 100) -> dict:
+    """Read recent executions directly from the selected IC Markets demo account."""
+    try:
+        days, limit = int(days), int(limit)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("History range and limit must be valid integers") from exc
+    if not 1 <= days <= 30:
+        raise ValueError("Trade history range must be between 1 and 30 days")
+    if not 1 <= limit <= 100:
+        raise ValueError("Trade history limit must be between 1 and 100")
+
+    ws, selected = await _open_selected_demo(customer_id)
+    try:
+        account_id = selected["account_id"]
+        symbols_response = await _request(ws, SYMBOLS_LIST_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "includeArchivedSymbols": True,
+        }, SYMBOLS_LIST_RES)
+        symbol_rows = symbols_response.get("symbol") or []
+        symbol_names = {
+            str(item.get("symbolId")): str(item.get("symbolName") or item.get("symbolId"))
+            for item in symbol_rows if isinstance(item, dict) and item.get("symbolId") is not None
+        }
+        to_ms = int(time.time() * 1000)
+        from_ms = to_ms - days * 24 * 60 * 60 * 1000
+        response = await _request(ws, DEAL_LIST_REQ, {
+            "ctidTraderAccountId": int(account_id),
+            "fromTimestamp": from_ms,
+            "toTimestamp": to_ms,
+            "maxRows": limit,
+        }, DEAL_LIST_RES, timeout=20.0)
+        rows = response.get("deal") or []
+        if not isinstance(rows, list):
+            raise CTraderOpenAPIError("cTrader returned an invalid trade-history response")
+        deals = []
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            money_digits = item.get("moneyDigits", 2)
+            side_value = item.get("tradeSide")
+            deals.append({
+                "deal_id": str(item.get("dealId") or ""),
+                "order_id": str(item.get("orderId") or ""),
+                "position_id": str(item.get("positionId") or ""),
+                "symbol_id": str(item.get("symbolId") or ""),
+                "symbol": symbol_names.get(str(item.get("symbolId") or ""), str(item.get("symbolId") or "—")),
+                "side": "BUY" if side_value in (1, "1", "BUY") else "SELL",
+                "volume_units": _scaled(item.get("volume"), 2),
+                "filled_volume_units": _scaled(item.get("filledVolume"), 2),
+                "execution_price": item.get("executionPrice"),
+                "deal_status": item.get("dealStatus"),
+                "create_timestamp_ms": item.get("createTimestamp"),
+                "execution_timestamp_ms": item.get("executionTimestamp"),
+                "commission": _scaled(item.get("commission"), money_digits),
+                "label": str(item.get("label") or "")[:100],
+            })
+        deals.sort(key=lambda item: int(item.get("execution_timestamp_ms") or 0), reverse=True)
+        return {
+            "account_id": account_id,
+            "environment": "demo",
+            "source": "IC Markets cTrader Open API deal history",
+            "from_timestamp_ms": from_ms,
+            "to_timestamp_ms": to_ms,
+            "deals": deals,
+            "has_more": bool(response.get("hasMore", False)),
         }
     finally:
         await ws.close()
