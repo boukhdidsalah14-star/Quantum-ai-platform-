@@ -2,7 +2,7 @@ import pytest
 
 from app.auth import create_customer, init_auth_db
 from app.ctrader_permissions import (
-    init_db as init_permissions_db, set_demo_permission, set_live_permission,
+    init_db as init_permissions_db, set_demo_permission,
     CTraderPermissionError,
 )
 from app import ctrader_auto
@@ -30,18 +30,14 @@ def test_demo_strategy_requires_account_permission_and_persists(monkeypatch, tmp
     assert ctrader_auto.list_active_strategies()[0]["customer_id"] == customer["id"]
 
 
-def test_live_strategy_requires_platform_gate_and_customer_consent(monkeypatch, tmp_path):
+def test_live_strategy_is_disabled_in_demo_first_release(monkeypatch, tmp_path):
     customer = setup(monkeypatch, tmp_path)
     monkeypatch.setenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", "true")
     monkeypatch.setenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "true")
-    with pytest.raises(CTraderPermissionError):
-        ctrader_auto.start_strategy(customer["id"], "54321", "live", ["EURUSD"], "15m", 0.001)
-    set_live_permission(customer["id"], "54321", True, True)
-    strategy = ctrader_auto.start_strategy(
-        customer["id"], "54321", "live", ["EURUSD"], "15m", 0.001
-    )
-    assert strategy["enabled"] is True
-    assert strategy["environment"] == "live"
+    with pytest.raises(ValueError, match="Only cTrader demo automation is available"):
+        ctrader_auto.start_strategy(
+            customer["id"], "54321", "live", ["EURUSD"], "15m", 0.001
+        )
 
 
 def test_strategy_rejects_unsafe_configuration(monkeypatch, tmp_path):
