@@ -717,8 +717,7 @@ async def open_live_trade(customer_id: str, symbol: str, side: str, lots: float,
 
 async def amend_live_position(customer_id: str, position_id: str,
                               stop_loss: float, take_profit: float) -> dict:
-    if not _live_execution_enabled():
-        raise CTraderOpenAPIError("Live order execution is locked pending Spotware approval")
+    # Position protection must remain manageable even after entry consent is revoked.
     sl = _valid_positive_price(stop_loss, "Stop-loss")
     tp = _valid_positive_price(take_profit, "Take-profit")
     if sl == tp:
@@ -726,7 +725,6 @@ async def amend_live_position(customer_id: str, position_id: str,
     ws, selected = await _open_selected_live(customer_id)
     try:
         account_id = selected["account_id"]
-        require_live_permission(customer_id, account_id)
         await _ensure_demo_trade_access(ws, account_id)
         await _find_demo_position(ws, account_id, position_id)
         event = await _request(ws, AMEND_POSITION_SLTP_REQ, {
@@ -744,12 +742,10 @@ async def amend_live_position(customer_id: str, position_id: str,
 
 
 async def close_live_position(customer_id: str, position_id: str) -> dict:
-    if not _live_execution_enabled():
-        raise CTraderOpenAPIError("Live order execution is locked pending Spotware approval")
+    # Closing an owned live position remains available after entry consent is revoked.
     ws, selected = await _open_selected_live(customer_id)
     try:
         account_id = selected["account_id"]
-        require_live_permission(customer_id, account_id)
         await _ensure_demo_trade_access(ws, account_id, allow_close_only=True)
         position = await _find_demo_position(ws, account_id, position_id)
         volume = int((position.get("tradeData") or {}).get("volume") or 0)
