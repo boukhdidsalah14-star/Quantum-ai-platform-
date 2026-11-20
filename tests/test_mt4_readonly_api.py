@@ -35,6 +35,7 @@ def _configure(monkeypatch, tmp_path):
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     monkeypatch.setenv("QUANTUM_DB_PATH", str(tmp_path / "quantum-mt4.sqlite3"))
+    monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
 
 def test_mt4_bridge_registration_requires_durable_storage(monkeypatch, tmp_path):
@@ -80,7 +81,7 @@ def test_mt4_read_only_bridge_registration_and_snapshot(monkeypatch, tmp_path):
 def test_mt4_bridge_rejects_wrong_server_and_invalid_token(monkeypatch, tmp_path):
     _configure(monkeypatch, tmp_path)
     monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
-    monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "test-encryption-key")
+    monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode())
     with TestClient(main.app) as client:
         _register_customer(client)
         registered = client.post("/api/mt4/bridge/register", json={
