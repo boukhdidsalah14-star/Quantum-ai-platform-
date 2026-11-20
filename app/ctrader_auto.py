@@ -16,7 +16,7 @@ from app.ctrader_open_api import (
     get_demo_candles, get_live_candles, sync_demo_account, sync_live_account,
     open_demo_trade, open_live_trade,
 )
-from app.ctrader_permissions import require_demo_permission, require_live_permission
+from app.ctrader_permissions import require_demo_permission, require_live_permission, CTraderPermissionError
 
 ALLOWED_TIMEFRAMES = {"5m", "15m", "30m", "1h", "4h"}
 MAX_SYMBOLS = 5
@@ -149,11 +149,17 @@ async def process_strategy(strategy: dict):
     # Revalidate customer consent on every cycle; revocation stops automation.
     if environment == "demo":
         require_demo_permission(customer_id, account_id)
-        await sync_demo_account(customer_id, account_id)
+        snapshot = await sync_demo_account(customer_id, account_id)
     else:
         require_live_permission(customer_id, account_id)
-        await sync_live_account(customer_id, account_id)
-    previous = strategy.get("last_candles") or {}
+        snapshot = await sync_live_account(customer_id, account_id)
+    # The first release deliberately runs one position at a time per account.
+    # Existing positions are left untouched and must be closed at the broker
+    # before the engine will consider another entry.
+    if snapshot.get("open_positions"):
+        _update(customer_id, account_id, environment,
+                signal="PAUSED · existing account position must be closed first", error=None)
+        return
     for symbol in strategy["symbols"]:
         current = get_strategy(customer_id, account_id, environment)
         if not current or not current["enabled"]:
@@ -205,6 +211,10 @@ async def engine_loop():
         for strategy in list_active_strategies():
             try:
                 await process_strategy(strategy)
+            except CTraderPermissionError as exc:
+                stop_strategy(strategy["customer_id"], strategy["account_id"], strategy["environment"])
+                _update(strategy["customer_id"], strategy["account_id"],
+                        strategy["environment"], error="Automation stopped: account permission was revoked")
             except Exception as exc:
                 _update(strategy["customer_id"], strategy["account_id"],
                         strategy["environment"], error=str(exc)[:240])
