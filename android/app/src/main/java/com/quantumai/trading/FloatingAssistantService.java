@@ -96,7 +96,11 @@ public class FloatingAssistantService extends Service {
                 if(e.getAction()==MotionEvent.ACTION_UP){if(!moved)togglePanel();return true;}return true;
             }
         });
-        try { wm.addView(bubble,bubbleParams); } catch(Exception e) {\n            bubble=null;\n            Toast.makeText(this, "Could not display the floating circle. Check Android display-over-other-apps permission.", Toast.LENGTH_LONG).show();\n            stopSelf();\n        }
+        try { wm.addView(bubble,bubbleParams); } catch(Exception e) {
+            bubble=null;
+            Toast.makeText(this, "Could not display the floating circle. Check Android display-over-other-apps permission.", Toast.LENGTH_LONG).show();
+            stopSelf();
+        }
     }
 
     private android.graphics.drawable.GradientDrawable round(int color,int radius) {
@@ -137,7 +141,10 @@ public class FloatingAssistantService extends Service {
         panel=root;panelParams=params(dp(300),WindowManager.LayoutParams.WRAP_CONTENT,Gravity.TOP|Gravity.START);
         panelParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
         panelParams.x=Math.max(dp(8),bubbleParams.x-dp(115));panelParams.y=Math.max(dp(45),bubbleParams.y+dp(66));
-        try{wm.addView(panel,panelParams);}catch(Exception e){\n            panel=null;\n            Toast.makeText(this, "Could not open the assistant panel. Try moving the circle away from the screen edge.", Toast.LENGTH_SHORT).show();\n        }
+        try{wm.addView(panel,panelParams);}catch(Exception e){
+            panel=null;
+            Toast.makeText(this, "Could not open the assistant panel. Try moving the circle away from the screen edge.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private Button outcomeButton(String label,int color){Button b=new Button(this);b.setText(label);b.setTextSize(11);b.setTextColor(Color.WHITE);b.setBackground(round(color,dp(9)));return b;}
@@ -145,6 +152,10 @@ public class FloatingAssistantService extends Service {
     private void hidePanel(){if(panel!=null){try{wm.removeView(panel);}catch(Exception ignored){}panel=null;}}
 
     private void generateSignal() {
+        if (expiryAt > System.currentTimeMillis()) {
+            countdownText.setText("A signal is already active. Wait for expiry and record its result first.");
+            return;
+        }
         if(signalButton!=null)signalButton.setEnabled(false);
         final int selected=pairSpinner.getSelectedItemPosition();
         final int minutes=Integer.parseInt(expiries[expirySpinner.getSelectedItemPosition()]);
@@ -181,18 +192,23 @@ public class FloatingAssistantService extends Service {
                     org.json.JSONArray reasons=json.optJSONArray("reasons");
                     if(reasons!=null){
                         for(int i=0;i<Math.min(2,reasons.length());i++){
-                            details.append("\n• ").append(reasons.optString(i));
+                            details.append("
+• ").append(reasons.optString(i));
                         }
                     }
                     message=pairs[selected]+"  ·  "+direction+
-                            "\nStrength: "+strength+"  |  Trend: "+trend+
-                            "\nScore: "+score+"  |  Expiry: "+minutes+" min"+
-                            (Double.isNaN(price)?"":"\nLast completed close: "+price)+details;
+                            "
+Strength: "+strength+"  |  Trend: "+trend+
+                            "
+Score: "+score+"  |  Expiry: "+minutes+" min"+
+                            (Double.isNaN(price)?"":"
+Last completed close: "+price)+details;
                     if(direction.equals("CALL")||direction.equals("PUT")){
                         nextExpiry=System.currentTimeMillis()+minutes*60_000L;
                     }else{
                         direction="WAIT";
-                        message+="\nNo trade: conditions did not meet the signal filter.";
+                        message+="
+No trade: conditions did not meet the signal filter.";
                     }
                 }
             }catch(Exception e){
@@ -235,7 +251,8 @@ public class FloatingAssistantService extends Service {
         if(outcome.equals("DRAW")) bubbleText.setBackground(rainbow());
         else bubbleText.setBackground(round(color,dp(30)));
         bubbleText.setText(outcome.equals("WIN")?"✓":outcome.equals("LOSS")?"×":"✦");
-        resultText.setText(resultText.getText()+"\nRESULT: "+outcome+" (confirmed by you)");
+        resultText.setText(resultText.getText()+"
+RESULT: "+outcome+" (confirmed by you)");
         countdownText.setText("Result saved on this device. Generate another signal when ready.");
         expiryAt=0;if(timer!=null)handler.removeCallbacks(timer);
     }
