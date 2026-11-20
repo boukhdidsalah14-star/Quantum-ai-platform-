@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from app.database import sqlite3
+from app.auth import init_auth_db
 
 SUBSCRIPTION_PRICE_USD = Decimal("30.00")
 SUBSCRIPTION_DAYS = 30
@@ -247,6 +248,7 @@ def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def subscription_for_customer(customer_id: str) -> dict[str, Any]:
+    init_auth_db()
     now = int(time.time())
     with _connect() as db:
         owner = db.execute("SELECT role FROM customers WHERE id=?", (customer_id,)).fetchone()
