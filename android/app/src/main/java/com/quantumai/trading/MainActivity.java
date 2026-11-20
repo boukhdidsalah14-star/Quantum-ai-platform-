@@ -20,8 +20,10 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private static final String HOME = "https://quantum-ai-iqoption-preview.onrender.com/";
     private static final int OVERLAY_PERMISSION_REQUEST = 7104;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 7105;
     private WebView webView;
     private boolean askedOverlay = false;
+    private boolean serviceStartRequested = false;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,21 +52,28 @@ public class MainActivity extends Activity {
         });
         if (savedInstanceState == null) webView.loadUrl(HOME);
         else webView.restoreState(savedInstanceState);
+
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+        }
     }
 
     @Override protected void onResume() {
         super.onResume();
         if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)
-                && getSharedPreferences("quantum_assistant", MODE_PRIVATE).getBoolean("enabled", false)) {
+                && getSharedPreferences("quantum_assistant", MODE_PRIVATE).getBoolean("enabled", false)
+                && !serviceStartRequested) {
             startFloatingAssistant();
         }
-        if (!askedOverlay && Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this))
+        if (!askedOverlay && Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
             askedOverlay = true;
             new AlertDialog.Builder(this)
                 .setTitle("Enable QUANTUM AI floating assistant?")
-                .setMessage("You can use the signal circle over IQ Option or Chrome. Android requires your permission to display it over other apps. You can skip this and enable it later.")
+                .setMessage("Allow display over other apps to use the movable signal circle over IQ Option or Chrome. No trades are placed by this assistant. You can choose NOT NOW and enable it later.")
                 .setPositiveButton("ENABLE", (dialog, which) -> {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
                     startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST);
                 })
                 .setNegativeButton("NOT NOW", (dialog, which) -> {})
@@ -78,17 +87,25 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)) {
                 startFloatingAssistant();
             } else {
-                Toast.makeText(this, "Overlay permission was not granted. The QUANTUM AI app still works normally.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Overlay permission was not granted. QUANTUM AI still works normally.", Toast.LENGTH_LONG).show();
             }
         }
     }
 
     private void startFloatingAssistant() {
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) return;
-        getSharedPreferences("quantum_assistant", MODE_PRIVATE).edit().putBoolean("enabled", true).apply();
+        if (serviceStartRequested) return;
         Intent service = new Intent(this, FloatingAssistantService.class);
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
-        Toast.makeText(this, "Floating assistant enabled. Open IQ Option or Chrome and tap the QUANTUM circle.", Toast.LENGTH_LONG).show();
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+            serviceStartRequested = true;
+            getSharedPreferences("quantum_assistant", MODE_PRIVATE).edit().putBoolean("enabled", true).apply();
+            Toast.makeText(this, "Floating assistant enabled. Open IQ Option or Chrome and tap the QUANTUM circle.", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            serviceStartRequested = false;
+            getSharedPreferences("quantum_assistant", MODE_PRIVATE).edit().putBoolean("enabled", false).apply();
+            Toast.makeText(this, "Could not start the floating assistant. Check Android overlay and notification permissions, then try again.", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override protected void onSaveInstanceState(Bundle outState) {
