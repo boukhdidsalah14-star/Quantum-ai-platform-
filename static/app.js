@@ -895,4 +895,64 @@ if(ctraderReturn){const cleanUrl=window.location.pathname+window.location.hash;w
 
 
 
+
+
+async function refreshCTraderAutoStatus(){
+ const box=$("ctrader-auto-status");
+ if(!box)return;
+ try{
+  const response=await fetch("/api/connections/ctrader/auto");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Auto engine status unavailable");
+  const env=$("ctrader-auto-environment")?.value||"demo";
+  const strategy=env==="live"?data.live_strategy:data.demo_strategy;
+  const start=$("ctrader-auto-start"),stop=$("ctrader-auto-stop");
+  if(start)start.disabled=!data.engine_enabled;
+  if(stop)stop.disabled=!strategy?.enabled;
+  box.innerHTML="<b>FOREX ENGINE: "+(data.engine_enabled?"ONLINE":"OFFLINE")+"</b><br>"+
+   "Mode: "+safe(env.toUpperCase())+" · Account: "+(env==="live"?(data.live_account_connected?"SYNCED":"NOT CONNECTED"):(data.demo_account_connected?"SYNCED":"NOT CONNECTED"))+
+   "<br>Strategy: <b>"+(strategy?.enabled?"RUNNING":"STOPPED")+"</b>"+
+   (strategy?"<br>Symbols: "+safe((strategy.symbols||[]).join(", "))+" · "+safe(strategy.timeframe)+" · "+safe(strategy.lots)+" lots":"")+
+   (strategy?.last_signal?"<br>Last signal: "+safe(strategy.last_signal):"")+
+   (strategy?.last_trade?"<br>Last broker order: "+safe(strategy.last_trade.side)+" "+safe(strategy.last_trade.symbol)+" · "+(strategy.last_trade.broker_confirmed?"BROKER CONFIRMED":"UNCONFIRMED"):"")+
+   (strategy?.last_error?"<br><small>Engine message: "+safe(strategy.last_error)+"</small>":"")+
+   "<br><small>Checks completed candles every 15 seconds while the app service is awake. Stops are not a substitute for broker-side monitoring.</small>";
+ }catch(error){box.textContent=error.message;}
+}
+async function startCTraderAuto(){
+ const button=$("ctrader-auto-start");
+ if(!$("ctrader-auto-ack")?.checked){toast("Confirm the automated-trading risk acknowledgement first");return;}
+ const environment=$("ctrader-auto-environment").value;
+ const symbols=$("ctrader-auto-symbols").value.split(",").map(s=>s.trim()).filter(Boolean);
+ const payload={environment,symbols,timeframe:$("ctrader-auto-timeframe").value,
+  lots:Number($("ctrader-auto-lots").value),acknowledge_risk:true};
+ button.disabled=true;button.textContent="STARTING ENGINE…";
+ try{
+  const response=await fetch("/api/connections/ctrader/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not start Forex auto trading");
+  if(!data.engine_enabled)throw Error("The Forex engine service is not enabled on the server yet");
+  toast("Forex auto strategy started for the selected account");
+  $("ctrader-auto-ack").checked=false;
+  await refreshCTraderAutoStatus();
+ }catch(error){toast(error.message);await refreshCTraderAutoStatus();}
+ finally{button.disabled=false;button.textContent="START FOREX AUTO TRADING";}
+}
+async function stopCTraderAuto(){
+ const button=$("ctrader-auto-stop"),environment=$("ctrader-auto-environment").value;
+ if(!window.confirm("Stop automated Forex entries for this "+environment+" account?"))return;
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/connections/ctrader/auto/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({environment})});
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Could not stop the auto engine");
+  toast("Forex auto trading stopped. Existing positions remain open.");
+  await refreshCTraderAutoStatus();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+}
+$("ctrader-auto-start")?.addEventListener("click",startCTraderAuto);
+$("ctrader-auto-stop")?.addEventListener("click",stopCTraderAuto);
+$("ctrader-auto-environment")?.addEventListener("change",refreshCTraderAutoStatus);
+refreshCTraderAutoStatus();
+
 })();
