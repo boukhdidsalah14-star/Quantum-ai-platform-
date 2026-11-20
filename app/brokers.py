@@ -5,9 +5,7 @@ from __future__ import annotations
 def broker_capabilities() -> dict:
     """Describe implemented capability separately from customer connection state.
 
-    Demo order endpoints exist, but a customer must still authorize their own
-    cTrader account, select an IC Markets demo account, and grant explicit
-    per-account consent. No live Forex execution is enabled.
+    Demo order endpoints exist. Live-account and order lifecycle code is implemented behind independent Spotware/server approval and customer-consent gates; it has not been validated against a customer live account.
     """
     brokers = [
         {
@@ -27,26 +25,31 @@ def broker_capabilities() -> dict:
             "note": "USD-M futures order and auto-strategy code is implemented with customer-scoped consent, credential-version binding, daily loss limits and emergency stop. Real orders remain locked until live account validation and always-on worker verification are complete."        },
         {
             "id": "ctrader", "name": "cTrader", "category": "forex_trading_platform",
-            "status": "demo_execution_implemented_customer_verification_required", "connection_verified": False,
+            "status": "demo_execution_implemented_live_adapter_gated_unverified", "connection_verified": False,
             "supported_scope": [
                 "oauth_authorization", "demo_account_discovery", "demo_balance_sync",
                 "demo_position_sync", "demo_market_orders", "demo_modify_stop_loss_take_profit",
                 "demo_close_positions", "demo_trade_history",
+                "live_account_discovery", "live_balance_and_positions",
+                "live_manual_orders_gated", "live_modify_stop_loss_take_profit_gated",
+                "live_close_positions_gated", "per_account_live_consent",
+                "server_side_daily_loss_limit", "emergency_stop",
             ],
             "execution_enabled": False, "demo_execution_enabled": True,
             "real_execution_enabled": False,
-            "note": "Manual demo order, protection-update and close endpoints are implemented. They require the customer's own authorized IC Markets demo account, explicit per-account consent and server-side risk checks. Actual broker execution still needs end-to-end customer-account verification. Live execution is locked.",
+            "note": "Demo execution is implemented and awaits a customer-account test. Live account sync and manual order lifecycle code are implemented behind separate Spotware/server approval and per-account consent gates; no live orders are enabled or verified yet.",
         },
         {
             "id": "ic_markets", "name": "IC Markets", "category": "forex_broker",
-            "status": "ctrader_demo_execution_implemented_unverified", "connection_verified": False,
+            "status": "ctrader_demo_and_gated_live_adapter_unverified", "connection_verified": False,
             "supported_scope": [
                 "ctrader_account_authorization", "demo_balance_and_positions",
                 "demo_manual_order_execution", "demo_position_protection", "demo_position_close",
+                "live_account_sync_gated", "live_manual_order_lifecycle_gated",
             ],
             "execution_enabled": False, "demo_execution_enabled": True,
             "real_execution_enabled": False,
-            "note": "IC Markets is integrated through cTrader. Demo execution is implemented but still requires a real customer-owned demo account test. No live Forex order execution is enabled.",
+            "note": "IC Markets is integrated through cTrader. Demo execution and a separately gated live manual-order adapter are implemented in code. Both still require customer-owned broker-account validation; live execution remains disabled until Spotware approval and controlled enablement.",
         },
     ]
     return {
