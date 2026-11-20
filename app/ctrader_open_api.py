@@ -696,8 +696,8 @@ async def open_live_trade(customer_id: str, symbol: str, side: str, lots: float,
             "label": "QUANTUM_AI_LIVE",
         }, EXECUTION_EVENT, timeout=25.0)
         execution_type = int(event.get("executionType", 0))
-        if execution_type == 7:
-            raise CTraderOpenAPIError("The cTrader live broker rejected the order")
+        if execution_type not in (2, 3, 11):
+            raise CTraderOpenAPIError("cTrader did not confirm acceptance of the live order")
         position = event.get("position") or {}
         order = event.get("order") or {}
         if position.get("positionId") is not None:
