@@ -307,7 +307,9 @@ def test_auth_config_reports_registration_closed_by_default(monkeypatch):
     monkeypatch.delenv("ALLOW_CUSTOMER_SIGNUP", raising=False)
     response = client.get("/api/auth/config")
     assert response.status_code == 200
-    assert response.json() == {"registration_enabled": False}
+    assert response.json()["registration_enabled"] is False
+    assert response.json()["admin_email"] == "smartgoomaps@gmail.com"
+    assert response.json()["admin_login_enabled"] is False
 
 
 def test_auth_config_reports_registration_enabled(monkeypatch):
@@ -315,7 +317,8 @@ def test_auth_config_reports_registration_enabled(monkeypatch):
     monkeypatch.setenv("ALLOW_CUSTOMER_SIGNUP", "true")
     response = client.get("/api/auth/config")
     assert response.status_code == 200
-    assert response.json() == {"registration_enabled": True}
+    assert response.json()["registration_enabled"] is True
+    assert response.json()["admin_email"] == "smartgoomaps@gmail.com"
 
 
 
