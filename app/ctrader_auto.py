@@ -203,6 +203,7 @@ async def process_strategy(strategy: dict):
         _update(customer_id, account_id, environment,
                 signal=f"{side} · {symbol} · {strategy['timeframe']}",
                 error=None, trade=result)
+        return
 
 
 async def engine_loop():
