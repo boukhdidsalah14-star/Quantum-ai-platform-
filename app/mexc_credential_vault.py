@@ -4,6 +4,7 @@ Credentials are persisted only when the caller has verified that the configured
 database is durable. This module never logs or returns API secrets.
 """
 import json
+import hashlib
 import os
 from app.database import sqlite3
 import time
@@ -54,14 +55,13 @@ def save(customer_id: str, api_key: str, api_secret: str):
         {"api_key": api_key, "api_secret": api_secret}, separators=(",", ":")
     ).encode())
     now = int(time.time())
-    credential_version = time.time_ns()
     with _db() as db:
         db.execute("""
         INSERT INTO mexc_customer_credentials VALUES (?, ?, ?, ?)
         ON CONFLICT(customer_id) DO UPDATE SET
           encrypted_payload=excluded.encrypted_payload,
           updated_at=excluded.updated_at
-        """, (customer_id, encrypted, now, credential_version))
+        """, (customer_id, encrypted, now, now))
     return metadata(customer_id)
 
 
@@ -84,12 +84,14 @@ def load(customer_id: str):
 def metadata(customer_id: str):
     with _db() as db:
         row = db.execute("""
-        SELECT created_at, updated_at FROM mexc_customer_credentials WHERE customer_id=?
+        SELECT created_at, updated_at, encrypted_payload FROM mexc_customer_credentials WHERE customer_id=?
         """, (customer_id,)).fetchone()
     if not row:
         return {"connected": False, "broker": "mexc", "mode": "real"}
+    fingerprint = hashlib.sha256(bytes(row["encrypted_payload"])).hexdigest()
     return {"connected": True, "broker": "mexc", "mode": "real",
-            "created_at": row["created_at"], "updated_at": row["updated_at"]}
+            "created_at": row["created_at"], "updated_at": row["updated_at"],
+            "credential_fingerprint": fingerprint}
 
 
 def delete(customer_id: str):
