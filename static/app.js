@@ -587,6 +587,25 @@ async function selectCTraderDemoAccount(){
  }catch(error){if(result){result.hidden=false;result.textContent=error.message;}toast(error.message);}
  finally{button.disabled=false;button.textContent="SYNC ACCOUNT";}
 }
+async function loadCTraderDemoHistory(){
+ const button=$("ctrader-history-load"),box=$("ctrader-history");
+ if(!button||!box)return;
+ button.disabled=true;button.textContent="LOADING BROKER HISTORY…";
+ try{
+  const response=await fetch("/api/connections/ctrader/demo/history?days=7&limit=100");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Could not load cTrader trade history");
+  const deals=Array.isArray(data.deals)?data.deals:[];
+  box.hidden=false;
+  box.innerHTML="<b>IC MARKETS · LAST 7 DAYS</b><br><small>Source: broker execution history · "+deals.length+" record(s)</small>"+
+   (deals.length?"<hr>"+deals.map(d=>"<div class='ctrader-position-row'><b>"+safe(d.side)+" "+safe(d.symbol)+"</b> · "+safe(d.filled_volume_units??d.volume_units??"—")+" units"+
+    "<br>Execution: "+safe(d.execution_price??"—")+" · Commission: "+safe(d.commission??"—")+
+    "<br><small>"+safe(d.execution_timestamp_ms?new Date(Number(d.execution_timestamp_ms)).toLocaleString():"Time unavailable")+
+    " · Deal #"+safe(d.deal_id||"—")+" · Position #"+safe(d.position_id||"—")+"</small></div>").join(""):"<br><small>No broker deals were returned for this period.</small>")+
+   (data.has_more?"<br><small>More records are available at the broker; the current view is capped at 100.</small>":"");
+ }catch(error){box.hidden=false;box.textContent=error.message;toast(error.message);}
+ finally{button.disabled=false;button.textContent="LOAD 7-DAY TRADE HISTORY";}
+}
 async function refreshCTraderSnapshot(){
  try{
   const response=await fetch("/api/connections/ctrader/snapshot");
@@ -600,6 +619,7 @@ $("ctrader-risk-save")?.addEventListener("click",saveCTraderRiskSettings);
 $("ctrader-emergency-stop")?.addEventListener("click",toggleCTraderEmergencyStop);
 $("ctrader-demo-auth-toggle")?.addEventListener("click",toggleCTraderCustomerAuthorization);
 $("ctrader-account-snapshot")?.addEventListener("click",handleCTraderPositionAction);
+$("ctrader-history-load")?.addEventListener("click",loadCTraderDemoHistory);
 $("ctrader-discover")?.addEventListener("click",discoverCTraderAccounts);
 $("ctrader-select-account")?.addEventListener("click",selectCTraderDemoAccount);
 $("ctrader-connect")?.addEventListener("click",async()=>{
