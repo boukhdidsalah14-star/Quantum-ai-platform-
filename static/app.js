@@ -141,15 +141,23 @@ async function runCryptoPaperEntry(){
 
 $("crypto-paper-entry").addEventListener("click",runCryptoPaperEntry);
 
+let mexcLiveAuthorized=false;
+let mexcServerEnabled=false;
 async function refreshMexcAuto(){
  try{
   const [connection,strategy,live]=await Promise.all([
    fetch("/api/connections/mexc"),fetch("/api/mexc/futures/auto"),fetch("/api/mexc/futures/positions")
   ]);
   if(connection.ok){const c=await connection.json();$("mexc-connection-status").textContent=c.connected?"MEXC account connected · encrypted credentials stored":"MEXC account not connected";}
-  if(strategy.ok){const d=await strategy.json(),v=d.strategy||{};$("mexc-auto-status").textContent=
-   v.status==="active"?"AUTO TRADING ACTIVE · "+v.symbol+" · "+v.timeframe+" · "+v.risk_percent+"% risk · "+v.leverage+"×":
-   v.status==="stopped"?"AUTO TRADING STOPPED"+(v.last_error?" · "+v.last_error:""):"AUTO TRADING NOT STARTED";}
+  if(strategy.ok){
+   const d=await strategy.json(),v=d.strategy||{},auth=d.live_authorization||{};
+   mexcLiveAuthorized=!!auth.authorized;mexcServerEnabled=!!d.execution_enabled;
+   const permission=$("mexc-live-permission-status");
+   if(permission)permission.textContent=mexcLiveAuthorized?(mexcServerEnabled?"LIVE PERMISSION ACTIVE · server execution switch enabled":"LIVE PERMISSION SAVED · order execution remains locked pending final platform validation"):"LIVE PERMISSION REQUIRED · "+(auth.reason||"not authorized");
+   const start=$("mexc-auto-start");if(start)start.disabled=!mexcLiveAuthorized||!mexcServerEnabled;
+   const loss=$("mexc-live-loss-limit");if(loss&&auth.max_daily_loss_percent)loss.value=auth.max_daily_loss_percent;
+   $("mexc-auto-status").textContent=v.status==="active"?"AUTO TRADING ACTIVE · "+v.symbol+" · "+v.timeframe+" · "+v.risk_percent+"% risk · "+v.leverage+"×":v.status==="stopped"?"AUTO TRADING STOPPED"+(v.last_error?" · "+v.last_error:""):(mexcLiveAuthorized&&!mexcServerEnabled?"LIVE CONSENT SAVED · SERVER EXECUTION LOCKED":"AUTO TRADING NOT STARTED");
+  }
   if(live.ok){
    const d=await live.json(),positions=d.positions||[],orders=d.open_orders||[];
    const positionHtml=positions.map(p=>'<div class="trade-row"><b>'+safe(p.symbol)+'</b><span>'+(Number(p.positionType)===1?'LONG':'SHORT')+' · '+safe(p.holdVol)+'</span><span>Entry '+money(p.holdAvgPrice)+' · P/L '+money(p.unRealizedPnl)+'</span></div>').join("");
@@ -174,6 +182,8 @@ async function connectMexcAccount(){
 }
 async function startMexcAuto(){
  if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
+ if(!mexcLiveAuthorized){toast("Authorize your MEXC live account first");return;}
+ if(!mexcServerEnabled){toast("Live order execution is still locked pending final platform validation");return;}
  const button=$("mexc-auto-start"),output=$("mexc-auto-status");
  button.disabled=true;button.textContent="STARTING…";
  try{
@@ -197,7 +207,34 @@ async function stopMexcAuto(){
  }catch(e){toast(e.message);}
  finally{button.disabled=false;await refreshMexcAuto();}
 }
+async function authorizeMexcLive(){
+ if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
+ if(!$("mexc-live-risk-ack").checked){toast("Please confirm the live futures risk acknowledgement");return;}
+ const limit=Number($("mexc-live-loss-limit").value);
+ if(!Number.isFinite(limit)||limit<1||limit>10){toast("Daily loss limit must be between 1% and 10%");return;}
+ const button=$("mexc-live-authorize");button.disabled=true;button.textContent="VERIFYING & SAVING…";
+ try{
+  const r=await fetch("/api/mexc/futures/live-authorization",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:true,acknowledge_risk:true,max_daily_loss_percent:limit})});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not save live permission");
+  $("mexc-live-permission-status").textContent=d.note||"Live permission saved.";
+  $("mexc-live-risk-ack").checked=false;
+  toast("MEXC live permission saved; execution remains locked until platform validation is complete");
+ }catch(e){$("mexc-live-permission-status").textContent="PERMISSION NOT SAVED · "+e.message;toast(e.message);}
+ finally{button.disabled=false;button.textContent="SAVE LIVE TRADING PERMISSION";await refreshMexcAuto();}
+}
+async function emergencyStopMexcLive(){
+ const button=$("mexc-live-emergency-stop");button.disabled=true;
+ try{
+  const r=await fetch("/api/mexc/futures/live/emergency-stop",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+  const d=await r.json();if(!r.ok)throw Error(d.detail||"Emergency stop failed");
+  $("mexc-live-permission-status").textContent=d.note||"Live permission revoked.";
+  toast("MEXC live permission revoked; new automatic entries blocked");
+ }catch(e){toast(e.message);}
+ finally{button.disabled=false;await refreshMexcAuto();}
+}
 $("mexc-connect").addEventListener("click",connectMexcAccount);
+$("mexc-live-authorize").addEventListener("click",authorizeMexcLive);
+$("mexc-live-emergency-stop").addEventListener("click",emergencyStopMexcLive);
 $("mexc-auto-start").addEventListener("click",startMexcAuto);
 $("mexc-auto-stop").addEventListener("click",stopMexcAuto);
 
