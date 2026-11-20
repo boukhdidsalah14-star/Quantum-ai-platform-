@@ -140,6 +140,15 @@
      <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Connect Futures Account</h2><p>Connect your own MEXC API key with Futures account-read and order permissions. Keys are encrypted server-side and never shown again.</p></div>
      <div class="chart-toolbar"><input id="mexc-api-key" type="text" maxlength="256" autocomplete="off" placeholder="MEXC API key"><input id="mexc-api-secret" type="password" maxlength="512" autocomplete="new-password" placeholder="MEXC API secret"><button id="mexc-connect" class="solid-btn">VERIFY & SAVE</button></div>
      <div id="mexc-connection-status" class="signal-details">Not connected</div>
+     <div class="risk-control-panel" id="mexc-live-authorization">
+      <b>LIVE FUTURES PERMISSION</b>
+      <p>Separate customer approval is required before any live automated order can be considered. Default daily loss limit is 2%; you may set a limit up to 10%.</p>
+      <label>MAX DAILY LOSS (%)<input id="mexc-live-loss-limit" type="number" min="1" max="10" step="0.5" value="2"></label>
+      <label class="consent-row"><input id="mexc-live-risk-ack" type="checkbox"> I explicitly authorize QUANTUM AI to trade my MEXC USD-M Futures account automatically. I understand leverage, liquidation, slippage and losses can occur. My API key has withdrawals disabled and I am responsible for monitoring my account.</label>
+      <button id="mexc-live-authorize" class="solid-btn wide-btn" type="button">SAVE LIVE TRADING PERMISSION</button>
+      <button id="mexc-live-emergency-stop" class="outline-btn wide-btn" type="button">REVOKE PERMISSION · EMERGENCY STOP</button>
+      <div id="mexc-live-permission-status" class="signal-details">Live trading permission not granted.</div>
+     </div>
     </div>
     <div class="chart-toolbar crypto-paper-controls">
      <label for="crypto-paper-balance">PAPER BALANCE (USDT)</label><input id="crypto-paper-balance" type="number" min="1" max="1000000" step="1" value="1000">
@@ -154,7 +163,7 @@
     </div>
     <div id="mexc-auto-status" class="signal-details">Live auto trading is stopped.</div>
     <div id="mexc-live-positions" class="signal-details">Connect MEXC to view live futures positions.</div>
-    <p class="risk-note">MEXC USD-M perpetual futures only. Auto trading uses your connected Futures wallet, max 1% risk per entry and a $500 maximum notional per order. Exchange-side stop-loss and take-profit are attached to each entry. USDT is settlement currency, not a tradable asset. Live execution requires Futures API order permission and the server safety switch.</p>
+    <p class="risk-note">MEXC USD-M perpetual futures only. Each entry is limited to 1% maximum account risk and $500 notional, with isolated margin and exchange-side stop-loss/take-profit. Live permission is separate from the platform execution switch; live orders remain locked until the broker integration and background execution service pass validation. Use an API key with withdrawals disabled.</p>
   </section>
   <div class="provider-card">
    <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
