@@ -1210,7 +1210,9 @@ async def mexc_live_emergency_stop(request: Request):
 @app.get("/api/mexc/futures/auto")
 async def mexc_auto_status(request: Request):
     init_auth_db()
+    init_mexc_vault_db()
     init_mexc_auto_db()
+    init_mexc_live_permissions_db()
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -1230,6 +1232,7 @@ async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
     init_subscription_db()
     init_mexc_vault_db()
     init_mexc_auto_db()
+    init_mexc_live_permissions_db()
     customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
