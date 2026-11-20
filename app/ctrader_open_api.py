@@ -786,6 +786,7 @@ def saved_snapshot(customer_id: str) -> dict | None:
 def clear_snapshot(customer_id: str) -> None:
     with _db() as db:
         db.execute("DELETE FROM ctrader_account_snapshots WHERE customer_id=?", (customer_id,))
+        db.execute("DELETE FROM ctrader_live_account_snapshots WHERE customer_id=?", (customer_id,))
 
 TIMEFRAMES = {
     "1m": (1, 60),
