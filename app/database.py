@@ -50,6 +50,11 @@ class _PostgresConnection:
             statement += " ON CONFLICT DO NOTHING"
         statement = re.sub(r"\?", "%s", statement)
         statement = re.sub(r"\bBLOB\b", "BYTEA", statement, flags=re.I)
+        # Translate SQLite AUTOINCREMENT primary keys for Neon/PostgreSQL.
+        statement = re.sub(
+            r"\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b",
+            "BIGSERIAL PRIMARY KEY", statement, flags=re.I,
+        )
         return self._conn.execute(statement, parameters)
 
     def executescript(self, script: str):
