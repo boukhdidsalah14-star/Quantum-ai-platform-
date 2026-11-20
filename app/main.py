@@ -41,6 +41,10 @@ from app.auth import (
     get_customer_for_session, init_auth_db, revoke_session, signup_enabled,
     consume_login_attempt, clear_login_attempts,
 )
+from app.admin_auth import (
+    OWNER_EMAIL, email_provider_ready, init_admin_auth_db,
+    send_owner_login_code, verify_owner_login_code,
+)
 from app.subscriptions import (
     init_db as init_subscription_db, payment_configured, create_order as create_subscription_order,
     attach_payment, verify_ipn_signature, apply_finished_payment, subscription_for_customer,
@@ -78,6 +82,11 @@ class Credentials(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
     referral_code: str = Field(default="", max_length=32)
+
+
+class AdminCodeRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    code: str = Field(default="", min_length=0, max_length=6)
 
 
 class MexcCredentials(BaseModel):
@@ -1159,7 +1168,35 @@ async def disconnect_ctrader_account(request: Request):
 @app.get("/api/auth/config")
 async def auth_config():
     """Expose non-sensitive account availability to the dashboard."""
-    return {"registration_enabled": signup_enabled()}
+    return {"registration_enabled": signup_enabled(), "admin_email": OWNER_EMAIL,
+            "admin_login_enabled": email_provider_ready()}
+
+
+@app.post("/api/auth/admin/request-code")
+async def request_admin_login_code(payload: AdminCodeRequest, request: Request):
+    _check_same_origin(request)
+    if payload.email.strip().lower() != OWNER_EMAIL:
+        raise HTTPException(status_code=404, detail="Passwordless administrator login is unavailable")
+    try:
+        send_owner_login_code(payload.email)
+    except ValueError as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return {"sent": True, "message": "A one-time login code was sent to your administrator email."}
+
+
+@app.post("/api/auth/admin/verify-code")
+async def verify_admin_login_code(payload: AdminCodeRequest, request: Request, response: Response):
+    _check_same_origin(request)
+    init_auth_db()
+    init_admin_auth_db()
+    customer = verify_owner_login_code(payload.email, payload.code)
+    if not customer:
+        raise HTTPException(status_code=401, detail="The code is invalid or expired. Request a new code.")
+    token = create_session(customer["id"])
+    _session_cookie(response, token)
+    return {"customer": customer, "authenticated": True, "admin": True, "lifetime_premium": True}
 
 
 @app.get("/health")
