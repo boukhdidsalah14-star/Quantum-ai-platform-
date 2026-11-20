@@ -630,6 +630,28 @@ async def _open_selected_live(customer_id: str):
         raise
 
 
+
+async def discover_live_symbols(customer_id: str) -> list[dict]:
+    ws, selected = await _open_selected_live(customer_id)
+    try:
+        response = await _request(ws, SYMBOLS_LIST_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "includeArchivedSymbols": False,
+        }, SYMBOLS_LIST_RES)
+        rows = response.get("symbol") or []
+        if not isinstance(rows, list):
+            raise CTraderOpenAPIError("cTrader returned an invalid live symbol list")
+        return sorted([{
+            "symbol_id": str(item.get("symbolId")),
+            "symbol": str(item.get("symbolName") or ""),
+            "enabled": bool(item.get("enabled", True)),
+        } for item in rows if isinstance(item, dict)
+          and item.get("symbolId") is not None and item.get("symbolName")
+          and bool(item.get("enabled", True))], key=lambda item: item["symbol"])
+    finally:
+        await ws.close()
+
+
 async def open_live_trade(customer_id: str, symbol: str, side: str, lots: float,
                           stop_loss: float, take_profit: float) -> dict:
     if not _live_execution_enabled():
