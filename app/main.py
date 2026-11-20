@@ -18,6 +18,7 @@ from app.market_universe import FOREX_PAIRS, BINARY_PAIRS, CRYPTO_FUTURES
 from app.forex_market_data import get_candles as get_forex_candles, get_market_overview as get_forex_market_overview
 from app.mexc_market_data import get_market_overview as get_mexc_market_overview, get_candles as get_mexc_candles
 from app.mexc_futures_execution import (get_futures_account_info as get_mexc_account_info, MexcFuturesError, MexcFuturesClient, contracts_for_risk, init_auto_db as init_mexc_auto_db, start_auto_strategy as start_mexc_auto_strategy, stop_auto_strategy as stop_mexc_auto_strategy, get_auto_strategy as get_mexc_auto_strategy, list_active_auto_strategies as list_active_mexc_auto_strategies, reserve_auto_order as reserve_mexc_auto_order, update_auto_order as update_mexc_auto_order, set_auto_strategy_error as set_mexc_auto_strategy_error, daily_loss_guard as mexc_daily_loss_guard)
+from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db, get_live_authorization as get_mexc_live_authorization, set_live_authorization as set_mexc_live_authorization, activate_emergency_stop as activate_mexc_emergency_stop, require_live_authorization as require_mexc_live_authorization)
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
 from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, CTraderPermissionError)
@@ -98,6 +99,12 @@ class MexcLiveEntryRequest(BaseModel):
     leverage: int = Field(default=1, ge=1, le=20)
 
 
+class MexcLiveAuthorizationRequest(BaseModel):
+    enabled: bool
+    acknowledge_risk: bool = False
+    max_daily_loss_percent: float = Field(default=2.0, ge=1, le=10)
+
+
 class CTraderAccountSelection(BaseModel):
     account_id: str = Field(min_length=1, max_length=32)
 
@@ -156,6 +163,11 @@ def _persistent_credentials_ready() -> bool:
     )
 
 
+def _mexc_live_permission(customer_id: str) -> dict:
+    metadata = mexc_credential_metadata(customer_id)
+    return get_mexc_live_authorization(customer_id, metadata.get("updated_at"))
+
+
 def _session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE, token, max_age=7 * 24 * 60 * 60,
@@ -179,6 +191,11 @@ async def _mexc_auto_monitor_loop():
                     if not credentials:
                         stop_mexc_auto_strategy(customer_id)
                         continue
+                    live_permission = _mexc_live_permission(customer_id)
+                    if not live_permission["authorized"]:
+                        stop_mexc_auto_strategy(customer_id)
+                        set_mexc_auto_strategy_error(customer_id, "Live permission missing, revoked, or invalidated by API-key change")
+                        continue
                     client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
                     account = await client.verify_account()
                     usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
@@ -187,7 +204,7 @@ async def _mexc_auto_monitor_loop():
                     if balance <= 0 or equity <= 0:
                         set_mexc_auto_strategy_error(customer_id, "No available USDT futures balance")
                         continue
-                    daily_guard = mexc_daily_loss_guard(customer_id, equity, 10.0)
+                    daily_guard = mexc_daily_loss_guard(customer_id, equity, live_permission["max_daily_loss_percent"])
                     if not daily_guard["allowed"]:
                         continue
                     symbol = strategy["symbol"]
@@ -262,6 +279,7 @@ async def lifespan(app: FastAPI):
     init_virtual_db()
     init_mexc_vault_db()
     init_mexc_auto_db()
+    init_mexc_live_permissions_db()
     init_ctrader_oauth_db()
     init_ctrader_sync_db()
     init_ctrader_risk_db()
@@ -1054,6 +1072,10 @@ async def execute_mexc_futures_signal(
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
     try:
+        require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    try:
         client = MexcFuturesClient(credentials["api_key"], credentials["api_secret"])
         account = await client.verify_account()
         usdt = next((a for a in account["assets"] if a["currency"] == "USDT"), None)
@@ -1110,6 +1132,81 @@ async def execute_mexc_futures_signal(
 
 
 
+@app.get("/api/mexc/futures/live-authorization")
+async def mexc_live_authorization_status(request: Request):
+    init_auth_db()
+    init_mexc_vault_db()
+    init_mexc_live_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    metadata = mexc_credential_metadata(customer["id"])
+    return {
+        **get_mexc_live_authorization(customer["id"], metadata.get("updated_at")),
+        "credentials_connected": bool(metadata.get("connected")),
+        "server_kill_switch_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+        "mode": "live",
+    }
+
+
+@app.put("/api/mexc/futures/live-authorization")
+async def update_mexc_live_authorization(payload: MexcLiveAuthorizationRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_subscription_db()
+    init_mexc_vault_db()
+    init_mexc_live_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if payload.enabled:
+        if not subscription_for_customer(customer["id"]).get("active"):
+            raise HTTPException(status_code=403, detail="An active QUANTUM AI membership is required")
+        if not _persistent_credentials_ready():
+            raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
+        metadata = mexc_credential_metadata(customer["id"])
+        credentials = load_mexc_credentials(customer["id"])
+        if not credentials or not metadata.get("updated_at"):
+            raise HTTPException(status_code=409, detail="Connect and verify your own MEXC USD-M Futures API key first")
+        try:
+            # Read-only verification before recording consent; no order is placed here.
+            await MexcFuturesClient(credentials["api_key"], credentials["api_secret"]).verify_account()
+            permission = set_mexc_live_authorization(
+                customer["id"], int(metadata["updated_at"]), True,
+                payload.acknowledge_risk, payload.max_daily_loss_percent,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except MexcFuturesError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
+        return {
+            **permission, "credentials_connected": True,
+            "server_kill_switch_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
+            "note": "Customer live consent saved. Automatic order execution remains blocked until the server kill switch is deliberately enabled after validation. Use an API key with futures trade/read access and withdrawals disabled.",
+        }
+    permission = set_mexc_live_authorization(
+        customer["id"], 0, False, False, payload.max_daily_loss_percent,
+    )
+    stop_mexc_auto_strategy(customer["id"])
+    return {**permission, "credentials_connected": bool(mexc_credential_metadata(customer["id"]).get("connected")),
+            "note": "Live permission revoked and new automatic entries stopped. Existing exchange positions are not automatically closed."}
+
+
+@app.post("/api/mexc/futures/live/emergency-stop")
+async def mexc_live_emergency_stop(request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_mexc_auto_db()
+    init_mexc_live_permissions_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    permission = activate_mexc_emergency_stop(customer["id"])
+    strategy = stop_mexc_auto_strategy(customer["id"])
+    return {"live_authorization": permission, "strategy": strategy,
+            "note": "New automatic entries are blocked. Existing exchange positions remain open; their exchange-side protection remains in place."}
+
+
 @app.get("/api/mexc/futures/auto")
 async def mexc_auto_status(request: Request):
     init_auth_db()
@@ -1118,6 +1215,7 @@ async def mexc_auto_status(request: Request):
     if not customer:
         raise HTTPException(status_code=401, detail="Authentication required")
     return {"strategy": get_mexc_auto_strategy(customer["id"]),
+            "live_authorization": _mexc_live_permission(customer["id"]),
             "execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
 
 
@@ -1140,6 +1238,10 @@ async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
     credentials = load_mexc_credentials(customer["id"])
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
+    try:
+        require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     if payload.symbol.upper() not in CRYPTO_FUTURES or payload.timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Unsupported futures symbol or timeframe")
     try:
