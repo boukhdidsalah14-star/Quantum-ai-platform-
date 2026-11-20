@@ -81,8 +81,8 @@ def list_active_strategies():
 def start_strategy(customer_id: str, account_id: str, environment: str,
                    symbols: list[str], timeframe: str, lots: float):
     env = str(environment or "").lower()
-    if env not in {"demo", "live"}:
-        raise ValueError("Choose demo or live Forex account")
+    if env != "demo":
+        raise ValueError("Only cTrader demo automation is available in this release")
     if not str(account_id).isdigit():
         raise ValueError("Sync your selected cTrader account first")
     if timeframe not in ALLOWED_TIMEFRAMES:
@@ -96,12 +96,7 @@ def start_strategy(customer_id: str, account_id: str, environment: str,
         raise ValueError("Trade size must be valid") from exc
     if not 0.001 <= size <= ENGINE_MAX_LOTS:
         raise ValueError("Automated trade size must be between 0.001 and 0.01 lots")
-    if env == "demo":
-        require_demo_permission(customer_id, account_id)
-    else:
-        if os.getenv("QUANTUM_CTRADER_LIVE_SESSION_ENABLED", "").lower() != "true" or os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").lower() != "true":
-            raise ValueError("Live automation is not enabled by the platform")
-        require_live_permission(customer_id, account_id)
+    require_demo_permission(customer_id, account_id)
     now = int(time.time())
     with _db() as db:
         db.execute("""INSERT INTO ctrader_auto_strategies
@@ -144,6 +139,8 @@ async def process_strategy(strategy: dict):
     customer_id = strategy["customer_id"]
     account_id = strategy["account_id"]
     environment = strategy["environment"]
+    if environment != "demo":
+        raise CTraderPermissionError("Live Forex automation is disabled in this release")
     if not strategy["enabled"]:
         return
     # Revalidate customer consent on every cycle; revocation stops automation.
