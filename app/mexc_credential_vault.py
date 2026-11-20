@@ -54,13 +54,14 @@ def save(customer_id: str, api_key: str, api_secret: str):
         {"api_key": api_key, "api_secret": api_secret}, separators=(",", ":")
     ).encode())
     now = int(time.time())
+    credential_version = time.time_ns()
     with _db() as db:
         db.execute("""
         INSERT INTO mexc_customer_credentials VALUES (?, ?, ?, ?)
         ON CONFLICT(customer_id) DO UPDATE SET
           encrypted_payload=excluded.encrypted_payload,
           updated_at=excluded.updated_at
-        """, (customer_id, encrypted, now, now))
+        """, (customer_id, encrypted, now, credential_version))
     return metadata(customer_id)
 
 
