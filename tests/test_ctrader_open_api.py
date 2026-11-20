@@ -85,6 +85,19 @@ class FakeWebSocket:
                     {"symbolId": "12", "symbolName": "OLD/USD", "enabled": False},
                 ],
             }
+        elif kind == api.DEAL_LIST_REQ:
+            now_ms = int(time.time() * 1000)
+            response_type, payload = api.DEAL_LIST_RES, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "deal": [{
+                    "dealId": "501", "orderId": "502", "positionId": "77",
+                    "symbolId": "10", "volume": 100000, "filledVolume": 100000,
+                    "executionPrice": 1.0875, "tradeSide": 1, "dealStatus": 2,
+                    "createTimestamp": now_ms - 1000, "executionTimestamp": now_ms,
+                    "commission": 250, "moneyDigits": 2, "label": "QUANTUM_AI_DEMO",
+                }],
+                "hasMore": False,
+            }
         elif kind == api.GET_TRENDBARS_REQ:
             response_type, payload = api.GET_TRENDBARS_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
@@ -350,3 +363,26 @@ def test_demo_open_rejects_account_without_full_trade_rights(monkeypatch, tmp_pa
     fake.send = restricted_send
     with pytest.raises(api.CTraderOpenAPIError, match="does not have permission"):
         asyncio.run(api.open_demo_trade(customer["id"], "EURUSD", "BUY", 0.01, 1.07, 1.12))
+
+
+
+def test_demo_trade_history_reads_broker_deals(monkeypatch, tmp_path):
+    customer, _fake = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    history = asyncio.run(api.get_demo_trade_history(customer["id"], days=7, limit=100))
+    assert history["environment"] == "demo"
+    assert history["source"] == "IC Markets cTrader Open API deal history"
+    assert len(history["deals"]) == 1
+    deal = history["deals"][0]
+    assert deal["deal_id"] == "501"
+    assert deal["symbol"] == "EUR/USD"
+    assert deal["side"] == "BUY"
+    assert deal["execution_price"] == 1.0875
+    assert deal["commission"] == 2.5
+    assert history["has_more"] is False
+
+
+def test_demo_trade_history_rejects_invalid_range(monkeypatch, tmp_path):
+    customer, _fake = setup(monkeypatch, tmp_path)
+    with pytest.raises(ValueError, match="between 1 and 30 days"):
+        asyncio.run(api.get_demo_trade_history(customer["id"], days=31, limit=100))
