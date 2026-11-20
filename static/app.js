@@ -580,7 +580,7 @@ async function selectCTraderDemoAccount(){
   if(!response.ok)throw Error(data.detail||"Demo account sync failed");
   renderCTraderSnapshot(data);
   $("ctrader-state").textContent="DEMO ACCOUNT SYNCED";
-  $("ctrader-note").textContent="IC Markets demo account is connected. Balance and open positions are read from cTrader. Order execution is still disabled.";
+  $("ctrader-note").textContent="IC Markets demo account is connected. Balance and open positions are read from cTrader. Manual demo order controls are available after you authorize this account. Live trading remains locked.";
   if(result){result.hidden=false;result.textContent="Demo account synchronized successfully.";}
   toast("IC Markets demo account synchronized");
   await loadChart();
