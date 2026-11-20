@@ -315,10 +315,10 @@ async def lifespan(app: FastAPI):
     if os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true":
         ctrader_auto_task = asyncio.create_task(ctrader_auto_engine_loop())
         app.state.ctrader_auto_engine_running = True
-        logger.info("QUANTUM AI cTrader Forex auto engine started")
+        logger.warning("FOREX_AUTO_ENGINE_STATE=RUNNING")
     else:
         app.state.ctrader_auto_engine_running = False
-        logger.info("QUANTUM AI cTrader Forex auto engine is disabled by server configuration")
+        logger.warning("FOREX_AUTO_ENGINE_STATE=DISABLED")
     mexc_auto_task = None
     mexc_auto_mode = os.getenv("QUANTUM_MEXC_AUTO_EXECUTION_MODE", "inline").strip().lower()
     if mexc_auto_mode not in {"inline", "worker"}:
