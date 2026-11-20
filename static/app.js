@@ -395,6 +395,151 @@ $("main").addEventListener("touchstart",e=>{if(e.touches.length===1){touchX=e.to
 $("main").addEventListener("touchend",e=>{if(touchX===null)return;let dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;touchX=touchY=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.25){let active=swipePages.findIndex(p=>$("page-"+p).classList.contains("active"));let next=Math.max(0,Math.min(swipePages.length-1,active+(dx<0?1:-1)));if(next!==active)nav(swipePages[next])}},{passive:true});
 
 
+
+async function discoverCTraderLiveAccounts(){
+ const button=$("ctrader-live-discover"),select=$("ctrader-live-account-select"),result=$("ctrader-live-result");
+ if(!button||!select)return;
+ button.disabled=true;button.textContent="CHECKING LIVE ACCESS…";
+ try{
+  const response=await fetch("/api/connections/ctrader/live/accounts");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live account discovery unavailable");
+  const accounts=data.accounts||[];
+  select.innerHTML='<option value="">Choose IC Markets live account</option>'+accounts.map(a=>'<option value="'+safe(a.account_id)+'">'+safe(a.broker)+" · Login "+safe(a.trader_login||"—")+" · LIVE</option>").join("");
+  if(result){result.hidden=false;result.textContent=accounts.length?accounts.length+" verified IC Markets live account(s) found. Select one and sync.":"No IC Markets live account was found.";}
+ }catch(error){if(result){result.hidden=false;result.textContent=error.message;}toast(error.message);}
+ finally{button.disabled=false;button.textContent="FIND LIVE ACCOUNTS";}
+}
+async function selectCTraderLiveAccount(){
+ const select=$("ctrader-live-account-select"),button=$("ctrader-live-select"),result=$("ctrader-live-result");
+ if(!select?.value){toast("Choose your IC Markets live account first");return;}
+ if(!window.confirm("Connect and read your selected LIVE account? This step does not place an order."))return;
+ button.disabled=true;button.textContent="SYNCING LIVE ACCOUNT…";
+ try{
+  const response=await fetch("/api/connections/ctrader/live/select",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({account_id:select.value})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live account sync failed");
+  renderCTraderLiveSnapshot(data);
+  if(result){result.hidden=false;result.textContent="Live account synchronized read-only. No order was placed.";}
+  await loadCTraderLiveAuthorization();
+  toast("Live account verified and synchronized read-only");
+ }catch(error){if(result){result.hidden=false;result.textContent=error.message;}toast(error.message);}
+ finally{button.disabled=false;button.textContent="SYNC LIVE ACCOUNT";}
+}
+function renderCTraderLiveSnapshot(snapshot){
+ const box=$("ctrader-live-snapshot");
+ if(!box||!snapshot)return;
+ const positions=Array.isArray(snapshot.open_positions)?snapshot.open_positions:[];
+ box.hidden=false;
+ box.innerHTML="<b>IC MARKETS · VERIFIED LIVE ACCOUNT</b><br>Login: "+safe(snapshot.trader_login||"—")+
+  "<br>Balance: <b>"+(Number.isFinite(Number(snapshot.balance))?Number(snapshot.balance).toFixed(2):"—")+"</b>"+
+  "<br>Open positions: "+positions.length+" · Pending orders: "+safe(snapshot.pending_orders_count??0)+
+  "<br><small>Read-only broker sync · "+safe(new Date((snapshot.synced_at||0)*1000).toLocaleString())+"</small>"+
+  (positions.length?"<hr>"+positions.map(p=>"<div class='ctrader-position-row'><b>"+safe(p.side)+"</b> · "+safe(p.symbol_id)+" · "+safe(p.volume_units)+" units · SL "+safe(p.stop_loss??"—")+" · TP "+safe(p.take_profit??"—")+"<br><small>Live position #"+safe(p.position_id)+"</small><div class='chart-toolbar'><button type='button' class='outline-btn' data-ctrader-live-action='amend' data-position-id='"+safe(p.position_id)+"'>EDIT SL / TP</button><button type='button' class='outline-btn' data-ctrader-live-action='close' data-position-id='"+safe(p.position_id)+"'>CLOSE LIVE POSITION</button></div></div>").join(""):"<br><small>No open live positions.</small>");
+ loadCTraderLiveSymbols();
+}
+async function loadCTraderLiveSymbols(){
+ const select=$("ctrader-live-symbol");
+ if(!select)return;
+ try{
+  const response=await fetch("/api/connections/ctrader/live/markets");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live broker symbols unavailable");
+  const symbols=Array.isArray(data.markets)?data.markets.filter(x=>x.enabled):[];
+  select.innerHTML='<option value="">Choose symbol</option>'+symbols.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+'</option>').join("");
+ }catch(error){select.innerHTML='<option value="">Live symbols unavailable</option>';}
+}
+async function loadCTraderLiveAuthorization(){
+ const panel=$("ctrader-live-authorization"),status=$("ctrader-live-auth-status");
+ if(!panel||!status)return;
+ panel.hidden=false;
+ try{
+  const response=await fetch("/api/connections/ctrader/live/authorization");
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live authorization status unavailable");
+  const authorized=Boolean(data.live_trading_authorized);
+  const available=Boolean(data.live_session_enabled&&data.live_execution_enabled&&data.account_selected);
+  status.innerHTML="<br>Live account: "+(data.account_selected?"CONNECTED":"NOT CONNECTED")+
+   "<br>Spotware live session: <b>"+(data.live_session_enabled?"ENABLED":"AWAITING APPROVAL / SETUP")+"</b>"+
+   "<br>Platform live execution: <b>"+(data.live_execution_enabled?"ENABLED":"LOCKED")+"</b>"+
+   "<br>Customer permission: <b>"+(authorized?"AUTHORIZED":"NOT AUTHORIZED")+"</b>";
+  const button=$("ctrader-live-auth-toggle");
+  if(button){button.textContent=authorized?"REVOKE LIVE AUTHORIZATION":(available?"AUTHORIZE LIVE TRADING":"LIVE EXECUTION LOCKED");button.disabled=!available;}
+  const form=$("ctrader-live-order-form");
+  if(form)form.hidden=!(authorized&&available);
+  if($("ctrader-live-risk-ack"))$("ctrader-live-risk-ack").checked=false;
+  const open=$("ctrader-live-open");
+  if(open)open.disabled=!(authorized&&available);
+ }catch(error){
+  status.textContent=error.message;
+  const form=$("ctrader-live-order-form");if(form)form.hidden=true;
+ }
+}
+async function toggleCTraderLiveAuthorization(){
+ const button=$("ctrader-live-auth-toggle"),ack=$("ctrader-live-risk-ack");
+ const revoke=button.textContent.includes("REVOKE");
+ if(!revoke&&!ack?.checked){toast("Confirm the live-account risk acknowledgement first");return;}
+ if(!revoke&&!window.confirm("Enable manual order permission for this REAL-MONEY account? Every order can lose money. Continue?"))return;
+ button.disabled=true;
+ try{
+  const response=await fetch("/api/connections/ctrader/live/authorization",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:!revoke,acknowledge_risk:!revoke&&Boolean(ack?.checked)})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live authorization could not be changed");
+  toast(data.live_trading_authorized?"Live account permission enabled":"Live account permission revoked");
+  await loadCTraderLiveAuthorization();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+}
+async function submitCTraderLiveOrder(event){
+ event.preventDefault();
+ const payload={symbol:$("ctrader-live-symbol").value,side:$("ctrader-live-side").value,
+  lots:Number($("ctrader-live-lots").value),stop_loss:Number($("ctrader-live-sl").value),
+  take_profit:Number($("ctrader-live-tp").value)};
+ if(!window.confirm("SEND THIS ORDER TO YOUR REAL IC MARKETS ACCOUNT? "+payload.side+" "+payload.symbol+" · "+payload.lots+" lots. Real money is at risk."))return;
+ const button=$("ctrader-live-open");button.disabled=true;button.textContent="SENDING LIVE ORDER…";
+ try{
+  const response=await fetch("/api/connections/ctrader/live/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.detail||"Live order rejected");
+  if(!data.broker_confirmed)throw Error("No broker confirmation received");
+  toast("cTrader broker confirmed the live order request");
+  $("ctrader-live-sl").value="";$("ctrader-live-tp").value="";
+  await refreshCTraderLiveSnapshot();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;button.textContent="PLACE LIVE ORDER";}
+}
+async function refreshCTraderLiveSnapshot(){
+ try{
+  const response=await fetch("/api/connections/ctrader/live/snapshot");
+  const data=await response.json();if(!response.ok)throw Error(data.detail||"Live account refresh failed");
+  renderCTraderLiveSnapshot(data);
+ }catch(error){toast(error.message);}
+}
+async function handleCTraderLivePositionAction(event){
+ const button=event.target.closest("[data-ctrader-live-action]");
+ if(!button)return;
+ const positionId=button.dataset.positionId;
+ if(button.dataset.ctraderLiveAction==="close"){
+  if(!window.confirm("Close this entire REAL-MONEY cTrader position?"))return;
+  button.disabled=true;
+  try{
+   const response=await fetch("/api/connections/ctrader/live/positions/close",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({position_id:positionId})});
+   const data=await response.json();if(!response.ok)throw Error(data.detail||"Live position close failed");
+   toast("Broker confirmed the live close request");await refreshCTraderLiveSnapshot();
+  }catch(error){toast(error.message);}finally{button.disabled=false;}
+ }else if(button.dataset.ctraderLiveAction==="amend"){
+  const sl=window.prompt("New live stop-loss price:");if(sl===null)return;
+  const tp=window.prompt("New live take-profit price:");if(tp===null)return;
+  if(!window.confirm("Change protection on this REAL-MONEY position?"))return;
+  button.disabled=true;
+  try{
+   const response=await fetch("/api/connections/ctrader/live/positions/protection",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({position_id:positionId,stop_loss:Number(sl),take_profit:Number(tp)})});
+   const data=await response.json();if(!response.ok)throw Error(data.detail||"Live protection update failed");
+   toast("Broker confirmed live SL/TP update");await refreshCTraderLiveSnapshot();
+  }catch(error){toast(error.message);}finally{button.disabled=false;}
+ }
+}
+
 async function refreshCTraderStatus(){
  const state=$("ctrader-state"),note=$("ctrader-note"),connect=$("ctrader-connect"),disconnect=$("ctrader-disconnect");
  if(!state||!note||!connect)return;
@@ -534,6 +679,7 @@ function renderCTraderSnapshot(snapshot){
  loadCTraderDemoSymbols();
  loadCTraderRiskSettings();
  loadCTraderCustomerAuthorization();
+ loadCTraderLiveAuthorization();
 }
 async function loadCTraderDemoSymbols(){
  const select=$("ctrader-order-symbol");
@@ -651,6 +797,12 @@ async function refreshCTraderSnapshot(){
   renderCTraderSnapshot(data);
  }catch(error){toast(error.message);}
 }
+
+$("ctrader-live-discover")?.addEventListener("click",discoverCTraderLiveAccounts);
+$("ctrader-live-select")?.addEventListener("click",selectCTraderLiveAccount);
+$("ctrader-live-auth-toggle")?.addEventListener("click",toggleCTraderLiveAuthorization);
+$("ctrader-live-order-form")?.addEventListener("submit",submitCTraderLiveOrder);
+$("ctrader-live-snapshot")?.addEventListener("click",handleCTraderLivePositionAction);
 $("ctrader-demo-order-form")?.addEventListener("submit",submitCTraderDemoOrder);
 $("ctrader-risk-save")?.addEventListener("click",saveCTraderRiskSettings);
 $("ctrader-emergency-stop")?.addEventListener("click",toggleCTraderEmergencyStop);
