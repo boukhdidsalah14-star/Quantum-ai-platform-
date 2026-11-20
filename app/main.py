@@ -1072,7 +1072,7 @@ async def execute_mexc_futures_signal(
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
     try:
-        require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
+        live_permission = require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     try:
@@ -1084,6 +1084,12 @@ async def execute_mexc_futures_signal(
         available = float(usdt["available_balance"])
         if available <= 0:
             raise HTTPException(status_code=409, detail="MEXC Futures available USDT balance is zero")
+        equity = float(usdt.get("equity") or available)
+        if equity <= 0:
+            raise HTTPException(status_code=409, detail="MEXC Futures account equity is unavailable")
+        daily_guard = mexc_daily_loss_guard(customer["id"], equity, live_permission["max_daily_loss_percent"])
+        if not daily_guard["allowed"]:
+            raise HTTPException(status_code=409, detail="Your configured MEXC daily loss limit has been reached")
         positions = await client.get_open_positions(symbol)
         if positions:
             raise HTTPException(status_code=409, detail="An open position already exists for this customer and symbol")
