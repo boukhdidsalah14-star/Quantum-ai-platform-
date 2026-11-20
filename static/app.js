@@ -348,12 +348,12 @@ $("checkout-button").addEventListener("click",async()=>{let b=$("checkout-button
 $("copy-address").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("pay-address").textContent);toast("Address copied")}catch{toast("Select and copy the address")}});
 async function generateSignal(pair,container,detail){
  if(!signed||!member){nav("account");toast("Sign in and activate the $30 membership first");return}
- container.className="signal-result idle";container.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING BINARY OPTIONS…</b><small>Fetching completed Forex candles</small>";
+ container.className="signal-result idle";container.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING BINARY OPTIONS…</b><small>Fetching completed Forex candles · Yahoo Finance public feed</small>";
  try{
   const tf=$("signal-timeframe").value;const r=await fetch("/api/signals/forex/"+encodeURIComponent(pair.symbol)+"?timeframe="+tf);const d=await r.json();if(!r.ok)throw Error(d.detail||"Signal unavailable");
   const dir=d.direction||"WAIT";container.className="signal-result "+(dir==="CALL"?"call":dir==="PUT"?"put":"idle");
   container.innerHTML="<div class='signal-arrow'>"+(dir==="CALL"?"↗":dir==="PUT"?"↘":"Ⅱ")+"</div><b>"+dir+"</b><small>"+safe(pair.label)+" · "+safe(tf)+" · "+safe(d.signal_strength||"low")+" confidence</small>";
-  detail.hidden=false;detail.innerHTML="<b>BINARY OPTIONS · Analysis details</b><br>Trend: "+safe(d.trend)+" · RSI(14): "+safe(d.rsi_14)+" · Score: "+safe(d.score)+"<br>Reference close: "+safe(d.last_close)+"<br>"+(d.reasons||[]).map(safe).join(" · ")+"<br><small>Indicator result only. It does not place a trade or guarantee a win.</small>";
+  detail.hidden=false;detail.innerHTML="<b>BINARY OPTIONS · Analysis details</b><br>Trend: "+safe(d.trend)+" · RSI(14): "+safe(d.rsi_14)+" · Score: "+safe(d.score)+"<br>Reference close: "+safe(d.last_close)+"<br>"+(d.reasons||[]).map(safe).join(" · ")+"<br><small>Data: Yahoo Finance public Forex feed · Indicator analysis only. Not connected to IQ Option and does not place trades or guarantee outcomes.</small>";
   if(container===$("signal-result"))$("signal-feed").textContent="BINARY OPTIONS · FRESH";
   $("floating-result").textContent="BINARY OPTIONS · "+pair.label+" · "+dir+" · "+tf;
   await loadSignalHistory();
