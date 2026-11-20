@@ -42,7 +42,8 @@ def init_auth_db() -> None:
             email TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             created_at INTEGER NOT NULL,
-            is_active INTEGER NOT NULL DEFAULT 1
+            is_active INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'customer'
         );
         CREATE TABLE IF NOT EXISTS customer_sessions (
             token_hash TEXT PRIMARY KEY,
@@ -59,6 +60,10 @@ def init_auth_db() -> None:
             attempts INTEGER NOT NULL
         );
         """)
+        try:
+            db.execute("ALTER TABLE customers ADD COLUMN role TEXT NOT NULL DEFAULT 'customer'")
+        except Exception:
+            pass
 
 
 def _password_hash(password: str, salt: bytes | None = None) -> str:
@@ -94,18 +99,21 @@ def create_customer(email: str, password: str) -> dict:
             )
     except sqlite3.IntegrityError as exc:
         raise ValueError("An account with this email already exists") from exc
-    return {"id": customer_id, "email": normalized, "created_at": now}
+    return {"id": customer_id, "email": normalized, "created_at": now, "role": "customer"}
 
 
 def authenticate_customer(email: str, password: str) -> dict | None:
+    normalized = email.strip().lower()
+    if normalized == os.getenv("QUANTUM_ADMIN_EMAIL", "smartgoomaps@gmail.com").strip().lower():
+        return None
     with _connect() as db:
         row = db.execute(
-            "SELECT id,email,password_hash,created_at,is_active FROM customers WHERE lower(email)=lower(?)",
-            (email.strip().lower(),),
+            "SELECT id,email,password_hash,created_at,is_active,role FROM customers WHERE lower(email)=lower(?)",
+            (normalized,),
         ).fetchone()
     if not row or not row["is_active"] or not _password_matches(password, row["password_hash"]):
         return None
-    return {"id": row["id"], "email": row["email"], "created_at": row["created_at"]}
+    return {"id": row["id"], "email": row["email"], "created_at": row["created_at"], "role": row["role"]}
 
 
 def create_session(customer_id: str) -> str:
@@ -127,7 +135,7 @@ def get_customer_for_session(token: str | None) -> dict | None:
     now = int(time.time())
     with _connect() as db:
         row = db.execute("""
-            SELECT c.id,c.email,c.created_at
+            SELECT c.id,c.email,c.created_at,c.role
             FROM customer_sessions s JOIN customers c ON c.id=s.customer_id
             WHERE s.token_hash=? AND s.expires_at>? AND c.is_active=1
         """, (token_hash, now)).fetchone()
