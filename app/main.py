@@ -1072,7 +1072,7 @@ async def execute_mexc_futures_signal(
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
     try:
-        live_permission = require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("credential_fingerprint") or ""))
+        live_permission = require_mexc_live_authorization(customer["id"], str(mexc_credential_metadata(customer["id"]).get("credential_fingerprint") or ""))
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     try:
@@ -1148,7 +1148,7 @@ async def mexc_live_authorization_status(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     metadata = mexc_credential_metadata(customer["id"])
     return {
-        **get_mexc_live_authorization(customer["id"], metadata.get("updated_at")),
+        **get_mexc_live_authorization(customer["id"], metadata.get("credential_fingerprint")),
         "credentials_connected": bool(metadata.get("connected")),
         "server_kill_switch_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "mode": "live",
@@ -1172,7 +1172,7 @@ async def update_mexc_live_authorization(payload: MexcLiveAuthorizationRequest, 
             raise HTTPException(status_code=503, detail="Durable encrypted credential storage is required")
         metadata = mexc_credential_metadata(customer["id"])
         credentials = load_mexc_credentials(customer["id"])
-        if not credentials or not metadata.get("updated_at"):
+        if not credentials or not metadata.get("credential_fingerprint"):
             raise HTTPException(status_code=409, detail="Connect and verify your own MEXC USD-M Futures API key first")
         try:
             # Read-only verification before recording consent; no order is placed here.
@@ -1248,7 +1248,7 @@ async def mexc_auto_start(payload: MexcLiveEntryRequest, request: Request):
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
     try:
-        require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
+        require_mexc_live_authorization(customer["id"], str(mexc_credential_metadata(customer["id"]).get("credential_fingerprint") or ""))
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     if payload.symbol.upper() not in CRYPTO_FUTURES or payload.timeframe not in {"1h", "4h", "1d"}:
