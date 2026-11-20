@@ -563,6 +563,8 @@ async function refreshCTraderStatus(){
   const syncPanel=$("ctrader-account-sync");
   if(syncPanel)syncPanel.hidden=!data.authorized;
   if(snapshot)renderCTraderSnapshot(snapshot);
+  if(data.live_account_snapshot)renderCTraderLiveSnapshot(data.live_account_snapshot);
+  if(data.authorized)loadCTraderLiveAuthorization();
  }catch(error){state.textContent="STATUS UNAVAILABLE";note.textContent=error.message;}
 }
 async function loadCTraderRiskSettings(){
