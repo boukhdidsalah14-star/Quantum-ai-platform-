@@ -122,7 +122,7 @@
      </form>
      <p class="risk-note">Manual demo order · Maximum 0.01 lots per order. Use the Forex Auto Trading Engine below for automated entries.</p>
     </div>
-    <section class="risk-control-panel" id="ctrader-live-panel">
+    <section class="risk-control-panel" id="ctrader-live-panel" hidden>
      <h3>LIVE FOREX ACCOUNT</h3>
      <p class="risk-note">Spotware has approved QUANTUM AI live access. Connect your IC Markets cTrader account, select your real account, then authorize live trading separately before placing any real-money order.</p>
      <div class="chart-toolbar">
@@ -166,7 +166,7 @@
      </form>
     </section>
    </div>
-   <section class="risk-control-panel" id="ctrader-auto-panel">
+   <section class="risk-control-panel" id="ctrader-auto-panel" hidden>
     <h3>FOREX AUTO TRADING ENGINE</h3>
     <p class="risk-note">Automated cTrader strategy. It checks completed candles, waits for the high-confidence signal filters, and places broker orders with an ATR stop-loss and take-profit. One entry per symbol per candle. Maximum 0.01 lots.</p>
     <div class="form-grid">
@@ -180,11 +180,11 @@
     <button id="ctrader-auto-stop" class="outline-btn wide-btn" type="button">STOP FOREX AUTO TRADING</button>
     <div id="ctrader-auto-status" class="payment-box">Checking auto engine…</div>
    </section>
-   <p id="ctrader-note" class="risk-note">Spotware live access is approved. Connect your IC Markets cTrader account, then select either your demo or live account below. Demo and live permissions are separate.</p>
+   <p id="ctrader-note" class="risk-note">Connect your own IC Markets cTrader demo account through the secure authorization flow. Demo order features are available only after your account and permissions are verified. Live Forex trading is not verified or offered in this release.</p>
   </section>
   <div class="provider-card">
-   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">CRYPTO · ACCOUNT INTEGRATION</span><h2>MEXC Account Link</h2><p>Connect your MEXC USD-M Futures account and opt in to automated entries with exchange-side stop-loss and take-profit.</p><div class="provider-tags"><span>USD-M Futures</span><span>Encrypted API key</span><span>Automatic entries</span></div></div><span class="provider-state pending">CONNECT</span>
-   <button class="provider-action" data-provider="mexc">VIEW CONNECTION STATUS <b>→</b></button>
+   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Crypto Futures Analysis</h2><p>Live public market data, technical analysis, signals and customer-isolated paper trading. No MEXC API key or live order permission is required.</p><div class="provider-tags"><span>Public market data</span><span>Paper trading</span><span>No live orders</span></div></div><span class="provider-state pending">PAPER ONLY</span>
+   <button class="provider-action" data-provider="mexc">VIEW PAPER TRADING SCOPE <b>→</b></button>
   </div>
   <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
    <div class="section-title"><div><span class="eyebrow">MEXC USD-M · PUBLIC PERPETUAL FUTURES DATA</span><h2>Crypto Futures Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
@@ -193,7 +193,8 @@
    <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto futures candlestick chart"></canvas></div>
    <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a futures asset and timeframe.</small></div>
    <div id="crypto-signal-details" class="signal-details" hidden></div>
-    <div class="provider-card mexc-live-connection">
+    <p class="risk-note">MEXC FUTURES · PAPER TRADING ONLY. Prices and candles come from public MEXC market data. All entries use a separate simulated ledger; no broker orders are sent.</p>
+    <div class="provider-card mexc-live-connection" hidden>
      <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Connect Futures Account</h2><p>Connect your own MEXC API key with Futures account-read and order permissions. Keys are encrypted server-side and never shown again.</p></div>
      <div class="chart-toolbar"><input id="mexc-api-key" type="text" maxlength="256" autocomplete="off" placeholder="MEXC API key"><input id="mexc-api-secret" type="password" maxlength="512" autocomplete="new-password" placeholder="MEXC API secret"><button id="mexc-connect" class="solid-btn">VERIFY & SAVE</button></div>
      <div id="mexc-connection-status" class="signal-details">Not connected</div>
@@ -214,13 +215,13 @@
      <button id="crypto-paper-entry" class="solid-btn">AUTO PAPER ENTRY</button>
     </div>
     <div id="crypto-paper-result" class="signal-details" hidden></div>
-    <div class="chart-toolbar">
+    <div class="chart-toolbar" hidden>
      <button id="mexc-auto-start" class="solid-btn" disabled>START LIVE AUTO TRADING</button>
      <button id="mexc-auto-stop" class="outline-btn">STOP AUTO TRADING</button>
     </div>
-    <div id="mexc-auto-status" class="signal-details">Live auto trading is stopped.</div>
-    <div id="mexc-live-positions" class="signal-details">Connect MEXC to view live futures positions.</div>
-    <p class="risk-note">MEXC USD-M perpetual futures only. Each entry is limited to 1% maximum account risk and $500 notional, with isolated margin and exchange-side stop-loss/take-profit. Live permission is separate from the platform execution switch; live orders remain locked until the broker integration and background execution service pass validation. Use an API key with withdrawals disabled.</p>
+    <div id="mexc-auto-status" class="signal-details" hidden>Live auto trading is disabled.</div>
+    <div id="mexc-live-positions" class="signal-details" hidden></div>
+    <p class="risk-note">Paper positions are simulated using public futures quotes. Stop-loss, take-profit, leverage and risk settings apply only to the paper ledger and do not protect a real broker account.</p>
   </section>
   <div class="provider-card">
    <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
