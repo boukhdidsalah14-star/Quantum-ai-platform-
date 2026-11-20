@@ -19,8 +19,8 @@ public class FloatingAssistantService extends Service {
     public static final String ACTION_START = "com.quantumai.trading.FLOAT_START";
     public static final String ACTION_STOP = "com.quantumai.trading.FLOAT_STOP";
     private static final String API = "https://quantum-ai-iqoption-preview.onrender.com";
-    private final String[] symbols = {"frxEURUSD","frxGBPUSD","frxUSDJPY","frxAUDUSD","frxUSDCAD","frxUSDCHF","frxNZDUSD","frxEURJPY","frxGBPJPY","frxXAUUSD"};
-    private final String[] pairs = {"EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CAD","USD/CHF","NZD/USD","EUR/JPY","GBP/JPY","XAU/USD"};
+    private final String[] symbols = {"frxEURUSD","frxGBPUSD","frxUSDJPY","frxAUDUSD","frxUSDCAD","frxUSDCHF","frxEURJPY","frxGBPJPY"};
+    private final String[] pairs = {"EUR/USD","GBP/USD","USD/JPY","AUD/USD","USD/CAD","USD/CHF","EUR/JPY","GBP/JPY"};
     private final String[] expiries = {"1","5","15","30","60"};
     private final String[] expiryLabels = {"1 minute","5 minutes","15 minutes","30 minutes","60 minutes"};
     private WindowManager wm;
@@ -96,7 +96,7 @@ public class FloatingAssistantService extends Service {
                 if(e.getAction()==MotionEvent.ACTION_UP){if(!moved)togglePanel();return true;}return true;
             }
         });
-        try { wm.addView(bubble,bubbleParams); } catch(Exception ignored) { bubble=null; }
+        try { wm.addView(bubble,bubbleParams); } catch(Exception e) {\n            bubble=null;\n            Toast.makeText(this, "Could not display the floating circle. Check Android display-over-other-apps permission.", Toast.LENGTH_LONG).show();\n            stopSelf();\n        }
     }
 
     private android.graphics.drawable.GradientDrawable round(int color,int radius) {
@@ -137,7 +137,7 @@ public class FloatingAssistantService extends Service {
         panel=root;panelParams=params(dp(300),WindowManager.LayoutParams.WRAP_CONTENT,Gravity.TOP|Gravity.START);
         panelParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
         panelParams.x=Math.max(dp(8),bubbleParams.x-dp(115));panelParams.y=Math.max(dp(45),bubbleParams.y+dp(66));
-        try{wm.addView(panel,panelParams);}catch(Exception e){panel=null;}
+        try{wm.addView(panel,panelParams);}catch(Exception e){\n            panel=null;\n            Toast.makeText(this, "Could not open the assistant panel. Try moving the circle away from the screen edge.", Toast.LENGTH_SHORT).show();\n        }
     }
 
     private Button outcomeButton(String label,int color){Button b=new Button(this);b.setText(label);b.setTextSize(11);b.setTextColor(Color.WHITE);b.setBackground(round(color,dp(9)));return b;}
