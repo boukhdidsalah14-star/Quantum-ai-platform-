@@ -603,7 +603,7 @@ async def ctrader_demo_accounts(request: Request):
         raise HTTPException(status_code=409, detail="Authorize cTrader before discovering accounts")
     try:
         accounts = await discover_ctrader_demo_accounts(customer["id"])
-        return {"accounts": accounts, "environment": "demo", "order_execution_enabled": False}
+        return {"accounts": accounts, "environment": "demo", "demo_execution_available": True, "customer_permission_required": True, "real_execution_enabled": False}
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -654,7 +654,7 @@ async def ctrader_demo_markets(request: Request):
         raise HTTPException(status_code=401, detail="Authentication required")
     try:
         return {"markets": await discover_ctrader_demo_symbols(customer["id"]),
-                "source": "IC Markets cTrader demo market data", "execution_enabled": False}
+                "source": "IC Markets cTrader demo market data", "demo_execution_available": True, "customer_permission_required": True, "real_execution_enabled": False}
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -857,6 +857,8 @@ async def health(request: Request):
         "credential_storage_ready": _persistent_credentials_ready(),
         "ctrader_oauth_configured": ctrader_oauth_configured(),
         "ctrader_account_execution_enabled": False,
+        "ctrader_demo_execution_available": True,
+        "ctrader_live_execution_enabled": False,
         "mexc_futures_execution_enabled": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "mexc_auto_trader_monitor_running": os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true",
         "order_execution": False,
