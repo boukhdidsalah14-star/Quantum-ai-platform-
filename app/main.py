@@ -922,6 +922,49 @@ async def update_ctrader_live_authorization(payload: CTraderLiveAuthorizationReq
             "live_execution_enabled": os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
 
 
+
+@app.get("/api/connections/ctrader/live/risk")
+async def get_ctrader_live_risk(request: Request):
+    init_auth_db()
+    init_ctrader_sync_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
+
+
+@app.put("/api/connections/ctrader/live/risk")
+async def update_ctrader_live_risk(payload: CTraderRiskSettingsRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        update_ctrader_risk_settings(customer["id"], payload.max_daily_loss_pct,
+                                     payload.max_lots, payload.max_open_positions)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
+
+
+@app.post("/api/connections/ctrader/live/risk/emergency-stop")
+async def set_ctrader_live_emergency_stop(payload: CTraderEmergencyStopRequest, request: Request):
+    _check_same_origin(request)
+    init_auth_db()
+    init_ctrader_risk_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    set_ctrader_emergency_stop(customer["id"], payload.enabled)
+    snapshot = get_ctrader_live_snapshot(customer["id"])
+    return get_ctrader_risk_status(customer["id"], snapshot.get("account_id") if snapshot else None)
+
+
 @app.post("/api/connections/ctrader/live/orders")
 async def open_ctrader_live_order(payload: CTraderLiveOrderRequest, request: Request):
     _check_same_origin(request)
