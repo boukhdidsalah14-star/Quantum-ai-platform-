@@ -598,11 +598,11 @@ async function refreshCTraderStatus(){
   note.textContent=snapshot
    ?"IC Markets demo account is connected. You can place small manual demo orders with mandatory stop-loss and take-profit."
    :(data.live_account_snapshot
-    ?"Your IC Markets live account is connected read-only. Live orders remain separately locked until platform approval and explicit account authorization."
+    ?"Your IC Markets live account is connected. Live orders require your separate account authorization and confirmation for every order."
     :(data.authorized
-     ?"Authorization is saved. Find and sync your IC Markets demo account, or use the separate live-account section when Spotware live access is approved."
+     ?"Authorization is saved. Find and sync your IC Markets demo account or connect your approved live account in the LIVE FOREX ACCOUNT section."
      :(data.configured
-      ?"Authorize your IC Markets cTrader account. Demo connection is available first; live access requires separate platform approval."
+      ?"Authorize your IC Markets cTrader account. Then choose your demo or approved live account in its separate section."
       :"QUANTUM AI is waiting for its Spotware application credentials and approval.")));
   connect.disabled=!data.configured;
   connect.textContent=data.authorized?"RECONNECT CTRADER":"CONNECT IC MARKETS CTRADER";
