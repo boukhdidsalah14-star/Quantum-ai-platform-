@@ -97,3 +97,9 @@ def require_live_permission(customer_id, account_id):
     if not permission["live_trading_authorized"]:
         raise CTraderPermissionError("Live trading is not authorized for this customer and account. Complete Live Account Authorization first.")
     return permission
+
+
+def revoke_all_permissions(customer_id):
+    init_db()
+    with _db() as db:
+        db.execute("DELETE FROM ctrader_customer_permissions WHERE customer_id=?", (customer_id,))
