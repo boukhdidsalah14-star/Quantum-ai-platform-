@@ -285,7 +285,13 @@ async def lifespan(app: FastAPI):
     init_ctrader_risk_db()
     init_ctrader_permissions_db()
     mexc_auto_task = None
-    if os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true":
+    mexc_auto_mode = os.getenv("QUANTUM_MEXC_AUTO_EXECUTION_MODE", "inline").strip().lower()
+    if mexc_auto_mode not in {"inline", "worker"}:
+        raise RuntimeError("QUANTUM_MEXC_AUTO_EXECUTION_MODE must be inline or worker")
+    if (
+        mexc_auto_mode == "inline"
+        and os.getenv("QUANTUM_MEXC_LIVE_TRADING_ENABLED", "").strip().lower() == "true"
+    ):
         mexc_auto_task = asyncio.create_task(_mexc_auto_monitor_loop())
     bot = None
     token, token_env_name = _configured_telegram_token()
