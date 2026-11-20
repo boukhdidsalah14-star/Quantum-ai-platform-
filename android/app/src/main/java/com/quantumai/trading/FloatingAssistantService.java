@@ -197,18 +197,18 @@ public class FloatingAssistantService extends Service {
                     org.json.JSONArray reasons=json.optJSONArray("reasons");
                     if(reasons!=null){
                         for(int i=0;i<Math.min(2,reasons.length());i++){
-                            details.append("\\n• ").append(reasons.optString(i));
+                            details.append("\n• ").append(reasons.optString(i));
                         }
                     }
                     message=pairs[selected]+"  ·  "+direction+
-                            "\\nStrength: "+strength+"  |  Trend: "+trend+
-                            "\\nScore: "+score+"  |  Expiry: "+minutes+" min"+
-                            (Double.isNaN(price)?"":"\\nLast completed close: "+price)+details;
+                            "\nStrength: "+strength+"  |  Trend: "+trend+
+                            "\nScore: "+score+"  |  Expiry: "+minutes+" min"+
+                            (Double.isNaN(price)?"":"\nLast completed close: "+price)+details;
                     if(direction.equals("CALL")||direction.equals("PUT")){
                         nextExpiry=System.currentTimeMillis()+minutes*60_000L;
                     }else{
                         direction="WAIT";
-                        message+="\\nNo trade: conditions did not meet the signal filter.";
+                        message+="\nNo trade: conditions did not meet the signal filter.";
                     }
                 }
             }catch(Exception e){
@@ -251,7 +251,7 @@ public class FloatingAssistantService extends Service {
         if(outcome.equals("DRAW")) bubbleText.setBackground(rainbow());
         else bubbleText.setBackground(round(color,dp(30)));
         bubbleText.setText(outcome.equals("WIN")?"✓":outcome.equals("LOSS")?"×":"✦");
-        resultText.setText(resultText.getText()+"\\nRESULT: "+outcome+" (confirmed by you)");
+        resultText.setText(resultText.getText()+"\nRESULT: "+outcome+" (confirmed by you)");
         countdownText.setText("Result saved on this device. Generate another signal when ready.");
         expiryAt=0;if(timer!=null)handler.removeCallbacks(timer);
     }
