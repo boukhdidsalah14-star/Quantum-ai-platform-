@@ -136,11 +136,16 @@ public class FloatingAssistantService extends Service {
         Button win=outcomeButton("WIN",Color.rgb(15,165,90));Button loss=outcomeButton("LOSS",Color.rgb(205,45,55));Button draw=outcomeButton("DRAW",Color.rgb(145,65,190));
         win.setOnClickListener(v->setOutcome("WIN",Color.rgb(15,165,90)));loss.setOnClickListener(v->setOutcome("LOSS",Color.rgb(205,45,55)));draw.setOnClickListener(v->setOutcome("DRAW",Color.rgb(145,65,190)));
         outcomes.addView(win,new LinearLayout.LayoutParams(0,dp(42),1));outcomes.addView(loss,new LinearLayout.LayoutParams(0,dp(42),1));outcomes.addView(draw,new LinearLayout.LayoutParams(0,dp(42),1));root.addView(outcomes);
-        TextView note=text("After expiry, tap WIN, LOSS or DRAW to update the circle. IQ Option is not connected.",10,Color.GRAY);root.addView(note);
+        TextView note=text("After expiry, tap WIN, LOSS or DRAW to update the circle. Research signals use public Yahoo Finance candles, which may differ from IQ Option prices (especially OTC). IQ Option is not connected; no trades are placed.",10,Color.GRAY);root.addView(note);
         signalButton.setOnClickListener(v->generateSignal());
-        panel=root;panelParams=params(dp(300),WindowManager.LayoutParams.WRAP_CONTENT,Gravity.TOP|Gravity.START);
+        panel=root;
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        int panelWidth = Math.min(dp(300), Math.max(dp(240), screenWidth - dp(16)));
+        panelParams=params(panelWidth,WindowManager.LayoutParams.WRAP_CONTENT,Gravity.TOP|Gravity.START);
         panelParams.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
-        panelParams.x=Math.max(dp(8),bubbleParams.x-dp(115));panelParams.y=Math.max(dp(45),bubbleParams.y+dp(66));
+        panelParams.x=Math.max(dp(8),Math.min(bubbleParams.x-dp(115),screenWidth-panelWidth-dp(8)));
+        panelParams.y=Math.max(dp(45),Math.min(bubbleParams.y+dp(66),screenHeight-dp(500)));
         try{wm.addView(panel,panelParams);}catch(Exception e){
             panel=null;
             Toast.makeText(this, "Could not open the assistant panel. Try moving the circle away from the screen edge.", Toast.LENGTH_SHORT).show();
