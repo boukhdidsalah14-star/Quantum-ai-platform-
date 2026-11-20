@@ -24,12 +24,12 @@ def _db():
 def init_db():
     with _db() as db:
         db.execute("""
-        CREATE TABLE IF NOT EXISTS mexc_live_permissions (
+        CREATE TABLE IF NOT EXISTS mexc_live_permissions_v2 (
           customer_id TEXT PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
           enabled INTEGER NOT NULL DEFAULT 0,
           emergency_stop INTEGER NOT NULL DEFAULT 1,
           max_daily_loss_percent REAL NOT NULL DEFAULT 2.0,
-          credential_updated_at INTEGER,
+          credential_fingerprint TEXT,
           acknowledged_at INTEGER,
           updated_at INTEGER NOT NULL
         )""")
