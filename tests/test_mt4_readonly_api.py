@@ -103,7 +103,7 @@ def test_mt4_bridge_rejects_wrong_server_and_invalid_token(monkeypatch, tmp_path
 def test_mt4_bridge_candles_are_customer_scoped(monkeypatch, tmp_path):
     _configure(monkeypatch, tmp_path)
     monkeypatch.setenv("QUANTUM_PERSISTENT_STORAGE", "true")
-    monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", "test-encryption-key")
+    monkeypatch.setenv("QUANTUM_CREDENTIALS_ENCRYPTION_KEY", Fernet.generate_key().decode())
     with TestClient(main.app) as client:
         _register_customer(client)
         registered = client.post("/api/mt4/bridge/register", json={
