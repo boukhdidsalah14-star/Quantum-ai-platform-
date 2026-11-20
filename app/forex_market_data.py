@@ -70,6 +70,13 @@ async def _fetch(symbol: str, interval: str, range_: str) -> list[dict[str, Any]
     return candles
 
 
+def completed_candles(candles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Exclude the newest potentially-forming candle before generating signals."""
+    if not isinstance(candles, list) or len(candles) < 2:
+        return []
+    return candles[:-1]
+
+
 async def get_candles(symbol: str, granularity: int = 900, count: int = 100) -> list[dict[str, Any]]:
     if granularity not in GRANULARITY:
         raise ValueError("Unsupported Forex candle interval")
