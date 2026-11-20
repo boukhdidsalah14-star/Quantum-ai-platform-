@@ -249,6 +249,10 @@ def apply_finished_payment(payload: dict[str, Any]) -> dict[str, Any]:
 def subscription_for_customer(customer_id: str) -> dict[str, Any]:
     now = int(time.time())
     with _connect() as db:
+        owner = db.execute("SELECT role FROM customers WHERE id=?", (customer_id,)).fetchone()
+        if owner and owner["role"] == "admin":
+            return {"active": True, "status": "lifetime", "expires_at": None,
+                    "days_remaining": None, "lifetime": True, "plan": "admin"}
         row = db.execute(
             "SELECT status, starts_at, expires_at FROM customer_subscriptions WHERE customer_id=?",
             (customer_id,),
