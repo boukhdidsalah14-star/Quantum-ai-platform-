@@ -974,3 +974,54 @@ async def get_demo_trade_history(customer_id: str, days: int = 7, limit: int = 1
         }
     finally:
         await ws.close()
+
+
+async def get_live_candles(customer_id: str, symbol: str,
+                           timeframe: str = "15m", count: int = 100) -> dict:
+    """Read completed-candle inputs from the selected, verified live account."""
+    if timeframe not in TIMEFRAMES:
+        raise ValueError("Unsupported cTrader chart timeframe")
+    if not 20 <= int(count) <= 200:
+        raise ValueError("Candle count must be between 20 and 200")
+    ws, selected = await _open_selected_live(customer_id)
+    try:
+        symbols_response = await _request(ws, SYMBOLS_LIST_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "includeArchivedSymbols": False,
+        }, SYMBOLS_LIST_RES)
+        symbols = symbols_response.get("symbol") or []
+        wanted = _normalize_symbol(symbol)
+        match = next((item for item in symbols if isinstance(item, dict)
+                      and _normalize_symbol(item.get("symbolName", "")) == wanted
+                      and bool(item.get("enabled", True))), None)
+        if not match:
+            raise ValueError("This symbol is not available on the selected IC Markets live account")
+        period, seconds = TIMEFRAMES[timeframe]
+        to_ms = int(time.time() * 1000)
+        from_ms = to_ms - (seconds * int(count) * 1000)
+        response = await _request(ws, GET_TRENDBARS_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "fromTimestamp": from_ms, "toTimestamp": to_ms,
+            "period": period, "symbolId": int(match["symbolId"]), "count": int(count),
+        }, GET_TRENDBARS_RES)
+        bars = response.get("trendbar") or []
+        candles = []
+        for bar in bars:
+            if not isinstance(bar, dict) or bar.get("low") is None:
+                continue
+            low_raw = int(bar["low"])
+            scale = 100000.0
+            candles.append({
+                "time": int(bar.get("utcTimestampInMinutes") or 0) * 60,
+                "open": (low_raw + int(bar.get("deltaOpen") or 0)) / scale,
+                "high": (low_raw + int(bar.get("deltaHigh") or 0)) / scale,
+                "low": low_raw / scale,
+                "close": (low_raw + int(bar.get("deltaClose") or 0)) / scale,
+                "volume": int(bar.get("volume") or 0),
+            })
+        candles.sort(key=lambda item: item["time"])
+        return {"symbol": str(match.get("symbolName") or symbol),
+                "timeframe": timeframe, "source": "IC Markets cTrader live market data",
+                "candles": candles, "execution_enabled": True}
+    finally:
+        await ws.close()
