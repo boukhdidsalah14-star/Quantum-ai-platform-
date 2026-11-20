@@ -1228,6 +1228,8 @@ async def health(request: Request):
 @app.post("/api/auth/register")
 async def register(payload: Credentials, request: Request, response: Response):
     _check_same_origin(request)
+    if payload.email.strip().lower() == OWNER_EMAIL:
+        raise HTTPException(status_code=403, detail="The administrator account must use its one-time email code")
     if not signup_enabled():
         raise HTTPException(status_code=403, detail="Customer registration is not open yet")
     init_auth_db()
