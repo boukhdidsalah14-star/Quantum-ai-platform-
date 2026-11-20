@@ -16,7 +16,7 @@ def setup(monkeypatch, tmp_path):
 
 def test_mexc_live_trading_requires_explicit_consent(monkeypatch, tmp_path):
     customer = setup(monkeypatch, tmp_path)
-    state = get_live_authorization(customer["id"], 100)
+    state = get_live_authorization(customer["id"], "fingerprint-v1")
     assert state["authorized"] is False
     with pytest.raises(PermissionError):
         require_live_authorization(customer["id"], 100)
@@ -24,10 +24,10 @@ def test_mexc_live_trading_requires_explicit_consent(monkeypatch, tmp_path):
 
 def test_mexc_live_consent_is_bound_to_credential_version(monkeypatch, tmp_path):
     customer = setup(monkeypatch, tmp_path)
-    state = set_live_authorization(customer["id"], 100, True, True, 2.0)
+    state = set_live_authorization(customer["id"], "fingerprint-v1", True, True, 2.0)
     assert state["authorized"] is True
     require_live_authorization(customer["id"], 100)
-    assert get_live_authorization(customer["id"], 101)["authorized"] is False
+    assert get_live_authorization(customer["id"], "fingerprint-v2")["authorized"] is False
 
 
 def test_mexc_live_consent_requires_risk_acknowledgement(monkeypatch, tmp_path):
