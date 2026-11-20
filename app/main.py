@@ -165,7 +165,7 @@ def _persistent_credentials_ready() -> bool:
 
 def _mexc_live_permission(customer_id: str) -> dict:
     metadata = mexc_credential_metadata(customer_id)
-    return get_mexc_live_authorization(customer_id, metadata.get("updated_at"))
+    return get_mexc_live_authorization(customer_id, metadata.get("credential_fingerprint"))
 
 
 def _session_cookie(response: Response, token: str) -> None:
@@ -1072,7 +1072,7 @@ async def execute_mexc_futures_signal(
     if not credentials:
         raise HTTPException(status_code=409, detail="Connect and verify your own MEXC Futures API key first")
     try:
-        live_permission = require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("updated_at") or 0))
+        live_permission = require_mexc_live_authorization(customer["id"], int(mexc_credential_metadata(customer["id"]).get("credential_fingerprint") or ""))
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     try:
@@ -1178,7 +1178,7 @@ async def update_mexc_live_authorization(payload: MexcLiveAuthorizationRequest, 
             # Read-only verification before recording consent; no order is placed here.
             await MexcFuturesClient(credentials["api_key"], credentials["api_secret"]).verify_account()
             permission = set_mexc_live_authorization(
-                customer["id"], int(metadata["updated_at"]), True,
+                customer["id"], str(metadata["credential_fingerprint"]), True,
                 payload.acknowledge_risk, payload.max_daily_loss_percent,
             )
         except ValueError as exc:
