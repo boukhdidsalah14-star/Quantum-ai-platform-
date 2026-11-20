@@ -380,7 +380,7 @@ $("get-signal").addEventListener("click",()=>generateSignal(selectedBinary,$("si
 $("floating-signal").addEventListener("click",()=>generateSignal(binaryPairs.find(p=>p.symbol===$("floating-pair").value)||binaryPairs[0],$("floating-result"),{set hidden(v){},set innerHTML(v){}}));$("floating-open").addEventListener("click",()=>$("floating-window").hidden=false);$("floating-close").addEventListener("click",()=>$("floating-window").hidden=true);
 let drag=null;$("floating-head").addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,left:$("floating-window").offsetLeft,top:$("floating-window").offsetTop};$("floating-head").setPointerCapture(e.pointerId)});$("floating-head").addEventListener("pointermove",e=>{if(!drag)return;let el=$("floating-window");el.style.left=Math.max(4,drag.left+e.clientX-drag.x)+"px";el.style.top=Math.max(75,drag.top+e.clientY-drag.y)+"px";el.style.right="auto";el.style.bottom="auto"});$("floating-head").addEventListener("pointerup",()=>drag=null);
 const providerInfo={
- mexc:["MEXC USD-M Futures account","Connect your own MEXC Futures API key. QUANTUM AI can verify account access, store credentials encrypted and run the selected futures strategy when the live-trading safety switch is enabled. Each entry is capped at 1% risk and $500 notional with exchange-side stop-loss and take-profit."],
+ mexc:["MEXC Futures · paper trading only","QUANTUM AI uses public MEXC USD-M perpetual futures prices and candles for market analysis, signals and simulated paper trades. No MEXC API key is needed and no live broker order is sent."],
  iq:["IQ Option · signals only","QUANTUM AI provides CALL / PUT / WAIT analysis for selected Forex pairs. IQ Option account authorization and broker order execution are not connected or enabled."]
 };
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
@@ -495,30 +495,8 @@ async function toggleCTraderLiveEmergencyStop(){
 }
 
 async function loadCTraderLiveAuthorization(){
- const panel=$("ctrader-live-authorization"),status=$("ctrader-live-auth-status");
- if(!panel||!status)return;
- panel.hidden=false;
- try{
-  const response=await fetch("/api/connections/ctrader/live/authorization");
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Live authorization status unavailable");
-  const authorized=Boolean(data.live_trading_authorized);
-  const available=Boolean(data.live_session_enabled&&data.live_execution_enabled&&data.account_selected);
-  status.innerHTML="<br>Live account: "+(data.account_selected?"CONNECTED":"NOT CONNECTED")+
-   "<br>Spotware live session: <b>"+(data.live_session_enabled?"ENABLED":"AWAITING APPROVAL / SETUP")+"</b>"+
-   "<br>Platform live execution: <b>"+(data.live_execution_enabled?"ENABLED":"LOCKED")+"</b>"+
-   "<br>Customer permission: <b>"+(authorized?"AUTHORIZED":"NOT AUTHORIZED")+"</b>";
-  const button=$("ctrader-live-auth-toggle");
-  if(button){button.textContent=authorized?"REVOKE LIVE AUTHORIZATION":(available?"AUTHORIZE LIVE TRADING":"LIVE EXECUTION LOCKED");button.disabled=!available;}
-  const form=$("ctrader-live-order-form");
-  if(form)form.hidden=!(authorized&&available);
-  if($("ctrader-live-risk-ack"))$("ctrader-live-risk-ack").checked=false;
-  const open=$("ctrader-live-open");
-  if(open)open.disabled=!(authorized&&available);
- }catch(error){
-  status.textContent=error.message;
-  const form=$("ctrader-live-order-form");if(form)form.hidden=true;
- }
+ const panel=$("ctrader-live-panel");
+ if(panel)panel.hidden=true;
 }
 async function toggleCTraderLiveAuthorization(){
  const button=$("ctrader-live-auth-toggle"),ack=$("ctrader-live-risk-ack");
