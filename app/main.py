@@ -22,7 +22,7 @@ from app.mexc_live_permissions import (init_db as init_mexc_live_permissions_db,
 from app.ctrader_oauth import (init_db as init_ctrader_oauth_db, configured as ctrader_oauth_configured, create_authorization as create_ctrader_authorization, complete_authorization as complete_ctrader_authorization, status as ctrader_authorization_status, delete_authorization as delete_ctrader_authorization, CTraderOAuthError)
 from app.ctrader_risk import (init_db as init_ctrader_risk_db, update_settings as update_ctrader_risk_settings, set_emergency_stop as set_ctrader_emergency_stop, get_status as get_ctrader_risk_status, CTraderRiskBlocked)
 from app.ctrader_permissions import (init_db as init_ctrader_permissions_db, get_permission as get_ctrader_permission, set_demo_permission as set_ctrader_demo_permission, set_live_permission as set_ctrader_live_permission, CTraderPermissionError)
-from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, discover_live_accounts as discover_ctrader_live_accounts, sync_live_account as sync_ctrader_live_account, saved_live_snapshot as get_ctrader_live_snapshot, open_live_trade as open_ctrader_live_trade, amend_live_position as amend_ctrader_live_position, close_live_position as execute_ctrader_live_close, CTraderOpenAPIError)
+from app.ctrader_open_api import (init_db as init_ctrader_sync_db, discover_demo_accounts as discover_ctrader_demo_accounts, sync_demo_account as sync_ctrader_demo_account, saved_snapshot as get_ctrader_snapshot, clear_snapshot as clear_ctrader_snapshot, discover_demo_symbols as discover_ctrader_demo_symbols, get_demo_candles as get_ctrader_demo_candles, open_demo_trade as open_ctrader_demo_trade, amend_demo_position as amend_ctrader_demo_position, close_demo_position as execute_ctrader_demo_close, get_demo_trade_history as get_ctrader_demo_history, discover_live_accounts as discover_ctrader_live_accounts, discover_live_symbols as discover_ctrader_live_symbols, sync_live_account as sync_ctrader_live_account, saved_live_snapshot as get_ctrader_live_snapshot, open_live_trade as open_ctrader_live_trade, amend_live_position as amend_ctrader_live_position, close_live_position as execute_ctrader_live_close, CTraderOpenAPIError)
 from app.mexc_credential_vault import init_db as init_mexc_vault_db, save as save_mexc_credentials, load as load_mexc_credentials, metadata as mexc_credential_metadata, delete as delete_mexc_credentials, MexcVaultError
 from app.signals import analyze_candles
 from app.signal_history import init_db as init_signal_history_db, record_signal, list_signals, set_signal_result, signal_statistics
@@ -822,6 +822,22 @@ async def ctrader_live_accounts(request: Request):
         return {"accounts": accounts, "environment": "live",
                 "live_session_available": True, "live_execution_enabled":
                 os.getenv("QUANTUM_CTRADER_LIVE_TRADING_ENABLED", "").strip().lower() == "true"}
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/api/connections/ctrader/live/markets")
+async def ctrader_live_markets(request: Request):
+    init_auth_db()
+    init_ctrader_oauth_db()
+    init_ctrader_sync_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return {"markets": await discover_ctrader_live_symbols(customer["id"]),
+                "source": "IC Markets cTrader live symbols",
+                "environment": "live"}
     except CTraderOpenAPIError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
