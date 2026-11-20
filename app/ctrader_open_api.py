@@ -78,6 +78,15 @@ def init_db() -> None:
           snapshot_json TEXT NOT NULL,
           synced_at INTEGER NOT NULL
         )""")
+        db.execute("""
+        CREATE TABLE IF NOT EXISTS ctrader_live_account_snapshots (
+          customer_id TEXT PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
+          account_id TEXT NOT NULL,
+          broker_title TEXT NOT NULL,
+          trader_login TEXT,
+          snapshot_json TEXT NOT NULL,
+          synced_at INTEGER NOT NULL
+        )""")
     init_risk_db()
 
 
