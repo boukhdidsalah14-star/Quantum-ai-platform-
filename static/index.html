@@ -132,6 +132,18 @@
      </div>
      <div id="ctrader-live-result" class="payment-box" hidden></div>
      <div id="ctrader-live-snapshot" class="payment-box" hidden></div>
+     <div class="risk-control-panel" id="ctrader-live-risk-controls">
+      <h3>LIVE ACCOUNT RISK LIMITS</h3>
+      <p class="risk-note">The same limits are enforced by the server before live entries. Daily loss is measured from realized account balance; floating P/L is not included yet.</p>
+      <div id="ctrader-live-risk-status" class="payment-box">Loading live risk status…</div>
+      <div class="form-grid">
+       <label>DAILY LOSS LIMIT (%)<input id="ctrader-live-risk-loss" type="number" min="1" max="10" step="0.5" value="10"></label>
+       <label>MAXIMUM TRADE SIZE (LOTS)<input id="ctrader-live-risk-lots" type="number" min="0.001" max="0.01" step="0.001" value="0.01"></label>
+      </div>
+      <label>MAXIMUM OPEN POSITIONS<select id="ctrader-live-risk-positions"><option value="1">1 position</option><option value="2">2 positions</option><option value="3" selected>3 positions</option></select></label>
+      <button id="ctrader-live-risk-save" class="outline-btn wide-btn" type="button">SAVE LIVE RISK LIMITS</button>
+      <button id="ctrader-live-emergency-stop" class="outline-btn wide-btn" type="button" data-active="false">ACTIVATE LIVE EMERGENCY STOP</button>
+     </div>
      <div id="ctrader-live-authorization" class="payment-box" hidden>
       <b>LIVE TRADING AUTHORIZATION</b>
       <div id="ctrader-live-auth-status">Checking live authorization…</div>
