@@ -653,14 +653,16 @@ async def start_ctrader_authorization(request: Request, response: Response):
 
 
 @app.get("/api/connections/ctrader/callback")
-async def ctrader_authorization_callback(request: Request, code: str = "", error: str = ""):
-    state = request.cookies.get(CTRADER_OAUTH_COOKIE, "")
+async def ctrader_authorization_callback(
+    request: Request, code: str = "", state: str = "", error: str = ""
+):
+    cookie_state = request.cookies.get(CTRADER_OAUTH_COOKIE, "")
     try:
         if error:
             raise CTraderOAuthError("cTrader authorization was cancelled or declined")
-        if not state:
-            raise CTraderOAuthError("The secure connection session expired. Please try again.")
-        await complete_ctrader_authorization(code, state)
+        if not cookie_state or not state or not hmac.compare_digest(cookie_state, state):
+            raise CTraderOAuthError("The secure connection session is invalid or expired. Please try again.")
+        await complete_ctrader_authorization(code, cookie_state)
         destination = "/?ctrader=authorized"
     except CTraderOAuthError:
         logger.warning("cTrader OAuth callback could not be completed")
