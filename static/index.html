@@ -35,8 +35,70 @@
  window.addEventListener("pageshow",syncSideAd);
 })();
 </script>
+
+<style id="quantum-launch-screen-styles">
+#quantum-launch-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#0b2c51 0%,#06172d 42%,#020814 100%);color:#eaf8ff;opacity:1;visibility:visible;transition:opacity .55s ease,visibility .55s ease}
+#quantum-launch-screen.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+#quantum-launch-screen .launch-grid{position:absolute;inset:0;opacity:.2;background-image:linear-gradient(#1688c522 1px,transparent 1px),linear-gradient(90deg,#1688c522 1px,transparent 1px);background-size:38px 38px;mask-image:radial-gradient(ellipse at center,#000 0%,transparent 76%)}
+#quantum-launch-screen .launch-glow{position:absolute;width:260px;height:260px;border-radius:50%;background:#087dff30;filter:blur(65px);animation:quantumGlow 3.5s ease-in-out infinite alternate}
+#quantum-launch-screen .launch-content{position:relative;z-index:2;width:min(86vw,360px);display:flex;flex-direction:column;align-items:center;text-align:center}
+#quantum-launch-screen .launch-emblem{position:relative;width:112px;height:112px;display:grid;place-items:center;margin-bottom:24px;border:1px solid #2abfff88;border-radius:32px;background:linear-gradient(145deg,#0c3158,#061326);box-shadow:0 0 34px #008cff35,inset 0 0 22px #0a9dff20;transform:perspective(500px) rotateY(-9deg);animation:quantumFloat 3.2s ease-in-out infinite}
+#quantum-launch-screen .launch-emblem:before,#quantum-launch-screen .launch-emblem:after{content:"";position:absolute;inset:-9px;border:1px solid #1b9ee955;border-radius:37px;animation:quantumOrbit 7s linear infinite}
+#quantum-launch-screen .launch-emblem:after{inset:-17px;border-color:#23d7ff30;border-radius:42px;animation-direction:reverse;animation-duration:11s}
+#quantum-launch-screen .launch-q{font-size:64px;font-weight:950;line-height:1;color:#d9f7ff;text-shadow:0 0 22px #21bfff;letter-spacing:-7px}
+#quantum-launch-screen .launch-q span{font-size:24px;color:#27d8ff;vertical-align:top;letter-spacing:0}
+#quantum-launch-screen .launch-name{font-size:23px;font-weight:900;letter-spacing:3px}
+#quantum-launch-screen .launch-name em{font-style:normal;color:#35caff}
+#quantum-launch-screen .launch-tag{margin-top:8px;color:#89b9d8;font-size:9px;letter-spacing:2.3px;font-weight:800}
+#quantum-launch-screen .launch-market{display:flex;gap:7px;align-items:flex-end;height:42px;margin:31px 0 18px}
+#quantum-launch-screen .launch-candle{width:5px;border-radius:2px;position:relative;background:#18dca5;box-shadow:0 0 9px #18dca566;animation:quantumCandle 1.15s ease-in-out infinite alternate}
+#quantum-launch-screen .launch-candle:nth-child(1){height:15px;animation-delay:-.2s}
+#quantum-launch-screen .launch-candle:nth-child(2){height:27px;animation-delay:-.7s}
+#quantum-launch-screen .launch-candle:nth-child(3){height:19px;animation-delay:-.4s}
+#quantum-launch-screen .launch-candle:nth-child(4){height:36px;animation-delay:-.9s}
+#quantum-launch-screen .launch-candle:nth-child(5){height:24px;animation-delay:-.3s}
+#quantum-launch-screen .launch-candle:nth-child(6){height:32px;animation-delay:-.6s}
+#quantum-launch-screen .launch-candle:nth-child(7){height:17px;animation-delay:-.1s}
+#quantum-launch-screen .launch-candle:nth-child(even){background:#20baff;box-shadow:0 0 9px #20baff66}
+#quantum-launch-screen .launch-status{font-size:10px;color:#c5e5f8;letter-spacing:1.7px;font-weight:800}
+#quantum-launch-screen .launch-status:after{content:"";display:inline-block;width:18px;text-align:left;animation:quantumDots 1.3s steps(4,end) infinite}
+#quantum-launch-screen .launch-foot{margin-top:34px;font-size:8px;letter-spacing:1.5px;color:#527a9b}
+@keyframes quantumGlow{to{transform:scale(1.28);opacity:.65}}
+@keyframes quantumFloat{50%{transform:perspective(500px) rotateY(9deg) translateY(-7px)}}
+@keyframes quantumOrbit{to{transform:rotate(360deg)}}
+@keyframes quantumCandle{to{transform:translateY(-9px);opacity:.65}}
+@keyframes quantumDots{0%{content:""}25%{content:"."}50%{content:".."}75%,100%{content:"..."}}
+@media(prefers-reduced-motion:reduce){#quantum-launch-screen *{animation:none!important;transition:none!important}}
+</style>
+<script>
+(function(){
+ function dismissLaunch(){
+  var screen=document.getElementById("quantum-launch-screen");
+  if(!screen||screen.dataset.dismissed==="true")return;
+  screen.dataset.dismissed="true";
+  screen.classList.add("is-hidden");
+  setTimeout(function(){if(screen.parentNode)screen.parentNode.removeChild(screen)},700);
+ }
+ window.addEventListener("load",function(){setTimeout(dismissLaunch,700)},{once:true});
+ window.setTimeout(dismissLaunch,9000);
+})();
+</script>
+
 </head>
 <body>
+
+<div id="quantum-launch-screen" role="status" aria-label="QUANTUM AI is loading">
+ <div class="launch-grid"></div><div class="launch-glow"></div>
+ <div class="launch-content">
+  <div class="launch-emblem"><div class="launch-q">Q<span>↗</span></div></div>
+  <div class="launch-name">QUANTUM <em>AI</em></div>
+  <div class="launch-tag">INTELLIGENT TRADING TERMINAL</div>
+  <div class="launch-market" aria-hidden="true"><i class="launch-candle"></i><i class="launch-candle"></i><i class="launch-candle"></i><i class="launch-candle"></i><i class="launch-candle"></i><i class="launch-candle"></i><i class="launch-candle"></i></div>
+  <div class="launch-status">INITIALIZING MARKET TERMINAL</div>
+  <div class="launch-foot">MARKETS • SIGNALS • AUTOMATION</div>
+ </div>
+</div>
+
 <header class="topbar">
  <a class="brand" href="#" aria-label="Quantum AI home"><span class="brand-mark">Q<span>↗</span></span><span><b>QUANTUM <em>AI</em></b><small>TRADE SMARTER · GROW BIGGER</small></span></a>
  <div class="top-actions"><span id="account-chip" class="account-chip">GUEST</span><button id="top-signin" class="outline-btn">SIGN IN</button><button id="top-account" class="icon-btn" aria-label="Account">◉</button></div>
