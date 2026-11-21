@@ -888,7 +888,7 @@ async function refreshCTraderAutoStatus(){
   const marketsData=await marketsResponse.json();
   if(marketsResponse.ok){
    const options=$("ctrader-auto-symbol-options");
-   if(options)options.innerHTML=(marketsData.markets||[]).filter(m=>["forex","crypto"].includes(m.asset_class)).map(m=>"<option value=\""+safe(String(m.symbol).replace(/\\//g,""))+"\">"+safe(m.symbol)+" · "+safe(m.asset_class.toUpperCase())+"</option>").join("");
+   if(options)options.innerHTML=(marketsData.markets||[]).filter(m=>["forex","crypto"].includes(m.asset_class)).map(m=>"<option value=\""+safe(String(m.symbol).split("/").join(""))+"\">"+safe(m.symbol)+" · "+safe(m.asset_class.toUpperCase())+"</option>").join("");
   }
   const response=await fetch("/api/connections/ctrader/auto");
   const data=await response.json();
@@ -896,10 +896,13 @@ async function refreshCTraderAutoStatus(){
   const env=$("ctrader-auto-environment")?.value||"demo";
   const strategy=env==="live"?data.live_strategy:data.demo_strategy;
   const start=$("ctrader-auto-start"),stop=$("ctrader-auto-stop");
-  if(start)start.disabled=!data.engine_enabled;
+  const accountConnected=env==="live"?data.live_account_connected:data.demo_account_connected;
+  const permissionReady=env==="demo"&&data.demo_trading_authorized;
+  const tradingReady=!!data.engine_enabled&&!!accountConnected&&!!permissionReady;
+  if(start)start.disabled=!tradingReady;
   if(stop)stop.disabled=!strategy?.enabled;
-  box.innerHTML="<b>CTRADER AUTO ENGINE: "+(data.engine_enabled?"ONLINE":"OFFLINE")+"</b><br>"+
-   "Mode: "+safe(env.toUpperCase())+" · Account: "+(env==="live"?(data.live_account_connected?"SYNCED":"NOT CONNECTED"):(data.demo_account_connected?"SYNCED":"NOT CONNECTED"))+
+  box.innerHTML="<b>"+(tradingReady?"TRADING READY":"SETUP REQUIRED")+"</b> · CTRADER AUTO ENGINE "+(data.engine_enabled?"ONLINE":"OFFLINE")+"<br>"+
+   "Mode: "+safe(env.toUpperCase())+" · Account: "+(accountConnected?"SYNCED":"NOT CONNECTED")+" · Authorization: "+(permissionReady?"APPROVED":"PENDING")+
    "<br>Strategy: <b>"+(strategy?.enabled?"RUNNING":"STOPPED")+"</b>"+
    (strategy?"<br>Symbols: "+safe((strategy.symbols||[]).join(", "))+" · "+safe(strategy.timeframe)+" · "+safe(strategy.lots)+" lots":"")+
    (strategy?.last_signal?"<br>Last signal: "+safe(strategy.last_signal):"")+
@@ -920,7 +923,7 @@ async function startCTraderAuto(){
   const response=await fetch("/api/connections/ctrader/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Could not start cTrader auto trading");
-  if(!data.engine_enabled)throw Error("The Forex engine service is not enabled on the server yet");
+  if(!data.engine_enabled)throw Error("The cTrader auto engine service is not enabled on the server yet");
   toast("cTrader Forex/crypto strategy started for the selected account");
   $("ctrader-auto-ack").checked=false;
   await refreshCTraderAutoStatus();
@@ -929,7 +932,7 @@ async function startCTraderAuto(){
 }
 async function stopCTraderAuto(){
  const button=$("ctrader-auto-stop"),environment=$("ctrader-auto-environment").value;
- if(!window.confirm("Stop automated Forex entries for this "+environment+" account?"))return;
+ if(!window.confirm("Stop automated Forex and crypto entries for this "+environment+" account?"))return;
  button.disabled=true;
  try{
   const response=await fetch("/api/connections/ctrader/auto/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({environment})});

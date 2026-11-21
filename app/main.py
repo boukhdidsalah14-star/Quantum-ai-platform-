@@ -2043,6 +2043,9 @@ async def get_ctrader_auto_status(request: Request):
         "demo_strategy": get_ctrader_auto_strategy(customer["id"], demo["account_id"], "demo") if demo and demo.get("account_id") else None,
         "live_strategy": get_ctrader_auto_strategy(customer["id"], live["account_id"], "live") if live and live.get("account_id") else None,
         "demo_account_connected": bool(demo),
+        "demo_trading_authorized": bool(
+            get_ctrader_permission(customer["id"], demo["account_id"])["demo_trading_authorized"]
+        ) if demo and demo.get("account_id") else False,
         "live_account_connected": bool(live),
     }
 
