@@ -45,6 +45,20 @@ function renderForexWatchlist(){
   const pair=pairs.find(p=>p.symbol===button.dataset.watchSymbol);if(pair)setSelected(pair);
  }));
 }
+function renderCTraderCryptoWatchlist(markets){
+ const root=$("ctrader-crypto-watchlist");if(!root)return;
+ const coins=(Array.isArray(markets)?markets:[]).filter(m=>m&&m.enabled&&m.asset_class==="crypto"&&m.symbol);
+ if(!coins.length){
+  root.innerHTML='<p class="muted">'+(Array.isArray(markets)?"No crypto instruments are currently enabled on this cTrader account.":"Connect your IC Markets cTrader account to load its available crypto instruments.")+'</p>';
+  return;
+ }
+ root.innerHTML=coins.map(m=>'<button type="button" class="watch-item" data-ctrader-crypto-symbol="'+safe(m.symbol)+'"><span class="watch-name">₿ <b>'+safe(m.symbol)+'</b></span><strong>cTrader</strong><small class="up">BROKER-LISTED</small></button>').join("");
+ root.querySelectorAll("[data-ctrader-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>{
+  const symbol=button.dataset.ctraderCryptoSymbol,input=$("ctrader-auto-symbols");
+  if(input){const clean=symbol.replace(/\\s*\\/\\s*/g,"");const current=input.value.split(",").map(x=>x.trim()).filter(Boolean);if(!current.some(x=>x.toUpperCase()===clean.toUpperCase()))current.push(clean);input.value=current.join(",");}
+  nav("automation");toast(symbol+" added to the cTrader AutoTrader symbols");
+ }));
+}
 async function loadMarkets(){try{let r=await fetch("/api/market-data/forex/markets");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();renderForexWatchlist();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable";renderForexWatchlist()}}
 const cryptoAssets=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","TRXUSDT","DOGEUSDT","ADAUSDT","BCHUSDT","LINKUSDT"];
 $("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.replace("USDT","")+' / USDT</option>').join("");
@@ -450,6 +464,7 @@ async function loadCTraderLiveSymbols(){
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Live broker symbols unavailable");
   const symbols=Array.isArray(data.markets)?data.markets.filter(x=>x.enabled):[];
+  renderCTraderCryptoWatchlist(symbols);
   select.innerHTML='<option value="">Choose symbol</option>'+symbols.map(x=>'<option value="'+safe(x.symbol)+'">'+safe(x.symbol)+'</option>').join("");
  }catch(error){select.innerHTML='<option value="">Live symbols unavailable</option>';}
 }
@@ -887,9 +902,10 @@ async function refreshCTraderAutoStatus(){
   const marketsResponse=await fetch("/api/connections/ctrader/markets");
   const marketsData=await marketsResponse.json();
   if(marketsResponse.ok){
+   renderCTraderCryptoWatchlist(marketsData.markets||[]);
    const options=$("ctrader-auto-symbol-options");
    if(options)options.innerHTML=(marketsData.markets||[]).filter(m=>["forex","crypto"].includes(m.asset_class)).map(m=>"<option value=\""+safe(String(m.symbol).split("/").join(""))+"\">"+safe(m.symbol)+" · "+safe(m.asset_class.toUpperCase())+"</option>").join("");
-  }
+  }else{renderCTraderCryptoWatchlist(null);}
   const response=await fetch("/api/connections/ctrader/auto");
   const data=await response.json();
   if(!response.ok)throw Error(data.detail||"Auto engine status unavailable");
