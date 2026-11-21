@@ -209,7 +209,7 @@ def _mexc_live_permission(customer_id: str) -> dict:
 
 def _session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
-        SESSION_COOKIE, token, max_age=7 * 24 * 60 * 60,
+        SESSION_COOKIE, token, max_age=30 * 24 * 60 * 60,
         httponly=True, secure=os.getenv("ENVIRONMENT", "development").lower() == "production",
         samesite="lax", path="/",
     )
