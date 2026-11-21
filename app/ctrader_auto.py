@@ -1,7 +1,7 @@
-"""Customer-scoped cTrader Forex automation engine.
+"""Customer-scoped cTrader Forex and crypto automation engine.
 
 Strategies are OFF by default. Each customer must explicitly start a strategy
-for a selected demo or live account. One entry maximum per completed candle.
+for a selected cTrader demo account. One entry maximum per completed candle.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from app.ctrader_open_api import (
 from app.ctrader_permissions import require_demo_permission, require_live_permission, CTraderPermissionError
 
 ALLOWED_TIMEFRAMES = {"5m", "15m", "30m", "1h", "4h"}
-MAX_SYMBOLS = 5
+MAX_SYMBOLS = 20
 ENGINE_MAX_LOTS = 0.01
 
 
@@ -89,7 +89,7 @@ def start_strategy(customer_id: str, account_id: str, environment: str,
         raise ValueError("Choose a supported timeframe from 5m to 4h")
     cleaned = list(dict.fromkeys(str(s).strip() for s in symbols if str(s).strip()))
     if not cleaned or len(cleaned) > MAX_SYMBOLS:
-        raise ValueError("Choose between 1 and 5 Forex symbols")
+        raise ValueError("Choose between 1 and 20 broker-listed Forex or crypto symbols")
     try:
         size = float(lots)
     except (TypeError, ValueError, OverflowError) as exc:

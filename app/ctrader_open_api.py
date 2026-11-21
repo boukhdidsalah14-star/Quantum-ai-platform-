@@ -47,6 +47,8 @@ GET_ACCOUNTS_REQ = 2149
 GET_ACCOUNTS_RES = 2150
 SYMBOLS_LIST_REQ = 2114
 SYMBOLS_LIST_RES = 2115
+SYMBOL_BY_ID_REQ = 2116
+SYMBOL_BY_ID_RES = 2117
 GET_TRENDBARS_REQ = 2137
 GET_TRENDBARS_RES = 2138
 DEAL_LIST_REQ = 2133
@@ -343,7 +345,43 @@ async def _ensure_demo_trade_access(ws, account_id: str, allow_close_only: bool 
     return trader
 
 
-async def _demo_symbol_id(ws, account_id: str, symbol: str) -> tuple[int, str]:
+def ctrader_symbol_asset_class(symbol: str) -> str:
+    """Classify a broker symbol conservatively from its base/quote assets."""
+    name = _normalize_symbol(symbol)
+    crypto = {
+        "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "LTC",
+        "BCH", "LINK", "DOT", "AVAX", "XLM", "ATOM", "ETC", "NEAR", "FIL",
+        "SHIB", "TON", "SUI", "UNI", "AAVE", "APT", "ARB", "OP", "ICP",
+        "INJ", "HBAR", "VET", "ALGO", "FTM", "MATIC", "POL", "EOS", "XTZ",
+    }
+    quotes = ("USDT", "USDC", "USD", "EUR", "GBP", "JPY", "AUD", "CAD",
+              "CHF", "NZD", "BTC", "ETH")
+    base = next((name[:-len(q)] for q in quotes
+                 if name.endswith(q) and len(name) > len(q)), "")
+    if base in crypto:
+        return "crypto"
+    currencies = {"USD", "EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD"}
+    if len(name) == 6 and name[:3] in currencies and name[3:] in currencies:
+        return "forex"
+    if base in {"XAU", "XAG", "XPT", "XPD"}:
+        return "metals"
+    return "other"
+
+
+async def _demo_symbol_full_by_id(ws, account_id: str, symbol_id: int) -> dict:
+    response = await _request(ws, SYMBOL_BY_ID_REQ, {
+        "ctidTraderAccountId": int(account_id),
+        "symbolId": [int(symbol_id)],
+    }, SYMBOL_BY_ID_RES)
+    rows = response.get("symbol") or []
+    full = next((item for item in rows if isinstance(item, dict)
+                 and int(item.get("symbolId") or 0) == int(symbol_id)), None)
+    if not full:
+        raise CTraderOpenAPIError("cTrader did not return full specifications for this instrument")
+    return full
+
+
+async def _demo_symbol_row(ws, account_id: str, symbol: str) -> dict:
     response = await _request(ws, SYMBOLS_LIST_REQ, {
         "ctidTraderAccountId": int(account_id),
         "includeArchivedSymbols": False,
@@ -355,6 +393,11 @@ async def _demo_symbol_id(ws, account_id: str, symbol: str) -> tuple[int, str]:
                   and bool(item.get("enabled", True))), None)
     if not match:
         raise ValueError("This symbol is not available on the selected IC Markets demo account")
+    return await _demo_symbol_full_by_id(ws, account_id, int(match["symbolId"]))
+
+
+async def _demo_symbol_id(ws, account_id: str, symbol: str) -> tuple[int, str]:
+    match = await _demo_symbol_row(ws, account_id, symbol)
     return int(match["symbolId"]), str(match.get("symbolName") or symbol)
 
 
@@ -390,7 +433,20 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
         sync_risk_positions(customer_id, account_id, [
             item.get("positionId") for item in open_positions if item.get("positionId") is not None
         ])
-        symbol_id, symbol_name = await _demo_symbol_id(ws, account_id, symbol)
+        symbol_row = await _demo_symbol_row(ws, account_id, symbol)
+        symbol_id = int(symbol_row["symbolId"])
+        symbol_name = str(symbol_row.get("symbolName") or symbol)
+        contract_lot_size = int(symbol_row.get("lotSize") or 0)
+        if contract_lot_size <= 0:
+            raise ValueError("Broker did not provide this instrument's lot size; order blocked safely")
+        volume_cents = int(round(lot_size * contract_lot_size))
+        min_volume = int(symbol_row.get("minVolume") or 1)
+        max_volume = int(symbol_row.get("maxVolume") or 0)
+        step_volume = int(symbol_row.get("stepVolume") or 1)
+        if volume_cents < min_volume or (max_volume and volume_cents > max_volume):
+            raise ValueError("Requested size is outside this broker instrument's permitted volume range")
+        if step_volume > 1 and (volume_cents - min_volume) % step_volume != 0:
+            raise ValueError("Requested size does not match this instrument's volume step")
         reservation_id = reserve_risk_entry(customer_id, account_id, balance or 0, open_count, lot_size)
         client_order_id = uuid.uuid4().hex[:32]
         event = await _request(ws, NEW_ORDER_REQ, {
@@ -398,7 +454,7 @@ async def open_demo_trade(customer_id: str, symbol: str, side: str, lots: float,
             "symbolId": symbol_id,
             "orderType": 1,
             "tradeSide": 1 if normalized_side == "BUY" else 2,
-            "volume": int(round(lot_size * VOLUME_CENTS_PER_LOT)),
+            "volume": volume_cents,
             "stopLoss": sl,
             "takeProfit": tp,
             "clientOrderId": client_order_id,
@@ -834,15 +890,30 @@ async def discover_demo_symbols(customer_id: str) -> list[dict]:
         symbols = response.get("symbol") or []
         if not isinstance(symbols, list):
             raise CTraderOpenAPIError("cTrader returned an invalid symbol list")
+        light_symbols = [item for item in symbols if isinstance(item, dict)
+                         and item.get("symbolId") is not None
+                         and item.get("symbolName")
+                         and bool(item.get("enabled", True))]
+        full_response = await _request(ws, SYMBOL_BY_ID_REQ, {
+            "ctidTraderAccountId": int(selected["account_id"]),
+            "symbolId": [int(item["symbolId"]) for item in light_symbols],
+        }, SYMBOL_BY_ID_RES) if light_symbols else {"symbol": []}
+        full_by_id = {
+            str(item.get("symbolId")): item
+            for item in (full_response.get("symbol") or [])
+            if isinstance(item, dict) and item.get("symbolId") is not None
+        }
         return sorted([{
             "symbol_id": str(item.get("symbolId")),
             "symbol": str(item.get("symbolName") or ""),
             "enabled": bool(item.get("enabled", True)),
-        } for item in symbols if isinstance(item, dict)
-          and item.get("symbolId") is not None
-          and item.get("symbolName")
-          and bool(item.get("enabled", True))],
-          key=lambda item: item["symbol"])
+            "asset_class": ctrader_symbol_asset_class(str(item.get("symbolName") or "")),
+            "digits": int(full_by_id.get(str(item.get("symbolId")), {}).get("digits") or 0),
+            "lot_size": int(full_by_id.get(str(item.get("symbolId")), {}).get("lotSize") or 0),
+            "min_volume": int(full_by_id.get(str(item.get("symbolId")), {}).get("minVolume") or 0),
+            "max_volume": int(full_by_id.get(str(item.get("symbolId")), {}).get("maxVolume") or 0),
+            "step_volume": int(full_by_id.get(str(item.get("symbolId")), {}).get("stepVolume") or 0),
+        } for item in light_symbols], key=lambda item: item["symbol"])
     finally:
         await ws.close()
 
@@ -879,18 +950,20 @@ async def get_demo_candles(customer_id: str, symbol: str,
         }, GET_TRENDBARS_RES)
         bars = response.get("trendbar") or []
         candles = []
+        full_symbol = await _demo_symbol_full_by_id(ws, selected["account_id"], int(match["symbolId"]))
+        digits = max(0, min(10, int(full_symbol.get("digits") or 5)))
         for bar in bars:
             if not isinstance(bar, dict) or bar.get("low") is None:
                 continue
             low_raw = int(bar["low"])
             scale = 100000.0
-            low = low_raw / scale
+            low = round(low_raw / scale, digits)
             candles.append({
                 "time": int(bar.get("utcTimestampInMinutes") or 0) * 60,
-                "open": (low_raw + int(bar.get("deltaOpen") or 0)) / scale,
-                "high": (low_raw + int(bar.get("deltaHigh") or 0)) / scale,
+                "open": round((low_raw + int(bar.get("deltaOpen") or 0)) / scale, digits),
+                "high": round((low_raw + int(bar.get("deltaHigh") or 0)) / scale, digits),
                 "low": low,
-                "close": (low_raw + int(bar.get("deltaClose") or 0)) / scale,
+                "close": round((low_raw + int(bar.get("deltaClose") or 0)) / scale, digits),
                 "volume": int(bar.get("volume") or 0),
             })
         candles.sort(key=lambda item: item["time"])

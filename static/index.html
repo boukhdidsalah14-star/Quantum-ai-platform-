@@ -192,17 +192,17 @@
     </section>
    </div>
    <section class="risk-control-panel" id="ctrader-auto-panel" hidden>
-    <h3>FOREX AUTO TRADING ENGINE</h3>
-    <p class="risk-note">Automated cTrader strategy. It checks completed candles, waits for the high-confidence signal filters, and places broker orders with an ATR stop-loss and take-profit. One entry per symbol per candle. Maximum 0.01 lots.</p>
+    <h3>FOREX + CRYPTO AUTO TRADING ENGINE</h3>
+    <p class="risk-note">Scans enabled Forex and crypto instruments from your connected IC Markets cTrader account. Uses completed candles, high-confidence signal filters and ATR-based stop-loss/take-profit. Instrument-specific lot size and broker volume limits are checked before every demo order.</p>
     <div class="form-grid">
      <label>ACCOUNT MODE<select id="ctrader-auto-environment"><option value="demo">DEMO ACCOUNT</option><option value="live">LIVE ACCOUNT</option></select></label>
      <label>TIMEFRAME<select id="ctrader-auto-timeframe"><option value="5m">5 MIN</option><option value="15m" selected>15 MIN</option><option value="30m">30 MIN</option><option value="1h">1 HOUR</option><option value="4h">4 HOURS</option></select></label>
     </div>
-    <label>FOREX SYMBOLS · COMMA SEPARATED<input id="ctrader-auto-symbols" type="text" maxlength="120" value="EURUSD" placeholder="EURUSD,GBPUSD"></label>
+    <label>FOREX + CRYPTO SYMBOLS · COMMA SEPARATED<input id="ctrader-auto-symbols" list="ctrader-auto-symbol-options" type="text" maxlength="500" value="EURUSD" placeholder="EURUSD,BTCUSD,ETHUSD"><datalist id="ctrader-auto-symbol-options"></datalist><small class="muted">Suggestions are loaded from the symbols enabled on your connected cTrader account.</small></label>
     <label>TRADE SIZE (LOTS)<input id="ctrader-auto-lots" type="number" min="0.001" max="0.01" step="0.001" value="0.001"></label>
-    <label class="consent-row"><input id="ctrader-auto-ack" type="checkbox"> I explicitly authorize QUANTUM AI to automatically open Forex positions on the selected account using the strategy and risk settings above. I understand losses are possible and I can stop the engine at any time.</label>
-    <button id="ctrader-auto-start" class="solid-btn wide-btn" type="button">START FOREX AUTO TRADING</button>
-    <button id="ctrader-auto-stop" class="outline-btn wide-btn" type="button">STOP FOREX AUTO TRADING</button>
+    <label class="consent-row"><input id="ctrader-auto-ack" type="checkbox"> I explicitly authorize QUANTUM AI to automatically open Forex or crypto positions on the selected cTrader account using the strategy and risk settings above. I understand losses are possible and I can stop the engine at any time.</label>
+    <button id="ctrader-auto-start" class="solid-btn wide-btn" type="button">START AUTO TRADING</button>
+    <button id="ctrader-auto-stop" class="outline-btn wide-btn" type="button">STOP AUTO TRADING</button>
     <div id="ctrader-auto-status" class="payment-box">Checking auto engine…</div>
    </section>
    <p id="ctrader-note" class="risk-note">Connect your own IC Markets cTrader demo account through the secure authorization flow. Demo order features are available only after your account and permissions are verified. Live Forex trading is not verified or offered in this release.</p>

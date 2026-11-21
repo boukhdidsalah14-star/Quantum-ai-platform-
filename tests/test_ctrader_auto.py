@@ -51,6 +51,19 @@ def test_strategy_rejects_unsafe_configuration(monkeypatch, tmp_path):
         ctrader_auto.start_strategy(customer["id"], "12345", "demo", [], "15m", 0.001)
 
 
+def test_strategy_accepts_up_to_twenty_broker_symbols(monkeypatch, tmp_path):
+    customer = setup(monkeypatch, tmp_path)
+    set_demo_permission(customer["id"], "12345", True, True)
+    symbols = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD",
+               "USDCHF", "NZDUSD", "EURJPY", "GBPJPY", "XAUUSD",
+               "BTCUSD", "ETHUSD", "LTCUSD", "XRPUSD", "BCHUSD",
+               "ADAUSD", "SOLUSD", "DOGEUSD", "DOTUSD", "LINKUSD"]
+    strategy = ctrader_auto.start_strategy(
+        customer["id"], "12345", "demo", symbols, "15m", 0.001
+    )
+    assert len(strategy["symbols"]) == 20
+
+
 def test_strategy_stop_disables_new_entries(monkeypatch, tmp_path):
     customer = setup(monkeypatch, tmp_path)
     set_demo_permission(customer["id"], "12345", True, True)

@@ -170,7 +170,7 @@ class CTraderDemoAuthorizationRequest(BaseModel):
 
 class CTraderAutoStartRequest(BaseModel):
     environment: str
-    symbols: list[str] = Field(min_length=1, max_length=5)
+    symbols: list[str] = Field(min_length=1, max_length=20)
     timeframe: str = Field(default="15m", min_length=2, max_length=3)
     lots: float = Field(default=0.001, gt=0, le=0.01)
     acknowledge_risk: bool = False
@@ -2069,6 +2069,20 @@ async def start_ctrader_auto(request_data: CTraderAutoStartRequest, request: Req
     if not snapshot or snapshot.get("environment") != env:
         raise HTTPException(status_code=409, detail=f"Connect and sync your IC Markets {env} account first")
     try:
+        available_symbols = await discover_ctrader_demo_symbols(customer["id"])
+        broker_symbols = {
+            str(item["symbol"]).replace("/", "").upper(): item
+            for item in available_symbols
+        }
+        requested = [str(symbol).replace("/", "").upper() for symbol in request_data.symbols]
+        if any(symbol not in broker_symbols for symbol in requested):
+            raise ValueError("Select only enabled symbols listed by your IC Markets cTrader account")
+        unsupported = [
+            symbol for symbol in requested
+            if broker_symbols[symbol].get("asset_class") not in {"forex", "crypto"}
+        ]
+        if unsupported:
+            raise ValueError("The AutoTrader currently supports broker-listed Forex and crypto symbols only")
         strategy = start_ctrader_auto_strategy(
             customer["id"], snapshot["account_id"], env, request_data.symbols,
             request_data.timeframe, request_data.lots)
@@ -2076,6 +2090,8 @@ async def start_ctrader_auto(request_data: CTraderAutoStartRequest, request: Req
                 os.getenv("QUANTUM_CTRADER_AUTO_ENGINE_ENABLED", "").strip().lower() == "true"}
     except CTraderPermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
+    except CTraderOpenAPIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

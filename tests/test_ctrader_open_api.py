@@ -19,6 +19,7 @@ class FakeWebSocket:
             "isLive": False,
         }]
         self.closed = False
+        self.last_order_payload = None
         self.positions = [{
             "positionId": "77",
             "tradeData": {"symbolId": "1", "volume": 1000, "tradeSide": 1},
@@ -82,8 +83,22 @@ class FakeWebSocket:
                 "symbol": [
                     {"symbolId": "10", "symbolName": "EUR/USD", "enabled": True},
                     {"symbolId": "11", "symbolName": "XAU/USD", "enabled": True},
+                    {"symbolId": "13", "symbolName": "BTC/USD", "enabled": True},
                     {"symbolId": "12", "symbolName": "OLD/USD", "enabled": False},
                 ],
+            }
+        elif kind == api.SYMBOL_BY_ID_REQ:
+            specs = {
+                "10": {"symbolId": "10", "digits": 5, "lotSize": 10000000,
+                       "minVolume": 1000, "maxVolume": 100000000, "stepVolume": 1000},
+                "11": {"symbolId": "11", "digits": 2, "lotSize": 100,
+                       "minVolume": 1, "maxVolume": 100000, "stepVolume": 1},
+                "13": {"symbolId": "13", "digits": 2, "lotSize": 100000,
+                       "minVolume": 100, "maxVolume": 1000000, "stepVolume": 100},
+            }
+            response_type, payload = api.SYMBOL_BY_ID_RES, {
+                "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
+                "symbol": [specs[sid] for sid in message["payload"]["symbolId"] if sid in specs],
             }
         elif kind == api.DEAL_LIST_REQ:
             now_ms = int(time.time() * 1000)
@@ -115,6 +130,7 @@ class FakeWebSocket:
         else:
             raise AssertionError("Unexpected cTrader request type: " + str(kind))
         if kind == api.NEW_ORDER_REQ:
+            self.last_order_payload = dict(message["payload"])
             self.positions.append({
                 "positionId": "78",
                 "tradeData": {"symbolId": "10", "volume": message["payload"]["volume"], "tradeSide": message["payload"]["tradeSide"]},
@@ -227,8 +243,11 @@ def test_demo_symbol_discovery_returns_enabled_broker_symbols(monkeypatch, tmp_p
     customer, _ = setup(monkeypatch, tmp_path)
     asyncio.run(api.sync_demo_account(customer["id"], "123456"))
     symbols = asyncio.run(api.discover_demo_symbols(customer["id"]))
-    assert [item["symbol"] for item in symbols] == ["EUR/USD", "XAU/USD"]
+    assert [item["symbol"] for item in symbols] == ["BTC/USD", "EUR/USD", "XAU/USD"]
     assert all(item["enabled"] for item in symbols)
+    assert next(item for item in symbols if item["symbol"] == "BTC/USD")["asset_class"] == "crypto"
+    assert next(item for item in symbols if item["symbol"] == "EUR/USD")["asset_class"] == "forex"
+    assert next(item for item in symbols if item["symbol"] == "BTC/USD")["lot_size"] == 100000
 
 
 def test_demo_candles_transform_ctrader_relative_ohlc(monkeypatch, tmp_path):
@@ -261,6 +280,13 @@ def test_normalize_deriv_forex_symbols_for_ctrader():
     assert api._normalize_symbol("EUR/USD") == "EURUSD"
 
 
+def test_ctrader_asset_classifies_crypto_and_forex_symbols():
+    assert api.ctrader_symbol_asset_class("BTC/USD") == "crypto"
+    assert api.ctrader_symbol_asset_class("ETHUSDT") == "crypto"
+    assert api.ctrader_symbol_asset_class("EUR/USD") == "forex"
+    assert api.ctrader_symbol_asset_class("XAU/USD") == "metals"
+
+
 
 def test_ctrader_environment_routes_to_official_gateways():
     assert api._ctrader_ws_url("demo") == "wss://demo.ctraderapi.com:5036"
@@ -290,6 +316,18 @@ def test_demo_order_open_uses_broker_execution_event(monkeypatch, tmp_path):
     assert result["broker_confirmed"] is True
     assert result["position_id"] == "78"
     assert result["order_id"] == "88"
+
+
+def test_crypto_order_uses_broker_lot_size_and_volume_step(monkeypatch, tmp_path):
+    customer, fake = setup(monkeypatch, tmp_path)
+    asyncio.run(api.sync_demo_account(customer["id"], "123456"))
+    set_demo_permission(customer["id"], "123456", True, True)
+    result = asyncio.run(api.open_demo_trade(
+        customer["id"], "BTCUSD", "BUY", 0.001, 65000, 70000
+    ))
+    assert result["broker_confirmed"] is True
+    assert fake.last_order_payload["symbolId"] == 13
+    assert fake.last_order_payload["volume"] == 100
 
 
 def test_demo_order_rejects_oversize_and_invalid_side(monkeypatch, tmp_path):
