@@ -99,6 +99,8 @@ def create_authorization(customer_id: str, scope: str = "trading") -> tuple[str,
         "redirect_uri": redirect_uri,
         "scope": scope,
         "product": "web",
+        # Bind the callback to this customer's short-lived authorization attempt.
+        "state": state,
     }
     return state, AUTHORIZATION_URL + "?" + urlencode(params)
 
