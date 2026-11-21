@@ -98,7 +98,7 @@ class FakeWebSocket:
             }
             response_type, payload = api.SYMBOL_BY_ID_RES, {
                 "ctidTraderAccountId": message["payload"]["ctidTraderAccountId"],
-                "symbol": [specs[sid] for sid in message["payload"]["symbolId"] if sid in specs],
+                "symbol": [specs[str(sid)] for sid in message["payload"]["symbolId"] if str(sid) in specs],
             }
         elif kind == api.DEAL_LIST_REQ:
             now_ms = int(time.time() * 1000)
