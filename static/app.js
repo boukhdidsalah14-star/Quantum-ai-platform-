@@ -585,7 +585,9 @@ async function refreshCTraderStatus(){
      :(data.configured
       ?"Authorize your IC Markets cTrader account. Then choose your demo or approved live account in its separate section."
       :"QUANTUM AI is waiting for its Spotware application credentials and approval.")));
-  connect.disabled=!data.configured;
+  // Keep the connect control tappable even when Spotware credentials are missing.
+  // The start endpoint will return a visible setup error instead of leaving a dead button.
+  connect.disabled=false;
   connect.textContent=data.authorized?"RECONNECT CTRADER":"CONNECT IC MARKETS CTRADER";
   disconnect.hidden=!data.authorized;
   const syncPanel=$("ctrader-account-sync");
