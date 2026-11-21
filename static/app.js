@@ -55,7 +55,7 @@ function renderCTraderCryptoWatchlist(markets){
  root.innerHTML=coins.map(m=>'<button type="button" class="watch-item" data-ctrader-crypto-symbol="'+safe(m.symbol)+'"><span class="watch-name">₿ <b>'+safe(m.symbol)+'</b></span><strong>cTrader</strong><small class="up">BROKER-LISTED</small></button>').join("");
  root.querySelectorAll("[data-ctrader-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>{
   const symbol=button.dataset.ctraderCryptoSymbol,input=$("ctrader-auto-symbols");
-  if(input){const clean=symbol.split("/").join("").replace(/\\s+/g,"");const current=input.value.split(",").map(x=>x.trim()).filter(Boolean);if(!current.some(x=>x.toUpperCase()===clean.toUpperCase()))current.push(clean);input.value=current.join(",");}
+  if(input){const clean=symbol.split("/").join("").split(" ").join("");const current=input.value.split(",").map(x=>x.trim()).filter(Boolean);if(!current.some(x=>x.toUpperCase()===clean.toUpperCase()))current.push(clean);input.value=current.join(",");}
   nav("automation");toast(symbol+" added to the cTrader AutoTrader symbols");
  }));
 }
