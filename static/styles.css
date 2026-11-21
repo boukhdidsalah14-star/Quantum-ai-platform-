@@ -118,3 +118,5 @@ main{width:min(1180px,100%);margin:0 auto;padding:20px clamp(12px,3vw,28px)}.pag
   .ad-footer{left:7px!important;bottom:70px!important;width:96px!important;height:88px!important}
   .ad-inner{width:96px!important;height:88px!important}
 }
+
+.watchlist-group{margin-top:12px}.watchlist-subtitle{margin:0 0 8px;color:#79bce8;font-size:10px;font-weight:800;letter-spacing:1.1px}.crypto-watch-group{padding-top:12px;border-top:1px solid #123b5d}.crypto-watch-group .watch-item{cursor:pointer}.crypto-watch-group .watch-item strong{color:#31d4ff}.crypto-watch-group .watch-item small{color:#00e99a}
