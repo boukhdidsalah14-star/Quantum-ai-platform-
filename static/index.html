@@ -10,6 +10,31 @@
 </style>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+<style>
+/* Second A-ADS placement: keep the approved phone layout uncluttered. */
+.quantum-side-ad-right{display:none;position:fixed;right:7px;bottom:70px;width:96px;height:88px;z-index:25;overflow:hidden;border:1px solid #12598b;border-radius:8px;background:#031225;box-shadow:0 3px 12px #0008;pointer-events:auto}
+.quantum-side-ad-right iframe{display:block;width:96px;height:86px;border:0;margin:0;padding:0;overflow:hidden}
+@media(min-width:700px){.quantum-side-ad-right{display:block}}
+@media(max-width:699px){
+ body.ad-show-right .quantum-side-ad-right{display:block}
+ body.ad-show-right .ad-footer{display:none!important}
+}
+</style>
+<script>
+/* On narrow phones, show one ad at a time and alternate its side by app section. */
+(function(){
+ function syncSideAd(){
+  var active=document.querySelector(".page.active");
+  var page=active&&active.getAttribute("data-page");
+  document.body.classList.toggle("ad-show-right",["signals","automation","platforms"].indexOf(page)>=0);
+ }
+ document.addEventListener("click",function(event){
+  if(event.target.closest("[data-nav],[data-goto]")) setTimeout(syncSideAd,0);
+ },true);
+ document.addEventListener("DOMContentLoaded",syncSideAd);
+ window.addEventListener("pageshow",syncSideAd);
+})();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -275,6 +300,7 @@
 <div id="provider-modal" class="modal" hidden><div class="modal-card"><button id="modal-close" class="modal-close">×</button><span class="eyebrow">INTEGRATION DETAILS</span><h2 id="modal-title">Provider</h2><p id="modal-copy"></p><button class="solid-btn wide-btn" id="modal-ok">GOT IT</button></div></div>
 <div id="toast" class="toast" role="status"></div>
 <div class="ad-footer" aria-label="Sponsored advertisement"><div class="ad-inner"><div id="quantum-aads-unit" class="aads-unit" aria-label="Sponsored advertisement"><iframe data-aa="2462787" src="https://acceptable.a-ads.com/2462787/?size=Adaptive" title="Advertisement" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div></div></div>
+<div id="quantum-aads-right" class="quantum-side-ad quantum-side-ad-right" aria-label="Sponsored advertisement"><iframe data-aa="2462787" src="https://acceptable.a-ads.com/2462787/?size=Adaptive" title="Sponsored advertisement" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
 <nav class="bottom-nav" aria-label="Main pages"><button class="active" data-nav="home"><span>⌂</span>HOME</button><button data-nav="signals"><span>ϟ</span>SIGNALS</button><button data-nav="automation"><span>▥</span>AUTO</button><button data-nav="platforms"><span>▣</span>PLATFORMS</button><button data-nav="referrals"><span>♧</span>INVITE</button><button data-nav="account"><span>◉</span>ACCOUNT</button></nav>
 <script src="/static/ads.js?v=20261121-compact-ad"></script>
 <script src="/static/app.js?v=20261119-referrals"></script>
