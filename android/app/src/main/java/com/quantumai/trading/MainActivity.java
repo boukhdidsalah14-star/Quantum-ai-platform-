@@ -62,8 +62,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)
-                && getSharedPreferences("quantum_assistant", MODE_PRIVATE).getBoolean("enabled", false)
-                && !serviceStartRequested) {
+                 ) {
             startFloatingAssistant();
         }
         if (!askedOverlay && Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
@@ -94,7 +93,7 @@ public class MainActivity extends Activity {
 
     private void startFloatingAssistant() {
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) return;
-        if (serviceStartRequested) return;
+        
         Intent service = new Intent(this, FloatingAssistantService.class);
         try {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);

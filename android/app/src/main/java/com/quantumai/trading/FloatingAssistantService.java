@@ -9,6 +9,7 @@ import android.os.*;
 import android.view.*;
 import android.view.Gravity;
 import android.widget.*;
+import android.graphics.drawable.GradientDrawable;
 import org.json.JSONObject;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -26,7 +27,8 @@ public class FloatingAssistantService extends Service {
     private WindowManager wm;
     private View bubble, panel;
     private WindowManager.LayoutParams bubbleParams, panelParams;
-    private TextView bubbleText, resultText, countdownText;
+    private ImageView bubbleIcon;
+    private TextView resultText, countdownText;
     private Spinner pairSpinner, expirySpinner;
     private Button signalButton;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -34,7 +36,7 @@ public class FloatingAssistantService extends Service {
     private long expiryAt = 0;
     private String lastDirection = "WAIT";
     private Runnable timer;
-    private int bubbleColor = Color.rgb(20,145,230);
+    private int bubbleColor = Color.rgb(20,112,170);
     private boolean destroyed = false;
 
     @Override public void onCreate() {
@@ -82,13 +84,16 @@ public class FloatingAssistantService extends Service {
 
     private void showBubble() {
         if (bubble != null || destroyed) return;
-        bubbleText = text("ϟ",25,Color.WHITE); bubbleText.setTypeface(null,Typeface.BOLD);
-        bubbleText.setBackground(round(bubbleColor,dp(30)));
-        bubble = bubbleText;
+        bubbleIcon = new ImageView(this);
+        bubbleIcon.setImageResource(R.drawable.qai_assistant_logo);
+        bubbleIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        bubbleIcon.setPadding(dp(10),dp(10),dp(10),dp(10));
+        bubbleIcon.setBackground(round(bubbleColor,dp(30)));
+        bubble = bubbleIcon;
         bubbleParams = params(dp(58),dp(58),Gravity.TOP|Gravity.START);
         bubbleParams.x = dp(14); bubbleParams.y = dp(180);
-        bubbleText.setOnClickListener(v -> togglePanel());
-        bubbleText.setOnTouchListener(new View.OnTouchListener() {
+        bubbleIcon.setOnClickListener(v -> togglePanel());
+        bubbleIcon.setOnTouchListener(new View.OnTouchListener() {
             float downX,downY; int startX,startY; boolean moved;
             public boolean onTouch(View v, android.view.MotionEvent e) {
                 if(e.getAction()==MotionEvent.ACTION_DOWN){downX=e.getRawX();downY=e.getRawY();startX=bubbleParams.x;startY=bubbleParams.y;moved=false;return true;}
@@ -122,21 +127,21 @@ public class FloatingAssistantService extends Service {
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(12),dp(14),dp(12));
         root.setBackground(round(Color.rgb(5,18,36),dp(18)));
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title=text("QUANTUM AI  ·  FLOATING SIGNAL",13,Color.rgb(90,205,255));title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+        TextView title=text("QUANTUM AI",13,Color.rgb(90,205,255));title.setTypeface(null,Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
         TextView close=text("×",24,Color.WHITE);close.setOnClickListener(v->hidePanel());
         head.addView(title,new LinearLayout.LayoutParams(0,dp(38),1));head.addView(close,new LinearLayout.LayoutParams(dp(38),dp(38)));root.addView(head);
-        root.addView(text("FOREX PAIR",10,Color.LTGRAY));
+        root.addView(text("PAIR",10,Color.LTGRAY));
         pairSpinner=new Spinner(this);pairSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,pairs));root.addView(pairSpinner);
-        root.addView(text("EXPIRY",10,Color.LTGRAY));
+        root.addView(text("TIME",10,Color.LTGRAY));
         expirySpinner=new Spinner(this);expirySpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,expiryLabels));expirySpinner.setSelection(1);root.addView(expirySpinner);
-        signalButton=new Button(this);signalButton.setText("GENERATE SIGNAL");signalButton.setTextColor(Color.WHITE);signalButton.setBackground(round(Color.rgb(20,112,210),dp(12)));root.addView(signalButton);
-        resultText=text("Choose a pair and generate a signal.",14,Color.WHITE);root.addView(resultText);
-        countdownText=text("Signals are analysis only · No broker orders are placed.",10,Color.LTGRAY);root.addView(countdownText);
+        signalButton=new Button(this);signalButton.setText("SIGNAL");signalButton.setTextColor(Color.WHITE);signalButton.setBackground(round(Color.rgb(20,112,210),dp(12)));root.addView(signalButton);
+        resultText=text("Ready",14,Color.WHITE);root.addView(resultText);
+        countdownText=text("Analysis only",10,Color.LTGRAY);root.addView(countdownText);
         LinearLayout outcomes=new LinearLayout(this);outcomes.setOrientation(LinearLayout.HORIZONTAL);
         Button win=outcomeButton("WIN",Color.rgb(15,165,90));Button loss=outcomeButton("LOSS",Color.rgb(205,45,55));Button draw=outcomeButton("DRAW",Color.rgb(145,65,190));
         win.setOnClickListener(v->setOutcome("WIN",Color.rgb(15,165,90)));loss.setOnClickListener(v->setOutcome("LOSS",Color.rgb(205,45,55)));draw.setOnClickListener(v->setOutcome("DRAW",Color.rgb(145,65,190)));
         outcomes.addView(win,new LinearLayout.LayoutParams(0,dp(42),1));outcomes.addView(loss,new LinearLayout.LayoutParams(0,dp(42),1));outcomes.addView(draw,new LinearLayout.LayoutParams(0,dp(42),1));root.addView(outcomes);
-        TextView note=text("After expiry, tap WIN, LOSS or DRAW to update the circle. Research signals use public Yahoo Finance candles, which may differ from IQ Option prices (especially OTC). IQ Option is not connected; no trades are placed.",10,Color.GRAY);root.addView(note);
+        
         signalButton.setOnClickListener(v->generateSignal());
         panel=root;
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
@@ -221,12 +226,9 @@ public class FloatingAssistantService extends Service {
             handler.post(()->{
                 if(signalButton!=null)signalButton.setEnabled(true);
                 lastDirection=finalDirection;
-                resultText.setText(finalMessage);
-                if(finalDirection.equals("CALL"))bubbleText.setText("↑");
-                else if(finalDirection.equals("PUT"))bubbleText.setText("↓");
-                else bubbleText.setText("ϟ");
-                bubbleColor=finalDirection.equals("WAIT")?Color.rgb(20,112,170):Color.rgb(20,145,230);
-                bubbleText.setBackground(round(bubbleColor,dp(30)));
+                resultText.setText(finalDirection.equals("WAIT") ? "WAIT" : pairs[selected]+" · "+finalDirection+"\n"+minutes+" min");
+                bubbleColor=Color.rgb(20,112,170);
+                bubbleIcon.setBackground(round(bubbleColor,dp(30)));
                 expiryAt=finalExpiry;
                 if(expiryAt>0)startCountdown();
                 else countdownText.setText("No active expiry. Wait for a CALL or PUT signal.");
@@ -248,11 +250,10 @@ public class FloatingAssistantService extends Service {
         if(expiryAt==0){countdownText.setText("Generate a signal first.");return;}
         if(System.currentTimeMillis()<expiryAt){countdownText.setText("Wait until the selected expiry before recording the result.");return;}
         bubbleColor=color;
-        if(outcome.equals("DRAW")) bubbleText.setBackground(rainbow());
-        else bubbleText.setBackground(round(color,dp(30)));
-        bubbleText.setText(outcome.equals("WIN")?"✓":outcome.equals("LOSS")?"×":"✦");
-        resultText.setText(resultText.getText()+"\nRESULT: "+outcome+" (confirmed by you)");
-        countdownText.setText("Result saved on this device. Generate another signal when ready.");
+        if(outcome.equals("DRAW")) bubbleIcon.setBackground(rainbow());
+        else bubbleIcon.setBackground(round(color,dp(30)));
+        resultText.setText(outcome);
+        countdownText.setText("Result saved");
         expiryAt=0;if(timer!=null)handler.removeCallbacks(timer);
     }
 
