@@ -87,7 +87,8 @@ public class FloatingAssistantService extends Service {
         bubbleIcon = new ImageView(this);
         bubbleIcon.setImageResource(R.drawable.qai_assistant_logo);
         bubbleIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        bubbleIcon.setPadding(dp(10),dp(10),dp(10),dp(10));
+        bubbleIcon.setPadding(dp(2),dp(2),dp(2),dp(2));
+        bubbleIcon.setClipToOutline(true);
         bubbleIcon.setBackground(round(bubbleColor,dp(30)));
         bubble = bubbleIcon;
         bubbleParams = params(dp(58),dp(58),Gravity.TOP|Gravity.START);
