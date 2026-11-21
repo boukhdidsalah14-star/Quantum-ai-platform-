@@ -303,6 +303,40 @@
 <div id="quantum-aads-right" class="quantum-side-ad quantum-side-ad-right" aria-label="Sponsored advertisement"><iframe data-aa="2462787" src="https://acceptable.a-ads.com/2462787/?size=Adaptive" title="Sponsored advertisement" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
 <nav class="bottom-nav" aria-label="Main pages"><button class="active" data-nav="home"><span>⌂</span>HOME</button><button data-nav="signals"><span>ϟ</span>SIGNALS</button><button data-nav="automation"><span>▥</span>AUTO</button><button data-nav="platforms"><span>▣</span>PLATFORMS</button><button data-nav="referrals"><span>♧</span>INVITE</button><button data-nav="account"><span>◉</span>ACCOUNT</button></nav>
 <script src="/static/ads.js?v=20261121-compact-ad"></script>
-<script src="/static/app.js?v=20261121-ctrader-tapfix2"></script>
+<script>
+/* Early, capture-phase cTrader tap handler: works even if a later app script fails. */
+(function(){
+ document.addEventListener("click",async function(event){
+  var button=event.target&&event.target.closest?event.target.closest("#ctrader-connect"):null;
+  if(!button)return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if(button.dataset.connectBusy==="1")return;
+  button.dataset.connectBusy="1";
+  var original="CONNECT IC MARKETS CTRADER";
+  var result=document.getElementById("ctrader-result");
+  button.disabled=true;
+  button.textContent="PREPARING SECURE CONNECTION…";
+  if(result){result.hidden=true;result.textContent="";}
+  try{
+   var response=await fetch("/api/connections/ctrader/start",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store"});
+   var data=await response.json().catch(function(){return {};});
+   if(response.status===401||response.status===403){
+    if(result){result.hidden=false;result.textContent="Please sign in to your QUANTUM AI account, then connect cTrader.";}
+    button.disabled=false;button.dataset.connectBusy="0";button.textContent=original;
+    var account=document.querySelector('[data-nav="account"]');if(account)account.click();
+    return;
+   }
+   if(!response.ok)throw new Error(data.detail||("Connection request failed ("+response.status+")"));
+   if(!data.authorization_url)throw new Error("The server did not return the cTrader authorization link. Check the cTrader app configuration.");
+   window.location.assign(data.authorization_url);
+  }catch(error){
+   if(result){result.hidden=false;result.textContent=error.message||"Could not start the cTrader connection. Please try again.";}
+   button.disabled=false;button.dataset.connectBusy="0";button.textContent=original;
+  }
+ },true);
+})();
+</script>
+<script src="/static/app.js?v=20261121-ctrader-tapfix3"></script>
 
 </body></html>
