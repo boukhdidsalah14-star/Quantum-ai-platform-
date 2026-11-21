@@ -15,7 +15,7 @@ from pathlib import Path
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PBKDF2_ROUNDS = 310_000
-SESSION_SECONDS = 7 * 24 * 60 * 60
+SESSION_SECONDS = 30 * 24 * 60 * 60
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_ATTEMPTS = 10
 
