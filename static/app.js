@@ -27,7 +27,7 @@ const referralFromUrl=new URLSearchParams(window.location.search).get("ref");if(
 const safe=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:5});
 function toast(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2500)}
-function nav(page){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.dataset.page===page));document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===page));window.scrollTo({top:0,behavior:"smooth"})}
+function nav(page){document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.dataset.page===page));const navPage=page==="crypto"?"home":page;document.querySelectorAll("[data-nav]").forEach(b=>b.classList.toggle("active",b.dataset.nav===navPage));window.scrollTo({top:0,behavior:"smooth"})}
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.nav)));
 document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.goto)));
 $("top-signin").addEventListener("click",()=>nav("account"));$("top-account").addEventListener("click",()=>nav("account"));
@@ -287,7 +287,7 @@ $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe")
 loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
-const swipePages=["home","signals","automation","referrals","account"];
+const swipePages=["home","signals","automation","crypto","referrals","account"];
 let touchX=null,touchY=null;
 $("main").addEventListener("touchstart",e=>{if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY}},{passive:true});
 $("main").addEventListener("touchend",e=>{if(touchX===null)return;let dx=e.changedTouches[0].clientX-touchX,dy=e.changedTouches[0].clientY-touchY;touchX=touchY=null;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.25){let active=swipePages.findIndex(p=>$("page-"+p).classList.contains("active"));let next=Math.max(0,Math.min(swipePages.length-1,active+(dx<0?1:-1)));if(next!==active)nav(swipePages[next])}},{passive:true});
