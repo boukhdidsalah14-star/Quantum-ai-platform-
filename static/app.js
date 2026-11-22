@@ -22,7 +22,7 @@ const binaryPairs=[
  {symbol:"frxEURJPY",label:"EUR / JPY",flag:"🇪🇺🇯🇵"},
  {symbol:"frxGBPJPY",label:"GBP / JPY",flag:"🇬🇧🇯🇵"}
 ];
-let selected=pairs[0], selectedBinary=binaryPairs[0], marketMap={}, chartCandles=[], member=false, signed=false, history=[];
+let selected=pairs[0], selectedBinary=binaryPairs[0], marketMap={}, chartCandles=[], member=false, signed=false, history=[], selectedMarketType="forex", selectedCryptoSymbol="BTCUSDT";
 const referralFromUrl=new URLSearchParams(window.location.search).get("ref");if(referralFromUrl&&/^[A-Z0-9]{5,32}$/i.test(referralFromUrl))sessionStorage.setItem("quantum_referral_code",referralFromUrl.toUpperCase());
 const safe=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:5});
@@ -31,7 +31,7 @@ function nav(page){document.querySelectorAll(".page").forEach(p=>p.classList.tog
 document.querySelectorAll("[data-nav]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.nav)));
 document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>nav(b.dataset.goto)));
 $("top-signin").addEventListener("click",()=>nav("account"));$("top-account").addEventListener("click",()=>nav("account"));
-function setSelected(p){selected=p;$("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}renderForexWatchlist();loadChart()}
+function setSelected(p){selected=p;selectedMarketType="forex";$("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}renderForexWatchlist();loadChart()}
 function renderPairList(){ $("pair-list").innerHTML=binaryPairs.map(p=>'<button class="pair-item '+(p.symbol===selectedBinary.symbol?'active':'')+'" data-pair="'+p.symbol+'"><span class="flag">'+p.flag+'</span><span><b>'+p.label+'</b><small>Binary Options · Forex</small></span><span class="pair-price">'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"—")+'</span></button>').join("");document.querySelectorAll("[data-pair]").forEach(b=>b.addEventListener("click",()=>{selectedBinary=binaryPairs.find(p=>p.symbol===b.dataset.pair);setSelected(pairs.find(p=>p.symbol===b.dataset.pair));$("signal-pair-title").textContent=selectedBinary.label;renderPairList()}))}
 function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>PUBLIC CRYPTO DATA</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
 function renderForexWatchlist(){
@@ -62,6 +62,15 @@ function renderCTraderCryptoWatchlist(markets){
 async function loadMarkets(){try{let r=await fetch("/api/market-data/forex/markets");if(!r.ok)throw Error("Forex feed unavailable");let d=await r.json();marketMap={};(d.markets||[]).forEach(m=>marketMap[m.symbol]=m);renderPairList();renderTicker();renderForexWatchlist();$("feed-label").textContent="BINARY OPTIONS · INDEPENDENT FOREX FEED";}catch(e){$("ticker").innerHTML="<span>LIVE FOREX FEED TEMPORARILY UNAVAILABLE</span>";$("feed-label").textContent="Feed unavailable";renderForexWatchlist()}}
 const cryptoAssets=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","TRXUSDT","DOGEUSDT","ADAUSDT","BCHUSDT","LINKUSDT"];
 $("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.replace("USDT","")+' / USDT</option>').join("");
+function selectCryptoAsset(symbol,quote){
+ if(!cryptoAssets.includes(symbol))return;
+ selectedMarketType="crypto";selectedCryptoSymbol=symbol;$("crypto-symbol").value=symbol;
+ $("chart-title").textContent=symbol.replace("USDT","")+" / USDT";
+ if(quote&&quote.price!==null)$("current-price").textContent=money(quote.price);
+ const tf=$("home-timeframe");if(!["1h","4h","1d"].includes(tf.value))tf.value="1h";
+ document.querySelectorAll("#crypto-market-list [data-crypto-symbol]").forEach(button=>button.classList.toggle("active",button.dataset.cryptoSymbol===symbol));
+ loadChart();
+}
 async function loadCryptoMarkets(){
  try{
   const response=await fetch("/api/markets");
@@ -69,14 +78,12 @@ async function loadCryptoMarkets(){
   const data=await response.json();
   const rows=new Map((data.markets||[]).map(item=>[item.symbol,item]));
   $("crypto-market-list").innerHTML=cryptoAssets.map(symbol=>{
-   const item=rows.get(symbol);
-   const price=item?money(Number(item.price)):"—";
-   const change=item?Number(item.change_percent):0;
-   return '<button class="pair-item" data-crypto-symbol="'+symbol+'"><span class="flag">₿</span><span><b>'+symbol.replace("USDT","")+'</b><small>Public market · '+(item?((change>=0?"+":"")+change.toFixed(2)+"%"):"feed unavailable")+'</small></span><span class="pair-price">'+price+'</span></button>';
+   const item=rows.get(symbol),price=item&&item.price!==null?money(Number(item.price)):"—";
+   const change=item&&item.change_percent!==null?Number(item.change_percent):null;
+   const active=selectedMarketType==="crypto"&&selectedCryptoSymbol===symbol;
+   return '<button type="button" class="watch-item '+(active?'active':'')+'" data-crypto-symbol="'+symbol+'"><span class="watch-name">₿ <b>'+symbol.replace("USDT","")+' / USDT</b></span><strong>'+price+'</strong><small class="'+(change===null?"flat":change>=0?"up":"down")+'">'+(change===null?"QUOTE UNAVAILABLE":(change>=0?"+":"")+change.toFixed(2)+"% · PUBLIC MARKET")+'</small></button>';
   }).join("");
-  document.querySelectorAll("[data-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>{
-   $("crypto-symbol").value=button.dataset.cryptoSymbol;
-  }));
+  document.querySelectorAll("#crypto-market-list [data-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>selectCryptoAsset(button.dataset.cryptoSymbol,rows.get(button.dataset.cryptoSymbol))));
  }catch(error){
   $("crypto-market-list").innerHTML="<p class='muted'>Public crypto market data temporarily unavailable.</p>";
  }
@@ -138,6 +145,18 @@ let chartEmptyMessage="Market candles are temporarily unavailable.";
 async function loadChart(){
  const tf=$("home-timeframe").value;
  const source=$("chart-source");
+ if(selectedMarketType==="crypto"){
+  const interval=["1h","4h","1d"].includes(tf)?tf:"1h";
+  try{
+   const r=await fetch("/api/candles/"+encodeURIComponent(selectedCryptoSymbol)+"?interval="+encodeURIComponent(interval)+"&limit=100");
+   const d=await r.json();if(!r.ok)throw Error(d.detail||"Crypto candles unavailable");
+   chartCandles=Array.isArray(d.candles)?d.candles:[];
+   if(!chartCandles.length)throw Error("No crypto candles returned");
+   chartEmptyMessage="Crypto candles are temporarily unavailable.";
+   if(source)source.textContent="PUBLIC CRYPTO DATA · "+interval.toUpperCase();
+   const last=chartCandles.at(-1);$("current-price").textContent=last?money(last.close):"—";drawChart();return;
+  }catch(error){chartCandles=[];chartEmptyMessage="Crypto chart unavailable. Public market data may be temporarily offline.";if(source)source.textContent="CRYPTO DATA UNAVAILABLE";$("current-price").textContent="—";drawChart();return;}
+ }
  try{
   const r=await fetch("/api/connections/ctrader/candles/"+encodeURIComponent(selected.symbol)+"?timeframe="+encodeURIComponent(tf)+"&count=80");
   const d=await r.json();
@@ -192,7 +211,7 @@ function drawChart(){
 window.addEventListener("resize",drawChart);
 $("chart-ema20").addEventListener("change",drawChart);$("chart-ema50").addEventListener("change",drawChart);
 $("home-pair").innerHTML=pairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");$("floating-pair").innerHTML=binaryPairs.map(p=>'<option value="'+p.symbol+'">'+p.flag+" "+p.label+'</option>').join("");
-$("home-pair").addEventListener("change",e=>setSelected(pairs.find(p=>p.symbol===e.target.value)));$("home-timeframe").addEventListener("change",loadChart);
+$("home-pair").addEventListener("change",e=>{const p=pairs.find(x=>x.symbol===e.target.value);if(p)setSelected(p);});$("home-timeframe").addEventListener("change",()=>{if(selectedMarketType==="crypto"&&!["1h","4h","1d"].includes($("home-timeframe").value))$("home-timeframe").value="1h";loadChart();});
 function updateAuthMode(){const c=window.quantumAuthConfig||{};const isAdmin=$("auth-email").value.trim().toLowerCase()===(c.admin_email||"").toLowerCase()&&!!c.admin_email;$("customer-password-wrap").hidden=isAdmin;$("auth-password").required=!isAdmin;$("signup-button").hidden=isAdmin||!c.registration_enabled;$("signin-button").textContent=isAdmin?"SEND ADMIN CODE":"SIGN IN";if(!isAdmin)$("admin-code-wrap").hidden=true;}
 $("auth-email").addEventListener("input",updateAuthMode);
 async function refreshAuth(){try{let r=await fetch("/api/auth/me");if(!r.ok)throw Error();let d=await r.json();signed=true;$("auth-form-wrap").hidden=true;$("signed-in-panel").hidden=false;$("member-email").textContent=d.customer.email;$("account-chip").textContent=d.customer.role==="admin"?"ADMIN":"MEMBER";$("top-signin").textContent="ACCOUNT";let sr=await fetch("/api/subscription");let s=await sr.json();member=!!(sr.ok&&s.active);$("auth-state").textContent=d.customer.role==="admin"?"LIFETIME ADMIN":member?"ACTIVE":"UNPAID";$("membership-status").textContent=member?"ACTIVE MEMBERSHIP":"NOT ACTIVE";$("membership-status").classList.toggle("active",member);$("membership-expiry").textContent=s.lifetime?"Administrator access · Lifetime Premium":member?(s.days_remaining+" days remaining · expires "+new Date(s.expires_at*1000).toLocaleDateString()):"Subscribe for $30 USDT TRC20 / 30 days."; $("checkout-button").disabled=!s.payment_configured||member||!!s.lifetime;$("checkout-button").hidden=!!s.lifetime;$("checkout-button").textContent=s.lifetime?"LIFETIME PREMIUM":member?"MEMBERSHIP ACTIVE":s.payment_configured?"SUBSCRIBE · $30 USDT TRC20":"PAYMENT SETUP PENDING";$("home-membership").textContent=member?"ACTIVE":"UNPAID";$("home-membership-note").textContent=member?"Trading access enabled":"Subscribe to unlock trading";$("auth-message").textContent=s.lifetime?"Administrator account verified. Lifetime Premium access is active.":member?"Membership confirmed. Paid features are unlocked.":"You can browse the app. Trading actions are locked until payment confirmation.";await loadPendingPayment();await loadReferralDashboard();await loadSignalHistory();await refreshCTraderStatus();}catch{signed=false;member=false;$("auth-form-wrap").hidden=false;$("signed-in-panel").hidden=true;$("account-chip").textContent="GUEST";$("auth-state").textContent="GUEST";$("home-membership").textContent="GUEST ACCESS";$("home-membership-note").textContent="Sign in to manage access";$("membership-status").textContent="NOT ACTIVE";let c=await fetch("/api/auth/config").then(r=>r.json()).catch(()=>({}));window.quantumAuthConfig=c;updateAuthMode();$("auth-message").textContent=c.registration_enabled?"Sign in or create an account.":c.admin_login_enabled?"Enter your email. Admin uses a one-time code; customers sign in with passwords.":"Admin email delivery is not configured yet. Customer registration is currently closed.";}}
