@@ -17,29 +17,6 @@ def broker_capabilities() -> dict:
             "note": "Signals and market analysis only. IQ Option account authorization and order execution are not connected.",
         },
         {
-            "id": "mexc", "name": "MEXC", "category": "crypto_futures",
-            "status": "live_futures_adapter_implemented_locked_pending_validation", "connection_verified": False,
-            "supported_scope": ["public_usdm_futures_market_data", "customer_account_verification", "signed_usdm_futures_orders", "exchange_side_stop_loss_take_profit", "customer_scoped_auto_strategy", "per_customer_live_consent", "daily_loss_guard", "emergency_stop"],
-            "execution_enabled": False, "demo_execution_enabled": False,
-            "real_execution_enabled": False,
-            "note": "USD-M futures order and auto-strategy code is implemented with customer-scoped consent, credential-version binding, daily loss limits and emergency stop. Real orders remain locked until live account validation and always-on worker verification are complete."        },
-        {
-            "id": "ctrader", "name": "cTrader", "category": "forex_trading_platform",
-            "status": "demo_auto_and_manual_execution_implemented_live_auto_gated_unverified", "connection_verified": False,
-            "supported_scope": [
-                "oauth_authorization", "demo_account_discovery", "demo_balance_sync",
-                "demo_position_sync", "demo_market_orders", "demo_modify_stop_loss_take_profit",
-                "demo_close_positions", "demo_trade_history", "demo_auto_strategy",
-                "live_account_discovery", "live_balance_and_positions",
-                "live_manual_orders_gated", "live_modify_stop_loss_take_profit_gated",
-                "live_close_positions_gated", "live_auto_strategy_gated", "per_account_live_consent",
-                "server_side_daily_loss_limit", "emergency_stop",
-            ],
-            "execution_enabled": False, "demo_execution_enabled": True,
-            "real_execution_enabled": False,
-            "note": "Demo manual and automated strategy execution are implemented and await a customer-account test. Live account sync, manual orders and automated strategy execution are behind separate platform and per-account consent gates; no live orders have been broker-verified.",
-        },
-        {
             "id": "ic_markets", "name": "IC Markets", "category": "forex_broker",
             "status": "ctrader_demo_and_gated_live_adapter_unverified", "connection_verified": False,
             "supported_scope": [
