@@ -1383,7 +1383,10 @@ async def dashboard_head():
 
 @app.get("/")
 async def dashboard():
-    return FileResponse(ROOT / "static" / "index.html")
+    return FileResponse(
+        ROOT / "static" / "index.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"},
+    )
 
 
 
