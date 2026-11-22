@@ -21,7 +21,7 @@ COPY README.md .
 # Run the complete pytest suite and the dedicated unittest safety suite.
 RUN python -m compileall -q app tests \
     && python -m pytest -q tests \
-    && python -m unittest discover -s tests -p 'test_deriv_trading.py' -v
+    && python -m unittest discover -s tests -p 'test_ctrader_auto.py' -v
 
 RUN useradd --create-home --uid 10001 quantum \
     && mkdir -p /var/data \
