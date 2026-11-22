@@ -27,8 +27,6 @@ services:
         sync: false
       - key: QUANTUM_CREDENTIALS_ENCRYPTION_KEY
         sync: false
-      - key: QUANTUM_MEXC_LIVE_TRADING_ENABLED
-        sync: false
       - key: QUANTUM_ADMIN_API_KEY
         generateValue: true
         sync: false
