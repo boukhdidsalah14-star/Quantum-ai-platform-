@@ -35,7 +35,7 @@ def _category(symbol: str) -> str:
 def _price_line(row: dict) -> str:
     change = row.get("change_percent")
     change_text = f" ({float(change):+.2f}%)" if change is not None else ""
-    return f"{row['symbol']}: ${float(row['price']):,.5f}{change_text}"
+    return f"{row['symbol']}: ${float(row['price']):,.4f}{change_text}"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
