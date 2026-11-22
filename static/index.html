@@ -107,7 +107,7 @@
 <main>
  <section class="page active" id="page-home" data-page="home">
   <div class="hero-card">
-   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Ten Forex chart markets, eight selected binary-analysis pairs and a ten-asset crypto futures watchlist. Broker execution is handled separately.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ MULTI-PLATFORM</span><span>⌁ RISK CONTROLS</span></div></div>
+   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Forex markets, IQ Option analysis and an independent ten-coin crypto market watchlist.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ TWO CONNECTIONS</span><span>⌁ RISK CONTROLS</span></div></div>
    <div class="hero-orbit"><div class="orbit-ring"></div><div class="hero-logo">Q<span>↗</span></div><div class="orbit-dot"></div></div>
   </div>
   <div class="balance-grid">
@@ -128,7 +128,7 @@
   <section class="panel forex-watch-panel">
    <div class="section-title"><div><span class="eyebrow">MARKET SCANNER</span><h2>Crypto and Forex watch list</h2></div><span class="live-badge">FOREX + CTRADER</span></div>
    <div class="watchlist-group"><div class="watchlist-subtitle">FOREX MARKETS</div><div id="forex-watchlist" class="forex-watchlist" aria-label="Select a Forex market"><p class="muted">Loading market quotes…</p></div></div>
-   <div class="watchlist-group crypto-watch-group"><div class="watchlist-subtitle">IC MARKETS CTRADER CRYPTO</div><div id="ctrader-crypto-watchlist" class="forex-watchlist" aria-label="Broker-listed crypto instruments"><p class="muted">Connect your IC Markets cTrader account to load its available crypto instruments.</p></div></div>
+   <div class="watchlist-group crypto-watch-group"><div class="watchlist-subtitle">IC MARKETS CTRADER CRYPTO INSTRUMENTS</div><div id="ctrader-crypto-watchlist" class="forex-watchlist" aria-label="Broker-listed crypto instruments"><p class="muted">Connect your IC Markets cTrader account to load its available crypto instruments.</p></div></div>
   </section>
   <section class="quick-grid">
    <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>Binary Options Signals</b><small>CALL / PUT for Binary Options</small></button>
@@ -255,7 +255,7 @@
     </section>
    </div>
    <section class="risk-control-panel" id="ctrader-auto-panel" hidden>
-    <h3>FOREX + CRYPTO AUTO TRADING ENGINE</h3>
+    <h3>CTRADER AUTO TRADING ENGINE</h3>
     <p class="risk-note">Scans enabled Forex and crypto instruments from your connected IC Markets cTrader account. Uses completed candles, high-confidence signal filters and ATR-based stop-loss/take-profit. Instrument-specific lot size and broker volume limits are checked before every cTrader order.</p>
     <div class="form-grid">
      <label>ACCOUNT MODE<select id="ctrader-auto-environment"><option value="demo">DEMO ACCOUNT</option><option value="live">LIVE ACCOUNT</option></select></label>
@@ -270,46 +270,14 @@
    </section>
    <p id="ctrader-note" class="risk-note">Connect your own IC Markets cTrader demo account through the secure authorization flow. Demo order features are available only after your account and permissions are verified. Live Forex trading is not verified or offered in this release.</p>
   </section>
-  <div class="provider-card">
-   <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Crypto Futures Analysis</h2><p>Live public market data, technical analysis, signals and customer-isolated paper trading. No MEXC API key or live order permission is required.</p><div class="provider-tags"><span>Public market data</span><span>Auto Trading</span><span>No live orders</span></div></div><span class="provider-state pending">PAPER ONLY</span>
-   <button class="provider-action" data-provider="mexc">VIEW PAPER TRADING SCOPE <b>→</b></button>
-  </div>
   <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
-   <div class="section-title"><div><span class="eyebrow">MEXC USD-M · PUBLIC PERPETUAL FUTURES DATA</span><h2>Crypto Futures Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
-   <div class="chart-toolbar"><label for="crypto-symbol">ASSET</label><select id="crypto-symbol"></select><label for="crypto-timeframe">TIMEFRAME</label><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select><button id="crypto-analyze" class="solid-btn">ANALYZE</button></div>
+   <div class="section-title"><div><span class="eyebrow">INDEPENDENT PUBLIC CRYPTO DATA</span><h2>Crypto Market Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
+   <div class="chart-toolbar"><label for="crypto-symbol">COIN</label><select id="crypto-symbol"></select><label for="crypto-timeframe">TIMEFRAME</label><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select><button id="crypto-analyze" class="solid-btn">ANALYZE</button></div>
    <div id="crypto-market-list" class="pair-list"></div>
-   <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto futures candlestick chart"></canvas></div>
-   <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a futures asset and timeframe.</small></div>
+   <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto candlestick chart"></canvas></div>
+   <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a coin and timeframe.</small></div>
    <div id="crypto-signal-details" class="signal-details" hidden></div>
-    <p class="risk-note">MEXC FUTURES · PAPER TRADING ONLY. Prices and candles come from public MEXC market data. All entries use a separate simulated ledger; no broker orders are sent.</p>
-    <div class="provider-card mexc-live-connection" hidden>
-     <div class="provider-icon mexc-icon">M</div><div class="provider-copy"><span class="eyebrow">MEXC · USD-M PERPETUAL FUTURES</span><h2>Connect Futures Account</h2><p>Connect your own MEXC API key with Futures account-read and order permissions. Keys are encrypted server-side and never shown again.</p></div>
-     <div class="chart-toolbar"><input id="mexc-api-key" type="text" maxlength="256" autocomplete="off" placeholder="MEXC API key"><input id="mexc-api-secret" type="password" maxlength="512" autocomplete="new-password" placeholder="MEXC API secret"><button id="mexc-connect" class="solid-btn">VERIFY & SAVE</button></div>
-     <div id="mexc-connection-status" class="signal-details">Not connected</div>
-     <div class="risk-control-panel" id="mexc-live-authorization">
-      <b>LIVE FUTURES PERMISSION</b>
-      <p>Separate customer approval is required before any live automated order can be considered. Default daily loss limit is 2%; you may set a limit up to 10%.</p>
-      <label>MAX DAILY LOSS (%)<input id="mexc-live-loss-limit" type="number" min="1" max="10" step="0.5" value="2"></label>
-      <label class="consent-row"><input id="mexc-live-risk-ack" type="checkbox"> I explicitly authorize QUANTUM AI to trade my MEXC USD-M Futures account automatically. I understand leverage, liquidation, slippage and losses can occur. My API key has withdrawals disabled and I am responsible for monitoring my account.</label>
-      <button id="mexc-live-authorize" class="solid-btn wide-btn" type="button">SAVE LIVE TRADING PERMISSION</button>
-      <button id="mexc-live-emergency-stop" class="outline-btn wide-btn" type="button">REVOKE PERMISSION · EMERGENCY STOP</button>
-      <div id="mexc-live-permission-status" class="signal-details">Live trading permission not granted.</div>
-     </div>
-    </div>
-    <div class="chart-toolbar crypto-paper-controls">
-     <label for="crypto-paper-balance">PAPER BALANCE (USDT)</label><input id="crypto-paper-balance" type="number" min="1" max="1000000" step="1" value="1000">
-     <label for="crypto-paper-risk">RISK %</label><input id="crypto-paper-risk" type="number" min="0.1" max="1" step="0.1" value="0.5">
-     <label for="crypto-paper-leverage">LEVERAGE</label><select id="crypto-paper-leverage"><option value="1" selected>1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option><option value="6">6×</option><option value="7">7×</option><option value="8">8×</option><option value="9">9×</option><option value="10">10×</option><option value="11">11×</option><option value="12">12×</option><option value="13">13×</option><option value="14">14×</option><option value="15">15×</option><option value="16">16×</option><option value="17">17×</option><option value="18">18×</option><option value="19">19×</option><option value="20">20×</option></select>
-     <button id="crypto-paper-entry" class="solid-btn">AUTO PAPER ENTRY</button>
-    </div>
-    <div id="crypto-paper-result" class="signal-details" hidden></div>
-    <div class="chart-toolbar" hidden>
-     <button id="mexc-auto-start" class="solid-btn" disabled>START LIVE AUTO TRADING</button>
-     <button id="mexc-auto-stop" class="outline-btn">STOP AUTO TRADING</button>
-    </div>
-    <div id="mexc-auto-status" class="signal-details" hidden>Live auto trading is disabled.</div>
-    <div id="mexc-live-positions" class="signal-details" hidden></div>
-    <p class="risk-note">Paper positions are simulated using public futures quotes. Stop-loss, take-profit, leverage and risk settings apply only to the paper ledger and do not protect a real broker account.</p>
+   <p class="risk-note">Crypto prices, market overview and candles are read-only public market data. QUANTUM AI does not connect to a crypto exchange or send crypto orders.</p>
   </section>
   <div class="provider-card">
    <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
@@ -320,10 +288,9 @@
 
 
  <section class="page" id="page-platforms" data-page="platforms">
-  <div class="page-heading"><span class="eyebrow">QUANTUM AI ECOSYSTEM</span><h1>Trading <i>Platforms</i></h1><p>Only the four platforms used in our current QUANTUM AI setup.</p></div>
+  <div class="page-heading"><span class="eyebrow">QUANTUM AI ECOSYSTEM</span><h1>Trading <i>Platforms</i></h1><p>Only the supported connections used in QUANTUM AI.</p></div>
   <div class="platform-grid">
    <article class="platform-card"><div class="platform-mark iq"><img src="https://www.google.com/s2/favicons?domain=iqoption.com&sz=128" alt="IQ Option logo"></div><div class="platform-copy"><h3>IQ Option</h3><p>Binary options platform. Open the official provider website.</p></div><a class="platform-link" href="https://iqoption.com/" target="_blank" rel="noopener noreferrer">VISIT IQ OPTION <span>↗</span></a></article>
-   <article class="platform-card"><div class="platform-mark mexc"><img src="https://www.google.com/s2/favicons?domain=mexc.com&sz=128" alt="MEXC logo"></div><div class="platform-copy"><h3>MEXC</h3><p>Crypto exchange used for QUANTUM AI futures-market integration.</p></div><a class="platform-link" href="https://www.mexc.com/register" target="_blank" rel="noopener noreferrer">OPEN MEXC <span>↗</span></a></article>
    <article class="platform-card"><div class="platform-mark"><img src="https://www.google.com/s2/favicons?domain=icmarkets.com&sz=128" alt="IC Markets logo"></div><div class="platform-copy"><h3>IC Markets</h3><p>Forex broker for the cTrader account connection.</p></div><a class="platform-link" href="https://www.icmarkets.com/global/en/" target="_blank" rel="noopener noreferrer">VISIT IC MARKETS <span>↗</span></a></article>
    <article class="platform-card"><div class="platform-mark"><img src="https://www.google.com/s2/favicons?domain=ctrader.com&sz=128" alt="cTrader logo"></div><div class="platform-copy"><h3>cTrader</h3><p>Trading platform used to authorize and connect your IC Markets account.</p></div><a class="platform-link" href="https://www.ctrader.com/" target="_blank" rel="noopener noreferrer">VISIT CTRADER <span>↗</span></a></article>
   </div>
