@@ -16,7 +16,7 @@ def test_binary_universe_contains_eight_selected_pairs():
 
 def test_crypto_asset_universe_excludes_stablecoin_base_assets():
     assert len(CRYPTO_ASSETS) == 10
-    assert set(CRYPTO_FUTURES) == ALLOWED_SYMBOLS
+    assert set(CRYPTO_ASSETS) == ALLOWED_SYMBOLS
     assert all(symbol.endswith("USDT") for symbol in CRYPTO_FUTURES)
     assert not any(symbol in {"USDTUSDT", "USDCUSDT", "BUSDUSDT", "DAIUSDT"} for symbol in CRYPTO_FUTURES)
 
