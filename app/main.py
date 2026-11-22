@@ -1068,8 +1068,6 @@ async def health(request: Request):
         "ctrader_account_execution_enabled": False,
         "ctrader_demo_execution_available": True,
         "ctrader_live_execution_enabled": False,
-        "mexc_futures_execution_enabled": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
-        "mexc_auto_trader_monitor_running": MEXC_FUTURES_LIVE_EXECUTION_ENABLED,
         "order_execution": False,
         "trading_enabled": False,
     }
@@ -1387,17 +1385,6 @@ async def dashboard_head():
 async def dashboard():
     return FileResponse(ROOT / "static" / "index.html")
 
-
-class VirtualPositionRequest(BaseModel):
-    symbol: str = Field(min_length=2, max_length=30)
-    side: str
-    stake: float = Field(gt=0, le=1000000000)
-    entry_price: float = Field(gt=0)
-    expiry_minutes: int = Field(default=5, ge=1, le=60)
-
-
-class VirtualSettlementRequest(BaseModel):
-    exit_price: float = Field(gt=0)
 
 
 @app.get("/api/connections/ctrader/auto")
