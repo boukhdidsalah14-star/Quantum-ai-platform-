@@ -1279,7 +1279,7 @@ async def crypto_backtest(
         candle_data = await get_candles(symbol, timeframe, 200)
         result = backtest_candles(candle_data, timeframe, lookahead_candles)
         result.update({"symbol": symbol.upper(), "category": "crypto",
-                       "source": source.upper() + " historical candles",
+                       "source": "CoinGecko public historical candles",
                        "execution_enabled": False})
         return result
     except ValueError as exc:
