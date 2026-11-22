@@ -279,13 +279,12 @@ $("get-signal").addEventListener("click",()=>generateSignal(selectedBinary,$("si
 $("floating-signal").addEventListener("click",()=>generateSignal(binaryPairs.find(p=>p.symbol===$("floating-pair").value)||binaryPairs[0],$("floating-result"),{set hidden(v){},set innerHTML(v){}}));$("floating-open").addEventListener("click",()=>$("floating-window").hidden=false);$("floating-close").addEventListener("click",()=>$("floating-window").hidden=true);
 let drag=null;$("floating-head").addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,left:$("floating-window").offsetLeft,top:$("floating-window").offsetTop};$("floating-head").setPointerCapture(e.pointerId)});$("floating-head").addEventListener("pointermove",e=>{if(!drag)return;let el=$("floating-window");el.style.left=Math.max(4,drag.left+e.clientX-drag.x)+"px";el.style.top=Math.max(75,drag.top+e.clientY-drag.y)+"px";el.style.right="auto";el.style.bottom="auto"});$("floating-head").addEventListener("pointerup",()=>drag=null);
 const providerInfo={
- mexc:["Independent crypto market data","QUANTUM AI uses public MEXC USD-M perpetual futures prices and candles for market analysis, signals and simulated paper trades. No MEXC API key is needed and no live broker order is sent."],
  iq:["IQ Option · signals only","QUANTUM AI provides CALL / PUT / WAIT analysis for selected Forex pairs. IQ Option account authorization and broker order execution are not connected or enabled."]
 };
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
 document.querySelectorAll("[data-provider]").forEach(b=>b.addEventListener("click",()=>openProvider(b.dataset.provider)));$("modal-close").addEventListener("click",()=>$("provider-modal").hidden=true);$("modal-ok").addEventListener("click",()=>$("provider-modal").hidden=true);$("provider-modal").addEventListener("click",e=>{if(e.target===$("provider-modal"))$("provider-modal").hidden=true});
 $("signal-timeframe").addEventListener("change",()=>{let v=$("signal-timeframe").value;if(["1","5","15","30","60"].includes(v))$("signal-expiry").value=v});
-loadMarkets().then(()=>{setSelected(selected);refreshAuth().then(()=>{refreshMexcAuto()})});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(refreshMexcAuto,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
+loadMarkets().then(()=>{setSelected(selected);refreshAuth()});loadCryptoMarkets();loadCryptoChart();setInterval(loadMarkets,30000);setInterval(loadCryptoMarkets,30000);setInterval(loadCryptoChart,30000);setInterval(()=>{if($("page-home").classList.contains("active"))loadChart()},60000);
 if(window.Telegram?.WebApp){window.Telegram.WebApp.ready();window.Telegram.WebApp.expand()}
 
 const swipePages=["home","signals","automation","referrals","account"];
