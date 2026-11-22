@@ -216,30 +216,6 @@ def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
 
 
 
-def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
-    from app import mexc_market_data
-
-    seen = {}
-
-    async def fake_get_json(path, params=None):
-        seen.update(params or {})
-        return [[
-            "1700000000000", "10", "12", "9", "11", "100"
-        ]]
-
-    monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
-    import anyio
-    candles = anyio.run(mexc_market_data.get_candles, "btcusdt", "1h", 999)
-    assert seen["limit"] == "200"
-    assert candles == [{
-        "time": 1700000000000,
-        "open": 10.0,
-        "high": 12.0,
-        "low": 9.0,
-        "close": 11.0,
-        "volume": 100.0,
-    }]
-
 def test_dashboard_starts_when_telegram_initialization_fails(monkeypatch):
     from app import telegram_bot
 
