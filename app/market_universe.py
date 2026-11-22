@@ -24,7 +24,7 @@ BINARY_PAIRS = [
     {"symbol": "frxGBPJPY", "label": "GBP/JPY"},
 ]
 
-CRYPTO_FUTURES = [
+CRYPTO_ASSETS = [
     "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT",
     "TRXUSDT", "DOGEUSDT", "ADAUSDT", "BCHUSDT", "LINKUSDT",
 ]
