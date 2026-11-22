@@ -107,7 +107,7 @@
 <main id="main">
  <section class="page active" id="page-home" data-page="home">
   <div class="hero-card">
-   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Forex markets, IQ Option analysis and an independent ten-coin crypto market watchlist.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ TWO CONNECTIONS</span><span>⌁ RISK CONTROLS</span></div><button class="outline-btn" type="button" data-goto="crypto" style="margin-top:14px">OPEN CRYPTO MARKETS →</button></div>
+   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Forex markets, crypto assets and intelligent market analysis.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ TWO CONNECTIONS</span><span>⌁ RISK CONTROLS</span></div></div>
    <div class="hero-orbit"><div class="orbit-ring"></div><div class="hero-logo">Q<span>↗</span></div><div class="orbit-dot"></div></div>
   </div>
   <div class="balance-grid">
@@ -126,9 +126,9 @@
    </div>
   </section>
   <section class="panel forex-watch-panel">
-   <div class="section-title"><div><span class="eyebrow">MARKET SCANNER</span><h2>Crypto and Forex watch list</h2></div><span class="live-badge">FOREX + CTRADER</span></div>
+   <div class="section-title"><div><span class="eyebrow">MARKET SCANNER</span><h2>Crypto and Forex watch list</h2></div><span class="live-badge">FOREX + CRYPTO</span></div>
    <div class="watchlist-group"><div class="watchlist-subtitle">FOREX MARKETS</div><div id="forex-watchlist" class="forex-watchlist" aria-label="Select a Forex market"><p class="muted">Loading market quotes…</p></div></div>
-   <div class="watchlist-group crypto-watch-group"><div class="watchlist-subtitle">IC MARKETS CTRADER CRYPTO INSTRUMENTS</div><div id="ctrader-crypto-watchlist" class="forex-watchlist" aria-label="Broker-listed crypto instruments"><p class="muted">Connect your IC Markets cTrader account to load its available crypto instruments.</p></div></div>
+   <div class="watchlist-group crypto-watch-group"><div class="watchlist-subtitle">CRYPTO MARKETS · USD PAIRS</div><div id="crypto-market-list" class="forex-watchlist" aria-label="Select a crypto market"><p class="muted">Loading crypto market quotes…</p></div></div><div class="watchlist-group"><div class="watchlist-subtitle">IC MARKETS · CTRADER CRYPTO INSTRUMENTS</div><div id="ctrader-crypto-watchlist" class="forex-watchlist" aria-label="Broker-listed crypto instruments"><p class="muted">Connect your IC Markets cTrader account to load its available crypto instruments.</p></div></div>
   </section>
   <section class="quick-grid">
    <button class="quick-card" data-goto="signals"><span class="quick-icon cyan">ϟ</span><b>Binary Options Signals</b><small>CALL / PUT for Binary Options</small></button>
@@ -279,18 +279,11 @@
  </section>
 
 
- <section class="page" id="page-crypto" data-page="crypto">
-  <div class="page-heading"><span class="eyebrow">QUANTUM AI · DIGITAL ASSETS</span><h1>Crypto <i>Markets</i></h1><p>Independent coin prices, live-updating candlestick charts and technical signal analysis.</p></div>
-  <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
-   <div class="section-title"><div><span class="eyebrow">INDEPENDENT PUBLIC CRYPTO DATA</span><h2>Crypto Market Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
-   <div class="chart-toolbar"><label for="crypto-symbol">COIN</label><select id="crypto-symbol"></select><label for="crypto-timeframe">TIMEFRAME</label><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select><button id="crypto-analyze" class="solid-btn">ANALYZE</button></div>
-   <div id="crypto-market-list" class="pair-list"></div>
-   <div class="chart-box"><canvas id="crypto-price-chart" aria-label="Crypto candlestick chart"></canvas></div>
-   <div id="crypto-signal-result" class="signal-result idle"><div class="signal-arrow">⌁</div><b>READY TO ANALYSE</b><small>Select a coin and timeframe.</small></div>
-   <div id="crypto-signal-details" class="signal-details" hidden></div>
-   <p class="risk-note">Crypto prices, market overview and candles are read-only public market data. QUANTUM AI does not connect to a crypto exchange or send crypto orders.</p>
-  </section>
- </section>
+ <div hidden aria-hidden="true">
+  <select id="crypto-symbol"></select><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select>
+  <button id="crypto-analyze" type="button">ANALYZE</button><div id="crypto-signal-result"></div><div id="crypto-signal-details"></div>
+  <div class="chart-box"><canvas id="crypto-price-chart"></canvas></div>
+ </div>
  <section class="page" id="page-platforms" data-page="platforms">
   <div class="page-heading"><span class="eyebrow">QUANTUM AI ECOSYSTEM</span><h1>Trading <i>Platforms</i></h1><p>Only the supported connections used in QUANTUM AI.</p></div>
   <div class="platform-grid">
