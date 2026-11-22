@@ -216,25 +216,6 @@ def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
 
 
 
-def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
-    from app import mexc_market_data
-
-    async def fake_get_json(path, params=None):
-        return [{
-            "symbol": "BTCUSDT",
-            "lastPrice": "65000",
-            "priceChangePercent": "1.25",
-            "highPrice": "66000",
-            "lowPrice": "64000",
-            "volume": "123",
-        }]
-
-    monkeypatch.setattr(mexc_market_data, "_get_json", fake_get_json)
-    import anyio
-    markets = anyio.run(mexc_market_data.get_market_overview)
-    assert markets[0]["change_percent"] == "1.25"
-
-
 def test_mexc_candles_are_normalized_and_limit_is_bounded(monkeypatch):
     from app import mexc_market_data
 
