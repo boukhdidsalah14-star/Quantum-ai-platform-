@@ -26,7 +26,7 @@
  function syncSideAd(){
   var active=document.querySelector(".page.active");
   var page=active&&active.getAttribute("data-page");
-  document.body.classList.toggle("ad-show-right",["signals","automation","platforms"].indexOf(page)>=0);
+  document.body.classList.toggle("ad-show-right",["signals","automation","platforms","crypto"].indexOf(page)>=0);
  }
  document.addEventListener("click",function(event){
   if(event.target.closest("[data-nav],[data-goto]")) setTimeout(syncSideAd,0);
@@ -107,7 +107,7 @@
 <main>
  <section class="page active" id="page-home" data-page="home">
   <div class="hero-card">
-   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Forex markets, IQ Option analysis and an independent ten-coin crypto market watchlist.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ TWO CONNECTIONS</span><span>⌁ RISK CONTROLS</span></div></div>
+   <div class="hero-copy"><span class="eyebrow">QUANTUM AI SIGNAL TERMINAL</span><h1>Trade smarter.<br><i>Grow bigger.</i></h1><p>Forex markets, IQ Option analysis and an independent ten-coin crypto market watchlist.</p><div class="hero-pills"><span>✦ LIVE DATA</span><span>◈ TWO CONNECTIONS</span><span>⌁ RISK CONTROLS</span></div><button class="outline-btn" type="button" data-goto="crypto" style="margin-top:14px">OPEN CRYPTO MARKETS →</button></div>
    <div class="hero-orbit"><div class="orbit-ring"></div><div class="hero-logo">Q<span>↗</span></div><div class="orbit-dot"></div></div>
   </div>
   <div class="balance-grid">
@@ -270,6 +270,17 @@
    </section>
    <p id="ctrader-note" class="risk-note">Connect your own IC Markets cTrader demo account through the secure authorization flow. Demo order features are available only after your account and permissions are verified. Live Forex trading is not verified or offered in this release.</p>
   </section>
+
+  <div class="provider-card">
+   <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
+   <button class="provider-action" data-provider="iq">VIEW BINARY OPTIONS SIGNAL STATUS <b>→</b></button>
+  </div>
+  <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Equity drawdown guard</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">This crypto panel is read-only. cTrader order controls remain in the cTrader connection panel and use separate account permissions and risk safeguards.</p></div>
+ </section>
+
+
+ <section class="page" id="page-crypto" data-page="crypto">
+  <div class="page-heading"><span class="eyebrow">QUANTUM AI · DIGITAL ASSETS</span><h1>Crypto <i>Markets</i></h1><p>Independent coin prices, live-updating candlestick charts and technical signal analysis.</p></div>
   <section class="panel crypto-analysis-panel" id="crypto-analysis-panel">
    <div class="section-title"><div><span class="eyebrow">INDEPENDENT PUBLIC CRYPTO DATA</span><h2>Crypto Market Analysis</h2></div><span class="live-badge">10 ASSETS</span></div>
    <div class="chart-toolbar"><label for="crypto-symbol">COIN</label><select id="crypto-symbol"></select><label for="crypto-timeframe">TIMEFRAME</label><select id="crypto-timeframe"><option>1h</option><option>4h</option><option>1d</option></select><button id="crypto-analyze" class="solid-btn">ANALYZE</button></div>
@@ -279,14 +290,7 @@
    <div id="crypto-signal-details" class="signal-details" hidden></div>
    <p class="risk-note">Crypto prices, market overview and candles are read-only public market data. QUANTUM AI does not connect to a crypto exchange or send crypto orders.</p>
   </section>
-  <div class="provider-card">
-   <div class="provider-icon iq-icon">IQ</div><div class="provider-copy"><span class="eyebrow">IQ OPTION · SIGNALS ONLY</span><h2>IQ Option</h2><p>CALL / PUT / WAIT market analysis for selected Forex pairs. Signals are indicators only; IQ Option account connection and order execution are not enabled.</p><div class="provider-tags"><span>8 Forex pairs</span><span>CALL / PUT / WAIT</span><span>Floating signal window</span></div></div><span class="provider-state pending">SIGNALS ONLY</span>
-   <button class="provider-action" data-provider="iq">VIEW BINARY OPTIONS SIGNAL STATUS <b>→</b></button>
-  </div>
-  <div class="panel safety-panel"><div class="section-title"><h2>Risk controls</h2><span class="live-badge">REQUIRED</span></div><div class="risk-row"><span>Equity drawdown guard</span><strong>10% default</strong></div><div class="risk-row"><span>Trade amount</span><strong>User configurable</strong></div><div class="risk-row"><span>Emergency stop</span><strong class="green-text">Always available</strong></div><p class="risk-note">This crypto panel is read-only. cTrader order controls remain in the cTrader connection panel and use separate account permissions and risk safeguards.</p></div>
  </section>
-
-
  <section class="page" id="page-platforms" data-page="platforms">
   <div class="page-heading"><span class="eyebrow">QUANTUM AI ECOSYSTEM</span><h1>Trading <i>Platforms</i></h1><p>Only the supported connections used in QUANTUM AI.</p></div>
   <div class="platform-grid">
