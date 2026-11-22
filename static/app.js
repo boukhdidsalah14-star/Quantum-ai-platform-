@@ -33,7 +33,7 @@ document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",(
 $("top-signin").addEventListener("click",()=>nav("account"));$("top-account").addEventListener("click",()=>nav("account"));
 function setSelected(p){selected=p;$("home-pair").value=p.symbol;$("chart-title").textContent=p.label;if(binaryPairs.some(x=>x.symbol===p.symbol)){selectedBinary=p;$("signal-pair-title").textContent=p.label;renderPairList()}renderForexWatchlist();loadChart()}
 function renderPairList(){ $("pair-list").innerHTML=binaryPairs.map(p=>'<button class="pair-item '+(p.symbol===selectedBinary.symbol?'active':'')+'" data-pair="'+p.symbol+'"><span class="flag">'+p.flag+'</span><span><b>'+p.label+'</b><small>Binary Options · Forex</small></span><span class="pair-price">'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"—")+'</span></button>').join("");document.querySelectorAll("[data-pair]").forEach(b=>b.addEventListener("click",()=>{selectedBinary=binaryPairs.find(p=>p.symbol===b.dataset.pair);setSelected(pairs.find(p=>p.symbol===b.dataset.pair));$("signal-pair-title").textContent=selectedBinary.label;renderPairList()}))}
-function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>USD-M FUTURES FEED</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
+function renderTicker(){let items=pairs.map(p=>'<span>'+p.flag+' '+p.label+' <b>'+(marketMap[p.symbol]?.price?money(marketMap[p.symbol].price):"LIVE")+'</b></span>');items.push('<span>₿ BTC / USDT <b>PUBLIC CRYPTO DATA</b></span>');$("ticker").innerHTML=items.concat(items).join("");}
 function renderForexWatchlist(){
  const root=$("forex-watchlist");if(!root)return;
  root.innerHTML=pairs.map(p=>{
@@ -65,20 +65,20 @@ $("crypto-symbol").innerHTML=cryptoAssets.map(s=>'<option value="'+s+'">'+s.repl
 async function loadCryptoMarkets(){
  try{
   const response=await fetch("/api/markets");
-  if(!response.ok)throw Error("Futures market feed unavailable");
+  if(!response.ok)throw Error("Public crypto market feed unavailable");
   const data=await response.json();
   const rows=new Map((data.markets||[]).map(item=>[item.symbol,item]));
   $("crypto-market-list").innerHTML=cryptoAssets.map(symbol=>{
    const item=rows.get(symbol);
    const price=item?money(Number(item.price)):"—";
    const change=item?Number(item.change_percent):0;
-   return '<button class="pair-item" data-crypto-symbol="'+symbol+'"><span class="flag">₿</span><span><b>'+symbol.replace("USDT","")+'</b><small>USD-M perpetual · '+(item?((change>=0?"+":"")+change.toFixed(2)+"%"):"feed unavailable")+'</small></span><span class="pair-price">'+price+'</span></button>';
+   return '<button class="pair-item" data-crypto-symbol="'+symbol+'"><span class="flag">₿</span><span><b>'+symbol.replace("USDT","")+'</b><small>Public market · '+(item?((change>=0?"+":"")+change.toFixed(2)+"%"):"feed unavailable")+'</small></span><span class="pair-price">'+price+'</span></button>';
   }).join("");
   document.querySelectorAll("[data-crypto-symbol]").forEach(button=>button.addEventListener("click",()=>{
    $("crypto-symbol").value=button.dataset.cryptoSymbol;
   }));
  }catch(error){
-  $("crypto-market-list").innerHTML="<p class='muted'>Crypto futures feed temporarily unavailable.</p>";
+  $("crypto-market-list").innerHTML="<p class='muted'>Public crypto market data temporarily unavailable.</p>";
  }
 }
 let cryptoCandles=[];
@@ -89,7 +89,7 @@ function drawCryptoChart(){
  const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,width,height);
  ctx.strokeStyle="#0b3153";ctx.lineWidth=1;
  for(let i=1;i<5;i++){const y=height*i/5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}
- if(!cryptoCandles.length){ctx.fillStyle="#7998b7";ctx.font="12px Inter";ctx.fillText("Waiting for futures candles…",16,height/2);return;}
+ if(!cryptoCandles.length){ctx.fillStyle="#7998b7";ctx.font="12px Inter";ctx.fillText("Waiting for crypto candles…",16,height/2);return;}
  const low=Math.min(...cryptoCandles.map(c=>Number(c.low))),high=Math.max(...cryptoCandles.map(c=>Number(c.high))),span=high-low||1;
  const step=width/cryptoCandles.length,body=Math.max(2,step*.52);
  cryptoCandles.forEach((c,i)=>{
@@ -104,7 +104,7 @@ async function loadCryptoChart(){
  try{
   const symbol=$("crypto-symbol").value,interval=$("crypto-timeframe").value;
   const response=await fetch("/api/candles/"+encodeURIComponent(symbol)+"?interval="+encodeURIComponent(interval)+"&limit=100");
-  if(!response.ok)throw Error("Futures candles unavailable");
+  if(!response.ok)throw Error("Crypto candles unavailable");
   const data=await response.json();cryptoCandles=data.candles||[];drawCryptoChart();
  }catch(error){cryptoCandles=[];drawCryptoChart();}
 }
@@ -118,7 +118,7 @@ async function runCryptoAnalysis(){
  const result=$("crypto-signal-result");
  const detail=$("crypto-signal-details");
  result.className="signal-result idle";
- result.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING "+safe(symbol)+"…</b><small>Fetching completed MEXC USD-M futures candles</small>";
+ result.innerHTML="<div class='signal-arrow'>⌁</div><b>ANALYSING "+safe(symbol)+"…</b><small>Fetching completed public crypto candles</small>";
  try{
   const response=await fetch("/api/signals/crypto/"+encodeURIComponent(symbol)+"?timeframe="+encodeURIComponent(timeframe));
   const data=await response.json();
@@ -127,131 +127,13 @@ async function runCryptoAnalysis(){
   result.className="signal-result "+(direction==="LONG"?"call":direction==="SHORT"?"put":"idle");
   result.innerHTML="<div class='signal-arrow'>"+(direction==="LONG"?"↗":direction==="SHORT"?"↘":"Ⅱ")+"</div><b>"+direction+"</b><small>"+safe(symbol)+" · "+safe(timeframe)+" · "+safe(data.signal_strength)+" confidence</small>";
   detail.hidden=false;
-  detail.innerHTML="<b>MEXC USD-M · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";await loadSignalHistory();
+  detail.innerHTML="<b>CRYPTO MARKET · ANALYSIS DETAILS</b><br>Trend: "+safe(data.trend)+" · RSI(14): "+safe(data.rsi_14)+" · ADX(14): "+safe(data.adx_14)+" · ATR(14): "+safe(data.atr_14)+"<br>EMA 9/21/50: "+safe(data.ema_9)+" / "+safe(data.ema_21)+" / "+safe(data.ema_50)+"<br>MACD: "+safe(data.macd)+" · Signal: "+safe(data.macd_signal)+"<br>Bollinger upper/mid/lower: "+safe(data.bollinger_upper)+" / "+safe(data.bollinger_middle)+" / "+safe(data.bollinger_lower)+"<br>Volume ratio: "+safe(data.volume_ratio_20??"unavailable")+"<br>"+(data.reasons||[]).map(safe).join(" · ")+"<br><small>Research signal only. It does not place a futures order or guarantee a profitable result.</small>";await loadSignalHistory();
  }catch(error){
   result.className="signal-result idle";
   result.innerHTML="<b>NO SIGNAL</b><small>"+safe(error.message)+"</small>";
  }
 }
 $("crypto-analyze").addEventListener("click",runCryptoAnalysis);
-async function runCryptoPaperEntry(){
- if(!signed||!member){nav("account");toast("Sign in and activate membership to use paper auto-entry");return;}
- const button=$("crypto-paper-entry"),output=$("crypto-paper-result");
- const balance=Number($("crypto-paper-balance").value),risk=Number($("crypto-paper-risk").value),leverage=Number($("crypto-paper-leverage").value);
- if(!Number.isFinite(balance)||balance<=0||!Number.isFinite(risk)||risk<=0||risk>1||!Number.isInteger(leverage)||leverage<1||leverage>20){toast("Use a positive balance, risk up to 1%, and leverage from 1x to 20x");return;}
- button.disabled=true;button.textContent="CHECKING SIGNAL…";output.hidden=false;output.textContent="Checking completed MEXC futures candles and risk limits…";
- try{
-  const key=(window.crypto&&window.crypto.randomUUID)?window.crypto.randomUUID():"qai-"+Date.now()+"-"+Math.random().toString(16).slice(2);
-  const response=await fetch("/api/paper/crypto/auto",{method:"POST",headers:{"Content-Type":"application/json","Idempotency-Key":key},body:JSON.stringify({symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,account_balance:balance,risk_percent:risk,leverage})});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.detail||"Paper entry unavailable");
-  if(!data.created){output.textContent="NO PAPER ENTRY · "+(data.reason||"No qualifying high-confidence signal");toast("No entry: signal filter says wait");return;}
-  const trade=data.trade,plan=data.plan;
-  output.innerHTML="<b>PAPER POSITION OPENED · "+safe(plan.side.toUpperCase())+"</b><br>"+safe(trade.symbol)+" · Entry "+money(plan.entry_price)+" · Qty "+Number(plan.quantity).toFixed(6)+"<br>Stop "+money(plan.stop_loss)+" · Target "+money(plan.take_profit)+"<br>Notional "+money(plan.notional_usdt)+" USDT · Margin est. "+money(plan.margin_required_usdt)+" USDT · Risk "+Number(plan.risk_percent).toFixed(2)+"% · "+Number(plan.leverage)+"×<br><small>Simulated only. No MEXC order was sent.</small>";
-  toast("Paper position created");
- }catch(error){output.textContent="PAPER ENTRY FAILED · "+error.message;toast(error.message);}
- finally{button.disabled=false;button.textContent="AUTO PAPER ENTRY";}
-}
-
-$("crypto-paper-entry").addEventListener("click",runCryptoPaperEntry);
-
-let mexcLiveAuthorized=false;
-let mexcServerEnabled=false;
-async function refreshMexcAuto(){
- try{
-  const [connection,strategy,live]=await Promise.all([
-   fetch("/api/connections/mexc"),fetch("/api/mexc/futures/auto"),fetch("/api/mexc/futures/positions")
-  ]);
-  if(connection.ok){const c=await connection.json();$("mexc-connection-status").textContent=c.connected?"MEXC account connected · encrypted credentials stored":"MEXC account not connected";}
-  if(strategy.ok){
-   const d=await strategy.json(),v=d.strategy||{},auth=d.live_authorization||{};
-   mexcLiveAuthorized=!!auth.authorized;mexcServerEnabled=!!d.execution_enabled;
-   const permission=$("mexc-live-permission-status");
-   if(permission)permission.textContent=mexcLiveAuthorized?(mexcServerEnabled?"LIVE PERMISSION ACTIVE · server execution switch enabled":"LIVE PERMISSION SAVED · order execution remains locked pending final platform validation"):"LIVE PERMISSION REQUIRED · "+(auth.reason||"not authorized");
-   const start=$("mexc-auto-start");if(start)start.disabled=!mexcLiveAuthorized||!mexcServerEnabled;
-   const loss=$("mexc-live-loss-limit");if(loss&&auth.max_daily_loss_percent)loss.value=auth.max_daily_loss_percent;
-   $("mexc-auto-status").textContent=v.status==="active"?"AUTO TRADING ACTIVE · "+v.symbol+" · "+v.timeframe+" · "+v.risk_percent+"% risk · "+v.leverage+"×":v.status==="stopped"?"AUTO TRADING STOPPED"+(v.last_error?" · "+v.last_error:""):(mexcLiveAuthorized&&!mexcServerEnabled?"LIVE CONSENT SAVED · SERVER EXECUTION LOCKED":"AUTO TRADING NOT STARTED");
-  }
-  if(live.ok){
-   const d=await live.json(),positions=d.positions||[],orders=d.open_orders||[];
-   const positionHtml=positions.map(p=>'<div class="trade-row"><b>'+safe(p.symbol)+'</b><span>'+(Number(p.positionType)===1?'LONG':'SHORT')+' · '+safe(p.holdVol)+'</span><span>Entry '+money(p.holdAvgPrice)+' · P/L '+money(p.unRealizedPnl)+'</span></div>').join("");
-   const orderHtml=orders.map(o=>'<div class="trade-row"><b>'+safe(o.symbol)+'</b><span>OPEN ORDER · '+safe(o.side)+'</span><span>'+safe(o.vol)+' contracts</span></div>').join("");
-   $("mexc-live-positions").innerHTML=(positionHtml||'<small>No open MEXC Futures positions.</small>')+(orderHtml||"");
-  }else if(live.status===409){$("mexc-live-positions").textContent="Connect MEXC to view live positions.";}
-
- }catch(e){$("mexc-auto-status").textContent="MEXC status unavailable";}
-}
-async function connectMexcAccount(){
- if(!signed){nav("account");toast("Sign in first to connect your MEXC account");return;}
- const apiKey=$("mexc-api-key").value.trim(),apiSecret=$("mexc-api-secret").value;
- if(!apiKey||!apiSecret){toast("Enter both MEXC API credentials");return;}
- const button=$("mexc-connect");button.disabled=true;button.textContent="VERIFYING…";
- try{
-  const r=await fetch("/api/connections/mexc/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({api_key:apiKey,api_secret:apiSecret})});
-  const d=await r.json();if(!r.ok)throw Error(d.detail||"MEXC verification failed");
-  $("mexc-connection-status").textContent=d.credential_saved?"MEXC Futures account verified · credentials encrypted":"Account verified, but secure persistent storage is not ready";
-  $("mexc-api-key").value="";$("mexc-api-secret").value="";toast("MEXC account verified");
- }catch(e){$("mexc-connection-status").textContent="CONNECTION FAILED · "+e.message;toast(e.message);}
- finally{button.disabled=false;button.textContent="VERIFY & SAVE";}
-}
-async function startMexcAuto(){
- if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
- if(!mexcLiveAuthorized){toast("Authorize your MEXC live account first");return;}
- if(!mexcServerEnabled){toast("Live order execution is still locked pending final platform validation");return;}
- const button=$("mexc-auto-start"),output=$("mexc-auto-status");
- button.disabled=true;button.textContent="STARTING…";
- try{
-  const r=await fetch("/api/mexc/futures/auto/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-   symbol:$("crypto-symbol").value,timeframe:$("crypto-timeframe").value,
-   risk_percent:Number($("crypto-paper-risk").value),leverage:Number($("crypto-paper-leverage").value)
-  })});
-  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not start MEXC auto trading");
-  output.textContent="AUTO TRADING ACTIVE · "+d.strategy.symbol+" · "+d.strategy.timeframe;
-  toast("MEXC futures auto trading started");
- }catch(e){output.textContent="AUTO TRADING NOT STARTED · "+e.message;toast(e.message);}
- finally{button.disabled=false;button.textContent="START LIVE AUTO TRADING";await refreshMexcAuto();}
-}
-async function stopMexcAuto(){
- const button=$("mexc-auto-stop");button.disabled=true;
- try{
-  const r=await fetch("/api/mexc/futures/auto/stop",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
-  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not stop auto trading");
-  $("mexc-auto-status").textContent="AUTO TRADING STOPPED · Existing exchange positions remain protected by their TP/SL";
-  toast("New MEXC auto entries stopped");
- }catch(e){toast(e.message);}
- finally{button.disabled=false;await refreshMexcAuto();}
-}
-async function authorizeMexcLive(){
- if(!signed||!member){nav("account");toast("Sign in and activate membership first");return;}
- if(!$("mexc-live-risk-ack").checked){toast("Please confirm the live futures risk acknowledgement");return;}
- const limit=Number($("mexc-live-loss-limit").value);
- if(!Number.isFinite(limit)||limit<1||limit>10){toast("Daily loss limit must be between 1% and 10%");return;}
- const button=$("mexc-live-authorize");button.disabled=true;button.textContent="VERIFYING & SAVING…";
- try{
-  const r=await fetch("/api/mexc/futures/live-authorization",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:true,acknowledge_risk:true,max_daily_loss_percent:limit})});
-  const d=await r.json();if(!r.ok)throw Error(d.detail||"Could not save live permission");
-  $("mexc-live-permission-status").textContent=d.note||"Live permission saved.";
-  $("mexc-live-risk-ack").checked=false;
-  toast("MEXC live permission saved; execution remains locked until platform validation is complete");
- }catch(e){$("mexc-live-permission-status").textContent="PERMISSION NOT SAVED · "+e.message;toast(e.message);}
- finally{button.disabled=false;button.textContent="SAVE LIVE TRADING PERMISSION";await refreshMexcAuto();}
-}
-async function emergencyStopMexcLive(){
- const button=$("mexc-live-emergency-stop");button.disabled=true;
- try{
-  const r=await fetch("/api/mexc/futures/live/emergency-stop",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
-  const d=await r.json();if(!r.ok)throw Error(d.detail||"Emergency stop failed");
-  $("mexc-live-permission-status").textContent=d.note||"Live permission revoked.";
-  toast("MEXC live permission revoked; new automatic entries blocked");
- }catch(e){toast(e.message);}
- finally{button.disabled=false;await refreshMexcAuto();}
-}
-$("mexc-connect").addEventListener("click",connectMexcAccount);
-$("mexc-live-authorize").addEventListener("click",authorizeMexcLive);
-$("mexc-live-emergency-stop").addEventListener("click",emergencyStopMexcLive);
-$("mexc-auto-start").addEventListener("click",startMexcAuto);
-$("mexc-auto-stop").addEventListener("click",stopMexcAuto);
-
 let chartEmptyMessage="Market candles are temporarily unavailable.";
 async function loadChart(){
  const tf=$("home-timeframe").value;
@@ -397,7 +279,7 @@ $("get-signal").addEventListener("click",()=>generateSignal(selectedBinary,$("si
 $("floating-signal").addEventListener("click",()=>generateSignal(binaryPairs.find(p=>p.symbol===$("floating-pair").value)||binaryPairs[0],$("floating-result"),{set hidden(v){},set innerHTML(v){}}));$("floating-open").addEventListener("click",()=>$("floating-window").hidden=false);$("floating-close").addEventListener("click",()=>$("floating-window").hidden=true);
 let drag=null;$("floating-head").addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,left:$("floating-window").offsetLeft,top:$("floating-window").offsetTop};$("floating-head").setPointerCapture(e.pointerId)});$("floating-head").addEventListener("pointermove",e=>{if(!drag)return;let el=$("floating-window");el.style.left=Math.max(4,drag.left+e.clientX-drag.x)+"px";el.style.top=Math.max(75,drag.top+e.clientY-drag.y)+"px";el.style.right="auto";el.style.bottom="auto"});$("floating-head").addEventListener("pointerup",()=>drag=null);
 const providerInfo={
- mexc:["MEXC Futures · paper trading only","QUANTUM AI uses public MEXC USD-M perpetual futures prices and candles for market analysis, signals and simulated paper trades. No MEXC API key is needed and no live broker order is sent."],
+ mexc:["Independent crypto market data","QUANTUM AI uses public MEXC USD-M perpetual futures prices and candles for market analysis, signals and simulated paper trades. No MEXC API key is needed and no live broker order is sent."],
  iq:["IQ Option · signals only","QUANTUM AI provides CALL / PUT / WAIT analysis for selected Forex pairs. IQ Option account authorization and broker order execution are not connected or enabled."]
 };
 function openProvider(k){$("modal-title").textContent=providerInfo[k][0];$("modal-copy").textContent=providerInfo[k][1];$("provider-modal").hidden=false}
