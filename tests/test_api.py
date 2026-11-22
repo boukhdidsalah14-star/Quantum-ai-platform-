@@ -125,7 +125,7 @@ def test_broker_registry_contains_only_selected_platforms():
     assert response.status_code == 200
     body = response.json()
     brokers = {item["id"]: item for item in body["brokers"]}
-    assert set(brokers) == {"iq_option", "mexc", "ctrader", "ic_markets"}
+    assert set(brokers) == {"iq_option", "ic_markets"}
     assert body["execution_enabled"] is False
     assert all(item["execution_enabled"] is False for item in body["brokers"])
     assert all(item["real_execution_enabled"] is False for item in body["brokers"])
@@ -218,17 +218,6 @@ def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
         })
         assert response.status_code == 403
 
-
-
-def test_mexc_public_market_endpoint(monkeypatch):
-    async def fake_mexc_markets():
-        return [{"symbol": "BTCUSDT", "price": "51000"}]
-    monkeypatch.setattr(main, "get_mexc_market_overview", fake_mexc_markets)
-    response = client.get("/api/mexc/markets")
-    assert response.status_code == 200
-    assert response.json()["source"] == "MEXC public Spot API"
-    assert response.json()["execution_enabled"] is False
-    assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
 
 
 def test_mexc_candles_reject_unsupported_symbol():
@@ -368,7 +357,7 @@ def test_crypto_signal_endpoint_is_read_only(monkeypatch):
                  "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
                 for i in range(60)]
     monkeypatch.setattr(main, "get_candles", fake_candles)
-    response = client.get("/api/signals/crypto/BTCUSDT?source=binance&timeframe=1h")
+    response = client.get("/api/signals/crypto/BTCUSDT?timeframe=1h")
     assert response.status_code == 200
     assert response.json()["execution_enabled"] is False
     assert response.json()["category"] == "crypto"
