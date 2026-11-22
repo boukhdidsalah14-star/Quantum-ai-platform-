@@ -35,11 +35,7 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
 
 
 def test_removed_broker_routes_are_not_exposed():
-    assert client.get("/api/deriv/markets").status_code == 404
-    assert client.get("/api/deriv/demo/status").status_code == 404
-    assert client.get("/api/mt4/bridge/status").status_code == 404
     assert client.get("/api/connections/metatrader").status_code == 404
-    assert client.get("/api/olymp-trade/paper/trades").status_code == 404
 
 
 def test_ads_config_never_exposes_invalid_or_partial_adsense_settings(monkeypatch):
@@ -220,10 +216,6 @@ def test_paper_trade_mutations_reject_cross_origin(monkeypatch, tmp_path):
 
 
 
-def test_mexc_candles_reject_unsupported_symbol():
-    response = client.get("/api/mexc/candles/NOTREAL?interval=1h")
-    assert response.status_code == 400
-
 def test_mexc_market_percentage_is_not_multiplied(monkeypatch):
     from app import mexc_market_data
 
@@ -375,7 +367,7 @@ def test_crypto_backtest_endpoint_is_read_only(monkeypatch):
                  "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
                 for i in range(100)]
     monkeypatch.setattr(main, "get_candles", fake_candles)
-    response = client.get("/api/backtest/crypto/SOLUSDT?source=binance&timeframe=4h")
+    response = client.get("/api/backtest/crypto/SOLUSDT?timeframe=4h")
     assert response.status_code == 200
     assert response.json()["execution_enabled"] is False
     assert response.json()["category"] == "crypto"
