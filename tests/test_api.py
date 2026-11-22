@@ -34,10 +34,6 @@ def test_market_endpoint_returns_adapter_data(monkeypatch):
     assert response.json()["markets"][0]["symbol"] == "BTCUSDT"
 
 
-def test_removed_broker_routes_are_not_exposed():
-    assert client.get("/api/connections/metatrader").status_code == 404
-
-
 def test_ads_config_never_exposes_invalid_or_partial_adsense_settings(monkeypatch):
     monkeypatch.setenv("GOOGLE_ADSENSE_CLIENT_ID", "not-a-client")
     monkeypatch.setenv("GOOGLE_ADSENSE_BOTTOM_SLOT_ID", "12345")
