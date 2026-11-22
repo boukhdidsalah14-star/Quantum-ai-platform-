@@ -20,6 +20,7 @@ ASSETS = {
     "LINKUSDT": "chainlink",
 }
 ALLOWED_SYMBOLS = set(ASSETS)
+ALLOWED_INTERVALS = {"1h", "4h", "1d"}
 _CACHE: dict[str, tuple[float, Any]] = {}
 _CACHE_TTL = 25.0
 
