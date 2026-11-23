@@ -290,7 +290,8 @@ def test_independent_forex_signal_endpoint_is_indicator_only(monkeypatch):
     assert body["direction"] in {"CALL", "PUT", "WAIT"}
 
 
-def test_independent_forex_signal_rejects_unknown_timeframe():
+def test_independent_forex_signal_rejects_unknown_timeframe(monkeypatch):
+    monkeypatch.setattr(main, "require_paid_customer", lambda request: {"id": "paid-customer"})
     response = client.get("/api/signals/forex/frxEURUSD?timeframe=2m")
     assert response.status_code == 400
 
@@ -308,7 +309,8 @@ def test_crypto_signal_endpoint_is_read_only(monkeypatch):
     assert response.json()["category"] == "crypto"
 
 
-def test_crypto_signal_rejects_binary_timeframe():
+def test_crypto_signal_rejects_binary_timeframe(monkeypatch):
+    monkeypatch.setattr(main, "require_paid_customer", lambda request: {"id": "paid-customer"})
     response = client.get("/api/signals/crypto/BTCUSDT?timeframe=15m")
     assert response.status_code == 400
 
@@ -349,3 +351,15 @@ def test_production_registration_requires_durable_storage(monkeypatch, tmp_path)
             "email": "ephemeral@example.com", "password": "a-strong-password"
         })
         assert response.status_code == 403
+
+
+def test_signal_endpoints_require_account_and_paid_membership(monkeypatch):
+    monkeypatch.setattr(main, "init_auth_db", lambda: None)
+    monkeypatch.setattr(main, "get_customer_for_session", lambda token: None)
+    assert client.get("/api/signals/forex/frxEURUSD?timeframe=15m").status_code == 401
+    assert client.get("/api/signals/crypto/BTCUSDT?timeframe=1h").status_code == 401
+    monkeypatch.setattr(main, "get_customer_for_session", lambda token: {"id": "unpaid-customer", "role": "customer"})
+    monkeypatch.setattr(main, "subscription_for_customer", lambda customer_id: {"active": False, "status": "inactive"})
+    response = client.get("/api/signals/forex/frxEURUSD?timeframe=15m")
+    assert response.status_code == 402
+    assert "paid membership" in response.json()["detail"].lower()
