@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://quantum-ai-landing.onrender.com/sitemap.xml
