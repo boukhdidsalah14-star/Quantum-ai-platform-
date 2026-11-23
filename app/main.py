@@ -168,6 +168,18 @@ def _persistent_credentials_ready() -> bool:
     )
 
 
+def require_paid_customer(request: Request) -> dict:
+    """Server-side gate for every premium signal and assistant operation."""
+    init_auth_db()
+    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
+    if not customer:
+        raise HTTPException(status_code=401, detail="Create an account or sign in to use the QUANTUM AI assistant.")
+    access = subscription_for_customer(customer["id"])
+    if not access.get("active"):
+        raise HTTPException(status_code=402, detail="An active paid membership is required to generate signals. Subscribe to unlock the assistant.")
+    return customer
+
+
 def _session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         SESSION_COOKIE, token, max_age=30 * 24 * 60 * 60,
@@ -1240,7 +1252,8 @@ async def crypto_signal(
     request: Request,
     timeframe: str = Query(default="1h"),
 ):
-    """Calculate a read-only indicator signal from public crypto candles."""
+    """Calculate a premium read-only indicator signal from public crypto candles."""
+    customer = require_paid_customer(request)
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto signal timeframe must be 1h, 4h, or 1d")
     if symbol.upper() not in ALLOWED_SYMBOLS:
@@ -1252,7 +1265,6 @@ async def crypto_signal(
                        "trade_bias": "LONG" if result["direction"] == "CALL" else "SHORT" if result["direction"] == "PUT" else "WAIT",
                        "source": "CoinGecko public market candles",
                        "execution_enabled": False})
-        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
         if customer:
             result["history_id"] = record_signal(customer["id"], "crypto", symbol.upper(), timeframe,
                 result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
@@ -1267,10 +1279,12 @@ async def crypto_signal(
 @app.get("/api/backtest/crypto/{symbol}")
 async def crypto_backtest(
     symbol: str,
+    request: Request,
     timeframe: str = Query(default="1h"),
     lookahead_candles: int = Query(default=1, ge=1, le=4),
 ):
-    """Evaluate historical crypto signal direction without placing orders."""
+    """Evaluate historical crypto signal direction for paid members only."""
+    require_paid_customer(request)
     if timeframe not in {"1h", "4h", "1d"}:
         raise HTTPException(status_code=400, detail="Crypto backtest timeframe must be 1h, 4h, or 1d")
     if symbol.upper() not in ALLOWED_SYMBOLS:
@@ -1320,6 +1334,7 @@ async def forex_candles(symbol: str, granularity: int = Query(default=900),
 
 @app.get("/api/signals/forex/{symbol}")
 async def forex_signal(symbol: str, request: Request, timeframe: str = Query(default="15m")):
+    customer = require_paid_customer(request)
     intervals = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
                  "1h": 3600, "4h": 14400, "1d": 86400}
     if timeframe not in intervals:
@@ -1333,7 +1348,6 @@ async def forex_signal(symbol: str, request: Request, timeframe: str = Query(def
         result.update({"symbol": symbol, "category": "forex", "market_type": "forex",
                        "source": "Yahoo Finance public market candles",
                        "execution_enabled": False})
-        customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
         if customer:
             result["history_id"] = record_signal(customer["id"], "forex", symbol, timeframe,
                 result["direction"], result.get("signal_strength", "low"), result.get("score", 0),
@@ -1349,9 +1363,7 @@ async def forex_signal(symbol: str, request: Request, timeframe: str = Query(def
 async def customer_signal_history(request: Request, limit: int = Query(default=50, ge=1, le=100)):
     init_auth_db()
     init_signal_history_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    customer = require_paid_customer(request)
     return {"signals": list_signals(customer["id"], limit), "statistics": signal_statistics(customer["id"]),
             "result_method": "customer_confirmed", "note": "Win/loss/draw outcomes are manually confirmed by you; they are not verified by a broker."}
 
@@ -1361,9 +1373,7 @@ async def update_customer_signal_result(signal_id: str, payload: SignalResultReq
     _check_same_origin(request)
     init_auth_db()
     init_signal_history_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    customer = require_paid_customer(request)
     try:
         updated = set_signal_result(customer["id"], signal_id, payload.result)
     except ValueError as exc:
