@@ -281,6 +281,8 @@ def test_independent_forex_signal_endpoint_is_indicator_only(monkeypatch):
     async def fake_candles(symbol, granularity, count):
         return [{"open": 1.1, "high": 1.2, "low": 1.0, "close": 1.15}] * 60
     monkeypatch.setattr(main, "get_forex_candles", fake_candles)
+    monkeypatch.setattr(main, "require_paid_customer", lambda request: {"id": "paid-customer"})
+    monkeypatch.setattr(main, "record_signal", lambda *args: "test-signal-id")
     response = client.get("/api/signals/forex/frxEURUSD?timeframe=15m")
     assert response.status_code == 200
     body = response.json()
@@ -303,6 +305,8 @@ def test_crypto_signal_endpoint_is_read_only(monkeypatch):
                  "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
                 for i in range(60)]
     monkeypatch.setattr(main, "get_candles", fake_candles)
+    monkeypatch.setattr(main, "require_paid_customer", lambda request: {"id": "paid-customer"})
+    monkeypatch.setattr(main, "record_signal", lambda *args: "test-signal-id")
     response = client.get("/api/signals/crypto/BTCUSDT?timeframe=1h")
     assert response.status_code == 200
     assert response.json()["execution_enabled"] is False
@@ -322,6 +326,7 @@ def test_crypto_backtest_endpoint_is_read_only(monkeypatch):
                  "low": 100 + i * 0.02 - 0.15, "close": 100 + i * 0.02}
                 for i in range(100)]
     monkeypatch.setattr(main, "get_candles", fake_candles)
+    monkeypatch.setattr(main, "require_paid_customer", lambda request: {"id": "paid-customer"})
     response = client.get("/api/backtest/crypto/SOLUSDT?timeframe=4h")
     assert response.status_code == 200
     assert response.json()["execution_enabled"] is False
