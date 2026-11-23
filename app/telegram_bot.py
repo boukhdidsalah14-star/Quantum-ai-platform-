@@ -111,53 +111,15 @@ async def _candles(symbol: str, timeframe: str, category: str, count: int = 100)
 
 
 async def signal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.effective_message.reply_text("Usage: /signal EURUSD 15m forex or /signal BTCUSDT 1h crypto")
-        return
-    symbol = context.args[0].upper()
-    timeframe = context.args[1].lower() if len(context.args) > 1 else ("1h" if symbol in ALLOWED_SYMBOLS else "15m")
-    category = context.args[2].lower() if len(context.args) > 2 else _category(symbol)
-    if category not in {"forex", "crypto"}:
-        await update.effective_message.reply_text("Supported categories: forex or crypto.")
-        return
-    try:
-        candles = await _candles(symbol, timeframe, category)
-        result = analyze_candles(candles, timeframe)
-        reasons = "\n".join("• " + reason for reason in result["reasons"][:4])
-        await update.effective_message.reply_text(
-            f"⚡ QUANTUM AI · {category.upper()}\n\n{symbol} · {timeframe}\n"
-            f"SIGNAL: {result['direction']}\nTrend: {result['trend']} · RSI: {result['rsi_14']}\n"
-            f"Strength: {result['signal_strength']}\n\n{reasons}\n\n"
-            "Indicator research only. No trade was placed."
-        )
-    except (ValueError, httpx.HTTPError):
-        logger.exception("Telegram /signal request failed")
-        await update.effective_message.reply_text("Market data or signal analysis is temporarily unavailable.")
+    await update.effective_message.reply_text(
+        "🔒 Premium signals are available only inside QUANTUM AI after account sign-in and an active paid membership. Open the app with /start, then visit Account to subscribe."
+    )
 
 
 async def backtest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.effective_message.reply_text("Usage: /backtest EURUSD 15m forex")
-        return
-    symbol = context.args[0].upper()
-    timeframe = context.args[1].lower() if len(context.args) > 1 else "15m"
-    category = context.args[2].lower() if len(context.args) > 2 else _category(symbol)
-    if category not in {"forex", "crypto"}:
-        await update.effective_message.reply_text("Supported categories: forex or crypto.")
-        return
-    try:
-        candles = await _candles(symbol, timeframe, category, 200)
-        result = backtest_candles(candles, timeframe, 1)
-        accuracy = "Not enough directional signals" if result["directional_accuracy_percent"] is None else str(result["directional_accuracy_percent"]) + "%"
-        await update.effective_message.reply_text(
-            f"🧪 QUANTUM AI · HISTORICAL TEST\n\n{symbol} · {timeframe}\n"
-            f"Directional accuracy: {accuracy}\nWins: {result['wins']} · Losses: {result['losses']}\n"
-            f"WAITs: {result['waits']} · Candles: {result['candles_tested']}\n\n"
-            "Historical direction only, not a profit forecast. No trades placed."
-        )
-    except (ValueError, httpx.HTTPError):
-        logger.exception("Telegram /backtest request failed")
-        await update.effective_message.reply_text("Historical analysis is temporarily unavailable.")
+    await update.effective_message.reply_text(
+        "🔒 Historical signal analysis is a premium feature. Sign in to QUANTUM AI and activate your membership to use it."
+    )
 
 
 async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -172,8 +134,6 @@ async def configure_telegram_menu(application: Application) -> None:
         BotCommand("forex", "List Forex markets"),
         BotCommand("markets", "View crypto markets"),
         BotCommand("price", "Get a crypto price"),
-        BotCommand("signal", "Analyze Forex or crypto"),
-        BotCommand("backtest", "Test historical signal direction"),
     ]
     try:
         await application.bot.set_my_commands(commands)
