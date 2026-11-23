@@ -1,0 +1,58 @@
+name: QUANTUM AI Android beta APK
+
+on:
+  push:
+    branches:
+      - android-icon-apk-2026-11-23
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Android release candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build Android beta APK
+        run: gradle -p android :app:assembleDebug --no-daemon
+
+      - name: Verify APK exists
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-ai-android-beta
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish beta release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-beta-20261123
+          name: QUANTUM AI Android Beta — 1.0.3
+          prerelease: true
+          make_latest: false
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          body: |
+            QUANTUM AI Android beta build for evaluation and phone testing.
+
+            This is a debug-signed beta APK, not a production-signed commercial release.
+            Install only if you trust this build. Trading features and broker connections remain subject to the app's existing demo, authorization, and risk controls.
