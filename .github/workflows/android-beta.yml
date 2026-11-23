@@ -1,4 +1,4 @@
-name: QUANTUM AI Android QA APK
+name: QUANTUM AI Android QA APK and public download
 
 on:
   push:
