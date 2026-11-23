@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -20,8 +22,9 @@ jobs:
           java-version: '17'
       - name: Install required Android SDK packages
         run: |
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          export PATH="$ANDROID_HOME/cmdline-tools/16.0/bin:$ANDROID_HOME/platform-tools:$PATH"
+          yes | "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
       - uses: gradle/actions/setup-gradle@v4
         with:
