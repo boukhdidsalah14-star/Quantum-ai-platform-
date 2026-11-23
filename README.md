@@ -1,14 +1,15 @@
 # QUANTUM AI
 
-QUANTUM AI is a mobile-first trading workspace with Forex and crypto market charts, technical analysis, signal history, customer accounts, subscriptions, Telegram access, and supported broker tools.
+QUANTUM AI is a mobile-first **web trading workspace** with Forex and crypto market charts, technical analysis, signal history, customer accounts, subscriptions, and supported broker tools. The web app is the primary product and works independently; Telegram is not required to use QUANTUM AI.
 
 ## Current product scope
 
-- **IC Markets through cTrader:** secure account authorization, account discovery and sync, market data, demo manual order controls, risk settings, and the cTrader auto-strategy controls already present in the app. Live actions remain behind their existing server-side and customer-consent gates.
+- **IC Markets through cTrader:** secure account authorization, account discovery and sync, market data, demo manual order controls, risk settings, and cTrader auto-strategy controls already present in the app. This integration is pending Spotware approval of the Open API application. Live actions remain behind their existing server-side and customer-consent gates.
 - **IQ Option:** Forex CALL / PUT / WAIT signal analysis. IQ Option account authorization and order execution are not connected.
 - **Forex:** public read-only candles and market overview, ten chart symbols, eight selected binary-analysis pairs, and signal/backtest endpoints.
-- **Crypto:** a separate market-analysis panel with a selectable ten-coin watchlist, independent candlestick chart, timeframes, signals and backtesting. Public market data is read-only and comes from CoinGecko; QUANTUM AI does not require a crypto exchange account or send crypto orders.
-- **Customer accounts, membership, payment validation, referral tracking, Telegram Mini App access, and responsive advertising placement.**
+- **Crypto:** selectable ten-coin watchlist, public market data, candlestick charts, timeframes, signals and backtesting. Public market data is read-only and does not require a crypto exchange account or send crypto orders.
+- **Customer accounts, membership, payment validation, referral tracking, and responsive advertising placement.**
+- **Optional Telegram integration:** informational commands only. It is separate from the web app and is not required for web-app operation.
 
 The approved app appearance and bottom navigation are preserved. The supported platform directory contains only IC Markets/cTrader and IQ Option.
 
@@ -27,7 +28,7 @@ The approved app appearance and bottom navigation are preserved. The supported p
 
 Crypto symbols include BTCUSDT, ETHUSDT, BNBUSDT, XRPUSDT, SOLUSDT, TRXUSDT, DOGEUSDT, ADAUSDT, BCHUSDT and LINKUSDT. USDT is a display quote unit, not an exchange connection.
 
-## Telegram commands
+## Optional Telegram commands
 
 - `/start` — open the QUANTUM AI workspace.
 - `/help` — list available commands.
@@ -38,7 +39,7 @@ Crypto symbols include BTCUSDT, ETHUSDT, BNBUSDT, XRPUSDT, SOLUSDT, TRXUSDT, DOG
 - `/signal EURUSD 15m forex` or `/signal BTCUSDT 1h crypto` — signal analysis.
 - `/backtest EURUSD 15m forex` or `/backtest BTCUSDT 1h crypto` — historical directional test.
 
-Telegram is informational and does not place orders.
+Telegram is informational and does not place orders. The web app does not depend on it.
 
 ## Run locally
 
