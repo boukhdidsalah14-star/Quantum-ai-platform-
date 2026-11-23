@@ -1,0 +1,72 @@
+name: QUANTUM AI signed Android release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify signing credentials are configured
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || (echo "Missing ANDROID_KEYSTORE_BASE64" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing ANDROID_KEYSTORE_PASSWORD" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing ANDROID_KEY_ALIAS" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing ANDROID_KEY_PASSWORD" && exit 1)
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Restore private Android signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p android/keystore
+          echo "$KEYSTORE_B64" | base64 --decode > android/keystore/quantum-ai-release.jks
+          chmod 600 android/keystore/quantum-ai-release.jks
+
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_FILE: keystore/quantum-ai-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle -p android :app:assembleRelease --no-daemon
+
+      - name: Verify signed APK output
+        run: |
+          test -s android/app/build/outputs/apk/release/app-release.apk
+          jarsigner -verify -verbose -certs android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Publish Android release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.4
+          name: QUANTUM AI Android 1.0.4
+          prerelease: false
+          make_latest: true
+          files: android/app/build/outputs/apk/release/app-release.apk
+          body: |
+            QUANTUM AI Android release.
+            Built from the commercial launch branch and signed with the configured release key.
+            Review the in-app risk disclosure and provider permissions before enabling live trading.
+
+      - name: Remove private signing material
+        if: always()
+        run: rm -f android/keystore/quantum-ai-release.jks
