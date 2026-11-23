@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android:
@@ -35,10 +35,23 @@ jobs:
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Upload QA APK
+      - name: Upload QA APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: quantum-ai-android-qa
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Publish downloadable Android QA build
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-qa-latest
+          name: QUANTUM AI Android — QA build
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          body: |
+            Android QA build for testing only.
+            This APK is debug-signed and is not the final commercially signed release.
+            Do not use for real-money trading.
