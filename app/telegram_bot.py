@@ -134,8 +134,6 @@ async def configure_telegram_menu(application: Application) -> None:
         BotCommand("forex", "List Forex markets"),
         BotCommand("markets", "View crypto markets"),
         BotCommand("price", "Get a crypto price"),
-        BotCommand("signal", "Analyze Forex or crypto"),
-        BotCommand("backtest", "Test historical signal direction"),
     ]
     try:
         await application.bot.set_my_commands(commands)
