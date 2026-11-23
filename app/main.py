@@ -1373,9 +1373,7 @@ async def update_customer_signal_result(signal_id: str, payload: SignalResultReq
     _check_same_origin(request)
     init_auth_db()
     init_signal_history_db()
-    customer = get_customer_for_session(request.cookies.get(SESSION_COOKIE))
-    if not customer:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    customer = require_paid_customer(request)
     try:
         updated = set_signal_result(customer["id"], signal_id, payload.result)
     except ValueError as exc:
