@@ -31,3 +31,4 @@ $("saveSettings").onclick=async()=>{try{await api("/api/settings",{method:"POST"
 $("sendTestEmail").onclick=async()=>{const to=$("testRecipient").value.trim();$("testEmailResult").textContent="";if(!to){$("testEmailResult").textContent="Enter your own email address first.";return}const b=$("sendTestEmail");b.disabled=true;try{const d=await api("/api/test-email",{method:"POST",body:JSON.stringify({to})});$("testEmailResult").textContent="Provider accepted the test message. Message ID: "+(d.messageId||"accepted");toast("Test email accepted by SES")}catch(e){$("testEmailResult").textContent=e.message;toast(e.message)}finally{b.disabled=false}};
 $("clearData").onclick=()=>toast("Cloud data is protected; delete individual contacts or campaigns from their pages.");
 checkAuth();
+setInterval(()=>{if(!$("app").classList.contains("hidden"))refresh().catch(()=>{})},30000);
