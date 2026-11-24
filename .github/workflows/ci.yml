@@ -22,5 +22,9 @@ jobs:
         run: docker build -t quantum-ai:test .
       - name: Check dashboard JavaScript syntax
         run: node --check static/app.js
+      - name: Check QUANTUM AI Mailer JavaScript syntax
+        run: |
+          node --check quantum-mailer/server.mjs
+          node --check quantum-mailer/public/app.js
       - name: Run API tests
         run: PYTHONPATH=. pytest -q
